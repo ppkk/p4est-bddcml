@@ -46,7 +46,7 @@ include_directories("include")
 
 add_executable(p4est-bddcml src/p4est-bddcml.c)
 add_executable(p8est-bddcml src/p8est-bddcml.c)
-add_executable(bddcml-example ${BLOPEX_OBJECTS} src/bddcml.c)
+add_executable(bddcml-example ${BLOPEX_OBJECTS} src/bddcml.c src/bddcml_structs.c src/bddcml_cube_example.c)
 target_link_libraries(p4est-bddcml ${LIBS})
 target_link_libraries(p8est-bddcml ${LIBS})
 target_link_libraries(bddcml-example ${LIBS})

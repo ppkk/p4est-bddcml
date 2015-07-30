@@ -5,27 +5,8 @@
 #include <mpi.h>
 #include "bddcml_interface_c.h"
 
-typedef double real;
-
-// **************************
-// GENERAL BDDCML PARAMETERS:
-// **************************
-
-// beginning index of arrays ( 0 for C, 1 for Fortran )
-   //TODO: pointers to those should be passed, which discards the constness
-   /*const*/ int numbase = 0;
-
-// Just a direct solve by MUMPS?
-   /*const*/ int just_direct_solve_int = 0;
-
-// verbosity of BDDCML ( 0 - only fatal errors, 1 - mild output, 2 - detailed output )
-   /*const*/ int verbose_level = 1;
-
-// export solution to VTU files?
-   const int export_solution = 1;
-
-// what is the name of that file (resp. collection of files)
-   const char output_file_prefix[] = "poisson_solution";
+#include "bddcml_structs.h"
+#include "helpers.h"
 
 // *************************
 // KRYLOV METHOD PARAMETERS:
@@ -159,13 +140,6 @@ typedef double real;
    int nelem; // number of elements 
    int ndof;  // number of degrees of freedom 
    int nnod;  // number of nodes
-
-   int nlevels; // number of levels
-
-// subdomains in levels
-   int lnsublev;
-   int *nsublev;
-   int nsub_loc_1;
    
 // scaled element matrix
    real element_matrix[NDOF_PER_ELEMENT * NDOF_PER_ELEMENT];
@@ -221,197 +195,21 @@ typedef double real;
 
 // small variables - indices, etc.
    int ia, indinets, nne, idof, jdof, lelm;
-   int ie, i, isub, j, ir;
+   int ie, i, isub, j;
    int is_rhs_complete_int;
    int is_assembled_int;
    char aux[32];
-   real coarsening;
    char command[256];
    int idx;
 
 
-   void print_array(int size, int* array, char name[])
-   {
-      printf("%s = [", name);
-      int i;
-      for(i = 0; i < size; i++) {
-         printf("%d, ", array[i]);
-      }
-      printf("]\n");
-   }
-
-   void print_f_array(int size, real* array, char name[])
-   {
-      printf("%s = [", name);
-      int i;
-      for(i = 0; i < size; i++) {
-         printf("%lf, ", array[i]);
-      }
-      printf("]\n");
-   }
-
-
-   //************************************************************************************************
-   // subroutine creating data for one subdomain
-   void prepare_subdomain_data(int isub, // global subdomain index
-                               int num_sub_per_cube_edge, // number of subdomains in one edge of a cube
-                               int num_el_per_sub_edge,  // number of elements in one edge of a subdomain
-                               real hsize, // element size
-                               int* inets, int linets, int* nnets, int lnnets, int* nndfs, int lnndfs,
-                               int* isegns, int lisegns, int* isngns, int lisngns, int* isvgvns, int lisvgvns,
-                               real* xyzs, int lxyzs1, int lxyzs2,
-                               int* ifixs, int lifixs, real* fixvs, int lfixvs)
-   {
-      const char routine_name[] = "PREPARE_SUBDOMAIN_DATA";
-      int num_sub_xy;
-      int ind_sub_x, ind_sub_y, ind_sub_z;
-      int num_el_per_cube_edge;
-      int num_nodes_per_sub_edge, num_nodes_per_cube_edge;
-      int i, j, k;
-      int ig, jg, kg;
-      int indng, indns;
-      int indelg, indels;
-      int indinets;
-      int nne;
-      int n1, n2, n3, n4, n5, n6, n7, n8;
-
-      // number of elements on one edge of the cube
-      num_el_per_cube_edge = num_el_per_sub_edge * num_sub_per_cube_edge;
-
-      // determine subdomain indices along coordinate axes
-      // intentional integer divisons
-      num_sub_xy = num_sub_per_cube_edge * num_sub_per_cube_edge;
-
-      // TODO: zkontrolovat +- 1 v nasledujicich 3
-      ind_sub_z = isub / num_sub_xy;
-      ind_sub_y = (isub - ind_sub_z * num_sub_xy)/num_sub_per_cube_edge;
-      ind_sub_x =  isub - (ind_sub_z * num_sub_xy) - (ind_sub_y * num_sub_per_cube_edge);
-
-      // debug
-      
-      printf("subdomain index and coord indices: %d, %d, %d, %d\n", isub, ind_sub_x, ind_sub_y, ind_sub_z);
-
-      // initialize boundary conditions
-      for(idx = 0; idx < lifixs; idx++) {
-         ifixs[idx] = 0;
-      }
-      for(idx = 0; idx < lfixvs; idx++) {
-         fixvs[idx] = 0.;
-      }
-
-      // number nodes and degrees of freedom
-      num_nodes_per_sub_edge  = num_el_per_sub_edge + 1;
-      num_nodes_per_cube_edge = num_el_per_cube_edge + 1;
-
-      // local number of nodes
-      int lxyz1 = num_nodes_per_sub_edge * num_nodes_per_sub_edge * num_nodes_per_sub_edge;
-
-      indns = 0;
-      for(k = 0; k < num_nodes_per_sub_edge; k++) {
-         kg = ind_sub_z * (num_nodes_per_sub_edge - 1) + k;
-         for(j = 0; j < num_nodes_per_sub_edge; j++) {
-            jg = ind_sub_y * (num_nodes_per_sub_edge - 1) + j;
-            for(i = 0; i < num_nodes_per_sub_edge; i++) {
-               ig = ind_sub_x * (num_nodes_per_sub_edge - 1) + i;
-
-               // compute global node index
-               indng = ig + jg * num_nodes_per_cube_edge + kg * num_nodes_per_cube_edge * num_nodes_per_cube_edge;
-
-               isngns[indns] = indng;
-
-               // compute coordinates. In C interface, first all x, then all y, then all z.
-               xyzs[indns          ] = ig * hsize;
-               xyzs[indns +   lxyz1] = jg * hsize;
-               xyzs[indns + 2*lxyz1] = kg * hsize;
-
-               // for Poisson problem, there is only one dof per node,
-               nndfs[indns] = 1;
-               //and thus the numbering of nodes and dofs is the same,
-               isvgvns[indns] = indng;
-
-               // if node is on the boundary, fix boundary conditions
-               if ( (ig == 0) || (ig == num_nodes_per_cube_edge-1) ||
-                    (jg == 0) || (jg == num_nodes_per_cube_edge-1) ||
-                    (kg == 0) || (kg == num_nodes_per_cube_edge-1))  {
-
-                  ifixs[indns] = 1;
-                  fixvs[indns] = 0.;
-               }
-
-               // increase counter of local nodes
-               indns = indns + 1;
-            }
-         }
-      }
-      if (indns != lisngns) {
-         printf("%s : Some bug in node index computing for sub %d\n", routine_name, isub);
-         exit(0);
-      }
-      // debug
-      // !write(*,*) 'isub',isub,'isngns',isngns
-
-
-      // create element connectivity
-      indels = 0;
-      indinets = 0;
-      nne = 8;
-      for(k = 0; k < num_el_per_sub_edge; k++) {
-         kg = ind_sub_z * num_el_per_sub_edge + k;
-         for(j = 0; j < num_el_per_sub_edge; j++) {
-            jg = ind_sub_y * num_el_per_sub_edge + j;
-            for(i = 0; i < num_el_per_sub_edge; i++) {
-               ig = ind_sub_x * num_el_per_sub_edge + i;
-
-               // compute global element index
-               indelg = ig + jg * num_el_per_cube_edge + kg * num_el_per_cube_edge * num_el_per_cube_edge;
-
-               // compute local node index of the first node
-               indns  = i + j * num_nodes_per_sub_edge + k * num_nodes_per_sub_edge * num_nodes_per_sub_edge;
-
-               // compute indices of the eight nodes of each element
-               n1 = indns;
-               n2 = indns + 1;
-               n3 = n2 + num_nodes_per_sub_edge;
-               n4 = n3 - 1;
-               n5 = n1 + num_nodes_per_sub_edge * num_nodes_per_sub_edge;
-               n6 = n2 + num_nodes_per_sub_edge * num_nodes_per_sub_edge;
-               n7 = n3 + num_nodes_per_sub_edge * num_nodes_per_sub_edge;
-               n8 = n4 + num_nodes_per_sub_edge * num_nodes_per_sub_edge;
-
-               inets[indinets + 0] = n1;
-               inets[indinets + 1] = n2;
-               inets[indinets + 2] = n3;
-               inets[indinets + 3] = n4;
-               inets[indinets + 4] = n5;
-               inets[indinets + 5] = n6;
-               inets[indinets + 6] = n7;
-               inets[indinets + 7] = n8;
-
-               indinets = indinets + nne;
-
-               // number of nodes on element is constant for all elements
-               nnets[indels] = nne;
-
-               // embedding of local elements into global numbers
-               isegns[indels] = indelg;
-
-               // increase counter of local elements
-               indels = indels + 1;
-            }
-         }
-      }
-      // debug
-      //write(*,*) 'isub',isub,'isegns',isegns
-      //write(*,*) 'isub',isub,'inets',inets
-      //write(*,*) 'isub',isub,'xyzs',xyzs
-      //write(*,*) 'isub',isub,'ifixs',ifixs
-      //write(*,*) 'isub',isub,'fixvs',fixvs
-
-   }
-
-
 int main(int argc, char **argv)
 {
+   BddcmlGeneralParams general_params;
+   BddcmlLevelInfo level_info;
+
+   set_implicit(&general_params);
+
    // MPI initialization
 //***************************************************************PARALLEL
    ierr = MPI_Init(NULL, NULL);
@@ -436,7 +234,7 @@ int main(int argc, char **argv)
       if(argc == 3 + 1) {
          num_el_per_sub_edge = atoi(argv[1]);
          num_sub_per_cube_edge = atoi(argv[2]);
-         nlevels = atoi(argv[3]);
+         level_info.nlevels = atoi(argv[3]);
       }
       else {
          printf(" Usage: mpirun -np X ./poisson_on_cube NUM_EL_PER_SUB_EDGE NUM_SUB_PER_CUBE_EDGE NLEVELS");
@@ -449,7 +247,7 @@ int main(int argc, char **argv)
 //***************************************************************PARALLEL
    ierr = MPI_Bcast(&num_el_per_sub_edge,   1, MPI_INT,   0, comm_all);
    ierr = MPI_Bcast(&num_sub_per_cube_edge, 1, MPI_INT,   0, comm_all);
-   ierr = MPI_Bcast(&nlevels,               1, MPI_INT,   0, comm_all);
+   ierr = MPI_Bcast(&level_info.nlevels,    1, MPI_INT,   0, comm_all);
 //***************************************************************PARALLEL
 
    // measuring time
@@ -473,32 +271,10 @@ int main(int argc, char **argv)
    // total number of degrees of freedom - equal to number of nodes for scalar problem
    ndof  = nnod;
 
-   // initialize levels
-   lnsublev = nlevels;
-   nsublev = (int*) malloc(lnsublev * sizeof(int));
-   if (nlevels == 2) {
-      nsublev[0] = nsub;
-      nsublev[1] = 1;
-   }
-   else if (nlevels > 2) {
-      // determine coarsening factor
-      coarsening = pow(nsub, 1./(nlevels-1));
-      // prescribe number of subdomains on levels so that coarsening is fixed between levels
-      nsublev[0] = nsub;
-      for( i = 1; i < nlevels - 1; i++) {
-         ir = nlevels - i;
-         nsublev[i] = (int)pow(coarsening, ir-1);
-         if (nsublev[i] % 2 != 0) {
-            nsublev[i] = nsublev[i] + 1;
-         }
-      }
-      nsublev[nlevels-1] = 1;
-   }
-   else {
-      printf("Unsupported number of levels: %d\n", nlevels);
-      exit(0);
-   }           
-      
+   initialize_levels(nsub, &level_info);
+
+   printf("YYY\nYYY\n nu sublev, %d, %d, %d\n", level_info.nsublev[0], level_info.nsublev[1], level_info.nsublev[2]);
+
 // Basic properties 
    if (myid == 0) {
       printf("Characteristics of the problem :\n");
@@ -509,10 +285,10 @@ int main(int argc, char **argv)
       printf("  number of subdomains             nsub = %d\n", nsub);
       printf("  number of nodes global           nnod = %d\n", nnod);
       printf("  number of DOF                    ndof = %d\n", ndof);
-      printf("  number of levels              nlevels = %d\n", nlevels);
+      printf("  number of levels              nlevels = %d\n", level_info.nlevels);
       printf("  number of subdomains in levels        = ");
-      for(idx = 0; idx < nlevels; idx++) {
-         printf("%d, ", nsublev[idx]);
+      for(idx = 0; idx < level_info.nlevels; idx++) {
+         printf("%d, ", level_info.nsublev[idx]);
       }
       printf("\n");
       printf("Characteristics of iterational process:\n");
@@ -525,10 +301,9 @@ int main(int argc, char **argv)
          printf("Initializing BDDCML ...");
    }
    // tell me how much subdomains should I load
-   nsub_loc_1 = -1;
+   level_info.nsub_loc_1 = -1;
    
-   int fortran_comm =  MPI_Comm_c2f(comm_all);
-   bddcml_init_c(&nlevels, nsublev, &lnsublev, &nsub_loc_1, &fortran_comm, &verbose_level, &numbase, &just_direct_solve_int);
+   bddcml_init(&general_params, &level_info, comm_all);
    if (myid == 0) {
       printf("Initializing BDDCML done.\n");
    }
@@ -540,7 +315,7 @@ int main(int argc, char **argv)
    // first find out starting subdomain for each processor, it was given by bddcml_init
    // since there is less processors than subdomains, we can store it to sub2proc
 //***************************************************************PARALLEL
-   ierr = MPI_Allgather( &nsub_loc_1, 1, MPI_INT, sub2proc, 1, MPI_INT, comm_all);
+   ierr = MPI_Allgather( &level_info.nsub_loc_1, 1, MPI_INT, sub2proc, 1, MPI_INT, comm_all);
 //***************************************************************PARALLEL
    //the array now contains counts, change it to starts
    for(i = 1; i <= nproc; i++) {
@@ -746,6 +521,9 @@ int main(int argc, char **argv)
    ierr = MPI_Barrier(comm_all);
    // TODO: call time_start
    // call with setting of iterative properties
+
+   int fortran_comm =  MPI_Comm_c2f(comm_all);
+
    bddcml_solve_c(&fortran_comm, &krylov_method, &tol,&maxit,&ndecrmax, &recycling_int, &max_number_of_stored_vectors,
                      &num_iter, &converged_reason, &condition_number);
    ierr = MPI_Barrier(comm_all);
@@ -767,10 +545,10 @@ int main(int argc, char **argv)
    normRn2_loc  = 0.;
    normL2_loc   = 0.;
    normLinf_loc = 0.;
-   if (export_solution) {
+   if (general_params.export_solution) {
       // make sure the directory exists
       if (myid == 0) {
-         sprintf(command, "mkdir -p %s", output_file_prefix);
+         sprintf(command, "mkdir -p %s", general_params.output_file_prefix);
          system(command);
       }
       ierr = MPI_Barrier(comm_all);
@@ -786,7 +564,7 @@ int main(int argc, char **argv)
 
       // compute norm of local solution
       if (nsub > 1) {
-         if (just_direct_solve_int == 0) {
+         if (general_params.just_direct_solve_int == 0) {
             bddcml_dotprod_subdomain_c( &isub, sols, &lsols, sols, &lsols, &normRn2_sub );
          }
          else {
@@ -830,7 +608,7 @@ int main(int argc, char **argv)
       ifixs = (int*) malloc(lifixs * sizeof(int));
       fixvs = (real*) malloc(lfixvs * sizeof(real));
 
-      prepare_subdomain_data(isub, num_sub_per_cube_edge, num_el_per_sub_edge, hsize, 
+      prepare_subdomain_data(isub, num_sub_per_cube_edge, num_el_per_sub_edge, hsize,
                                     inets, linets, nnets, lnnets, nndfs, lnndfs, 
                                     isegns, lisegns, isngns, lisngns, isvgvns, lisvgvns,
                                     xyzs,lxyzs1,lxyzs2, 
@@ -864,7 +642,7 @@ int main(int argc, char **argv)
       }
 //      normLinf_loc = max(normLinf_loc, maxval(sols));
 
-      if (export_solution) {
+      if (general_params.export_solution) {
          //TODO: 
 //          export_vtu_file_with_solution(output_file_prefix, 
 //                                              isub, nelems, nnods, 
@@ -883,7 +661,7 @@ int main(int argc, char **argv)
       free(fixvs);
       free(sols);
    }
-   if (export_solution) {
+   if (general_params.export_solution) {
       // export the umbrella PVD file
       if (myid == 0) {
          //TODO: paraview_export_pvd_file("poisson_solution", nsub);
@@ -918,7 +696,7 @@ int main(int argc, char **argv)
       printf(" Solution properties========\n");
       printf(" L_2 norm:   %g\n", normL2_sol);
       printf(" L_inf norm: %g\n", normLinf_sol);
-      if (just_direct_solve_int == 0) {
+      if (general_params.just_direct_solve_int == 0) {
          printf(" R^n norm:   %g\n", normRn_sol);
       }
       printf(" ===========================\n");
