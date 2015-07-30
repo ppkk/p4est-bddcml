@@ -148,6 +148,20 @@ typedef struct BddcmlDimensions
 } BddcmlDimensions;
 
 
+// **************************
+// BDDCML MESH CONNECTIVITY
+// **************************
+typedef struct BddcmlConnectivity
+{
+   int* elem_node_indices;
+   int l_elem_node_indices;
+   int* n_nodes_of_elem;
+   int n_elems;
+}
+BddcmlConnectivity;
+
+
+
 
 void set_implicit_general_params(BddcmlGeneralParams *params);
 void set_implicit_krylov_params(BddcmlKrylovParams *params);
