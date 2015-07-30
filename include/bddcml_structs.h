@@ -151,12 +151,34 @@ typedef struct BddcmlDimensions
 // **************************
 // BDDCML MESH CONNECTIVITY
 // **************************
-typedef struct BddcmlConnectivity
+typedef struct BddcmlMesh
 {
+   BddcmlDimensions* subdomain_dims;
+
    IdxArray elem_node_indices;
    IdxArray num_nodes_of_elem;
+
+   Real2DArray coords;
+
+   IdxArray elem_global_map;
+   IdxArray node_global_map;
 }
-BddcmlConnectivity;
+BddcmlMesh;
+
+
+// **************************
+// BDDCML FEM SPACE
+// **************************
+typedef struct BddcmlFemSpace
+{
+   BddcmlDimensions* subdomain_dims;
+
+   IdxArray node_num_dofs;
+   IdxArray fixs_code;
+   RealArray fixs_values;
+   IdxArray dofs_global_map;
+}
+BddcmlFemSpace;
 
 
 
@@ -167,6 +189,10 @@ void set_implicit_preconditioner_params(BddcmlPreconditionerParams *params);
 void init_levels(int n_subdomains_first_level, BddcmlLevelInfo *level_info);
 void init_dimmensions(BddcmlDimensions* dimmensions, int mesh_dim);
 
+void init_mesh(BddcmlDimensions* dims, BddcmlMesh* mesh);
+void free_mesh(BddcmlMesh* mesh);
+void init_fem_space(BddcmlDimensions* dims, BddcmlFemSpace* femsp);
+void free_fem_space(BddcmlFemSpace* femsp);
 
 void bddcml_init(BddcmlGeneralParams *general_params, BddcmlLevelInfo *level_info, MPI_Comm communicator);
 void bddcml_setup_preconditioner(int matrixtype, BddcmlPreconditionerParams *params);

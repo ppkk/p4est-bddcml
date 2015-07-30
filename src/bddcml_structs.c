@@ -81,6 +81,41 @@ void init_dimmensions(BddcmlDimensions* dimmensions, int mesh_dim)
    dimmensions->n_nodes = 0;
 }
 
+void init_mesh(BddcmlDimensions* dims, BddcmlMesh* mesh)
+{
+   mesh->subdomain_dims = dims;
+   allocate_idx_array(dims->n_elems * 8, &mesh->elem_node_indices);
+   allocate_idx_array(dims->n_elems, &mesh->num_nodes_of_elem);
+   allocate_idx_array(dims->n_elems, &mesh->elem_global_map);
+   allocate_idx_array(dims->n_nodes, &mesh->node_global_map);
+   allocate_real_2D_array(dims->n_nodes, dims->n_problem_dims, &mesh->coords);
+}
+
+void free_mesh(BddcmlMesh* mesh)
+{
+   free_idx_array(&mesh->elem_node_indices);
+   free_idx_array(&mesh->num_nodes_of_elem);
+   free_idx_array(&mesh->elem_global_map);
+   free_idx_array(&mesh->node_global_map);
+   free_real_2D_array(&mesh->coords);
+}
+
+void init_fem_space(BddcmlDimensions* dims, BddcmlFemSpace* femsp)
+{
+   femsp->subdomain_dims = dims;
+   allocate_idx_array(dims->n_nodes, &femsp->node_num_dofs);
+   allocate_idx_array(dims->n_dofs, &femsp->dofs_global_map);
+   allocate_idx_array(dims->n_nodes, &femsp->fixs_code);
+   allocate_real_array(dims->n_nodes, &femsp->fixs_values);
+}
+
+void free_fem_space(BddcmlFemSpace* femsp)
+{
+   free_idx_array(&femsp->node_num_dofs);
+   free_idx_array(&femsp->dofs_global_map);
+   free_idx_array(&femsp->fixs_code);
+   free_real_array(&femsp->fixs_values);
+}
 
 void bddcml_init(BddcmlGeneralParams *general_params, BddcmlLevelInfo *level_info, MPI_Comm communicator)
 {

@@ -72,23 +72,11 @@
 // scaled element matrix
    real element_matrix[NDOF_PER_ELEMENT * NDOF_PER_ELEMENT];
 
-// local subdomain data
-   IdxArray node_num_dofs;
-
-   int lxyzs1,   lxyzs2;
-   real *xyzs;
-   int lifixs;
-   int *ifixs;
-   int lfixvs;
-   real *fixvs;
    int lrhss;
    real *rhss;
    int lsols;
    real *sols;
 
-   IdxArray elem_global_map;
-   IdxArray node_global_map;
-   IdxArray dofs_global_map;
 
 // matrix in coordinate format - triplets (i,j,a_ij)
    int la;
@@ -147,7 +135,8 @@ int main(int argc, char **argv)
    init_dimmensions(&global_dims, 3);
    init_dimmensions(&subdomain_dims, 3);
 
-   BddcmlConnectivity connectivity;
+   BddcmlMesh mesh;
+   BddcmlFemSpace femsp;
 
    // MPI initialization
 //***************************************************************PARALLEL
@@ -278,34 +267,18 @@ int main(int argc, char **argv)
       subdomain_dims.n_nodes    = pow(num_el_per_sub_edge+1, global_dims.n_problem_dims);
       subdomain_dims.n_dofs    = subdomain_dims.n_nodes;
 
-      allocate_idx_array(subdomain_dims.n_elems * 8, &connectivity.elem_node_indices);
-      allocate_idx_array(subdomain_dims.n_elems, &connectivity.num_nodes_of_elem);
-      allocate_idx_array(subdomain_dims.n_nodes, &node_num_dofs);
-
-      allocate_idx_array(subdomain_dims.n_elems, &elem_global_map);
-      allocate_idx_array(subdomain_dims.n_nodes, &node_global_map);
-      allocate_idx_array(subdomain_dims.n_dofs, &dofs_global_map);
-
-      lxyzs1   = subdomain_dims.n_nodes;
-      lxyzs2   = global_dims.n_problem_dims;
-      xyzs = (real*) malloc(lxyzs1 * lxyzs2 * sizeof(real));
-      lifixs   = subdomain_dims.n_nodes;
-      lfixvs   = subdomain_dims.n_nodes;
-      ifixs = (int*) malloc(lifixs * sizeof(int));
-      fixvs = (real*) malloc(lfixvs * sizeof(real));
+      init_mesh(&subdomain_dims, &mesh);
+      init_fem_space(&subdomain_dims, &femsp);
 
       // create subdomain mesh and boundary conditions
       prepare_subdomain_data(isub, num_sub_per_cube_edge, num_el_per_sub_edge, hsize,
-                                    &connectivity, &node_num_dofs,
-                                    &elem_global_map, &node_global_map, &dofs_global_map,
-                                    xyzs,lxyzs1,lxyzs2,
-                                    ifixs,lifixs, fixvs,lfixvs);
+                                    &mesh, &femsp);
 
       // create local right hand side
       lrhss = subdomain_dims.n_dofs;
       rhss = (real*) malloc(lrhss * sizeof(real));
       for(idx = 0; idx < lrhss; idx++) {
-         if(ifixs[idx] > 0) {
+         if(femsp.fixs_code.val[idx] > 0) {
             // rhs is zero on boundary
             rhss[idx] = 0.;
          }
@@ -340,11 +313,11 @@ int main(int argc, char **argv)
       ia = 0;
       indinets = 0;
       for(ie = 0; ie < subdomain_dims.n_elems; ie++) {
-         nne = connectivity.num_nodes_of_elem.val[ie];
+         nne = mesh.num_nodes_of_elem.val[ie];
          for(j = 0; j < NDOF_PER_ELEMENT; j++) {
-            jdof = connectivity.elem_node_indices.val[indinets + j];
+            jdof = mesh.elem_node_indices.val[indinets + j];
             for(i = 0; i <= j; i++) {
-               idof = connectivity.elem_node_indices.val[indinets + i];
+               idof = mesh.elem_node_indices.val[indinets + i];
 
                if (idof <= jdof) {
                   i_sparse[ia] = idof;
@@ -389,10 +362,10 @@ int main(int argc, char **argv)
 
       bddcml_upload_subdomain_data_c(&global_dims.n_elems, &global_dims.n_nodes, &global_dims.n_dofs, &global_dims.n_problem_dims, &global_dims.n_mesh_dims,
                                           &isub, &subdomain_dims.n_elems, &subdomain_dims.n_nodes, &subdomain_dims.n_dofs,
-                                          connectivity.elem_node_indices.val, &connectivity.elem_node_indices.len, connectivity.num_nodes_of_elem.val, &connectivity.num_nodes_of_elem.len, node_num_dofs.val, &node_num_dofs.len,
-                                          node_global_map.val, &node_global_map.len, dofs_global_map.val, &dofs_global_map.len, elem_global_map.val, &elem_global_map.len,
-                                          xyzs, &lxyzs1, &lxyzs2,
-                                          ifixs, &lifixs, fixvs, &lfixvs,
+                                          mesh.elem_node_indices.val, &mesh.elem_node_indices.len, mesh.num_nodes_of_elem.val, &mesh.num_nodes_of_elem.len, femsp.node_num_dofs.val, &femsp.node_num_dofs.len,
+                                          mesh.node_global_map.val, &mesh.node_global_map.len, femsp.dofs_global_map.val, &femsp.dofs_global_map.len, mesh.elem_global_map.val, &mesh.elem_global_map.len,
+                                          mesh.coords.val, &mesh.coords.len1, &mesh.coords.len2,
+                                          femsp.fixs_code.val, &femsp.fixs_code.len, femsp.fixs_values.val, &femsp.fixs_values.len,
                                           rhss, &lrhss, &is_rhs_complete_int,
                                           sols, &lsols,
                                           &matrixtype, i_sparse, j_sparse, a_sparse, &la, &is_assembled_int,
@@ -400,15 +373,9 @@ int main(int argc, char **argv)
                                           element_data, &lelement_data1, &lelement_data2,
                                           dof_data, &ldof_data, &preconditioner_params.find_components_int);
 
-      free_idx_array(&connectivity.elem_node_indices);
-      free_idx_array(&connectivity.num_nodes_of_elem);
-      free_idx_array(&node_num_dofs);
-      free_idx_array(&elem_global_map);
-      free_idx_array(&node_global_map);
-      free_idx_array(&dofs_global_map);
-      free(xyzs);
-      free(ifixs);
-      free(fixvs);
+      free_mesh(&mesh);
+      free_fem_space(&femsp);
+
       free(rhss);
       free(sols);
       free(i_sparse);
@@ -510,40 +477,24 @@ int main(int argc, char **argv)
       subdomain_dims.n_nodes    = pow(num_el_per_sub_edge+1, global_dims.n_problem_dims);
       subdomain_dims.n_dofs    = subdomain_dims.n_nodes;
       
-      allocate_idx_array(subdomain_dims.n_elems * 8, &connectivity.elem_node_indices);
-      allocate_idx_array(subdomain_dims.n_elems, &connectivity.num_nodes_of_elem);
-      allocate_idx_array(subdomain_dims.n_nodes, &node_num_dofs);
-
-      allocate_idx_array(subdomain_dims.n_elems, &elem_global_map);
-      allocate_idx_array(subdomain_dims.n_nodes, &node_global_map);
-      allocate_idx_array(subdomain_dims.n_dofs, &dofs_global_map);
-
-      lxyzs1   = subdomain_dims.n_nodes;
-      lxyzs2   = global_dims.n_problem_dims;
-      xyzs = (real*) malloc(lxyzs1 * lxyzs2 * sizeof(real));
-      lifixs   = subdomain_dims.n_nodes;
-      lfixvs   = subdomain_dims.n_nodes;
-      ifixs = (int*) malloc(lifixs * sizeof(int));
-      fixvs = (real*) malloc(lfixvs * sizeof(real));
+      init_mesh(&subdomain_dims, &mesh);
+      init_fem_space(&subdomain_dims, &femsp);
 
       prepare_subdomain_data(isub, num_sub_per_cube_edge, num_el_per_sub_edge, hsize,
-                                    &connectivity, &node_num_dofs,
-                                    &elem_global_map, &node_global_map, &dofs_global_map,
-                                    xyzs,lxyzs1,lxyzs2, 
-                                    ifixs,lifixs, fixvs,lfixvs);
+                                    &mesh, &femsp);
 
       // compute L_2 norm of the solution
       normL2_sub = 0.;
       indinets = 0;
       for (ie = 0; ie < subdomain_dims.n_elems; ie++) {
          // number of nodes on element
-         nne = connectivity.num_nodes_of_elem.val[ie];
+         nne = mesh.num_nodes_of_elem.val[ie];
          
          // sum(sols(inets(indinets+1:indinets+nne)))
          real sum_help = 0.;
          int sum_idx;
          for (sum_idx = indinets; sum_idx < indinets + nne; sum_idx++) { // TODO: nebo +1???
-            sum_help += sols[connectivity.elem_node_indices.val[sum_idx]];
+            sum_help += sols[mesh.elem_node_indices.val[sum_idx]];
          }
          
          normL2_sub = normL2_sub + el_vol * sum_help / nne;
@@ -569,15 +520,9 @@ int main(int argc, char **argv)
 //                                              sols,lsols);
       }
 
-      free_idx_array(&connectivity.elem_node_indices);
-      free_idx_array(&connectivity.num_nodes_of_elem);
-      free_idx_array(&node_num_dofs);
-      free_idx_array(&elem_global_map);
-      free_idx_array(&node_global_map);
-      free_idx_array(&dofs_global_map);
-      free(xyzs);
-      free(ifixs);
-      free(fixvs);
+      free_mesh(&mesh);
+      free_fem_space(&femsp);
+
       free(sols);
    }
    if (general_params.export_solution) {

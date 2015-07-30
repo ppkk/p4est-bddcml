@@ -18,6 +18,14 @@ void allocate_real_array(int length, RealArray *array)
    num_allocations++;
 }
 
+void allocate_real_2D_array(int length1, int length2, Real2DArray *array)
+{
+   array->len1 = length1;
+   array->len2 = length2;
+   array->val = (real*) malloc(length1 * length2 * sizeof(real));
+   num_allocations++;
+}
+
 void free_idx_array(IdxArray *array)
 {
    free(array->val);
@@ -31,6 +39,15 @@ void free_real_array(RealArray *array)
    free(array->val);
    array->val = NULL;
    array->len = 0;
+   num_allocations--;
+}
+
+void free_real_2D_array(Real2DArray *array)
+{
+   free(array->val);
+   array->val = NULL;
+   array->len1 = 0;
+   array->len2 = 0;
    num_allocations--;
 }
 
@@ -53,6 +70,22 @@ void print_real_array(RealArray *array, char name[])
    }
    printf("]\n");
 }
+
+void zero_idx_array(IdxArray *array)
+{
+   for(int i = 0; i < array->len; i++) {
+      array->val[i] = 0;
+   }
+}
+
+void zero_real_array(RealArray *array)
+{
+   for(int i = 0; i < array->len; i++) {
+      array->val[i] = 0;
+   }
+}
+
+
 
  int get_num_allocations()
 {

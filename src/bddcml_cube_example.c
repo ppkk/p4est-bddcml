@@ -9,10 +9,7 @@ void prepare_subdomain_data(int isub, // global subdomain index
                             int num_sub_per_cube_edge, // number of subdomains in one edge of a cube
                             int num_el_per_sub_edge,  // number of elements in one edge of a subdomain
                             real hsize, // element size
-                            BddcmlConnectivity *connectivity, IdxArray* node_num_dofs,
-                            IdxArray *elem_global_map, IdxArray *node_global_map, IdxArray* dofs_global_map,
-                            real* xyzs, int lxyzs1, int lxyzs2,
-                            int* ifixs, int lifixs, real* fixvs, int lfixvs)
+                            BddcmlMesh *mesh, BddcmlFemSpace* femsp)
 {
    const char routine_name[] = "PREPARE_SUBDOMAIN_DATA";
    int num_sub_xy;
@@ -45,12 +42,8 @@ void prepare_subdomain_data(int isub, // global subdomain index
    printf("subdomain index and coord indices: %d, %d, %d, %d\n", isub, ind_sub_x, ind_sub_y, ind_sub_z);
 
    // initialize boundary conditions
-   for(idx = 0; idx < lifixs; idx++) {
-      ifixs[idx] = 0;
-   }
-   for(idx = 0; idx < lfixvs; idx++) {
-      fixvs[idx] = 0.;
-   }
+   zero_idx_array(&femsp->fixs_code);
+   zero_real_array(&femsp->fixs_values);
 
    // number nodes and degrees of freedom
    num_nodes_per_sub_edge  = num_el_per_sub_edge + 1;
@@ -70,25 +63,25 @@ void prepare_subdomain_data(int isub, // global subdomain index
             // compute global node index
             indng = ig + jg * num_nodes_per_cube_edge + kg * num_nodes_per_cube_edge * num_nodes_per_cube_edge;
 
-            node_global_map->val[indns] = indng;
+            mesh->node_global_map.val[indns] = indng;
 
             // compute coordinates. In C interface, first all x, then all y, then all z.
-            xyzs[indns          ] = ig * hsize;
-            xyzs[indns +   lxyz1] = jg * hsize;
-            xyzs[indns + 2*lxyz1] = kg * hsize;
+            mesh->coords.val[indns          ] = ig * hsize;
+            mesh->coords.val[indns +   lxyz1] = jg * hsize;
+            mesh->coords.val[indns + 2*lxyz1] = kg * hsize;
 
             // for Poisson problem, there is only one dof per node,
-            node_num_dofs->val[indns] = 1;
+            femsp->node_num_dofs.val[indns] = 1;
             //and thus the numbering of nodes and dofs is the same,
-            dofs_global_map->val[indns] = indng;
+            femsp->dofs_global_map.val[indns] = indng;
 
             // if node is on the boundary, fix boundary conditions
             if ( (ig == 0) || (ig == num_nodes_per_cube_edge-1) ||
                  (jg == 0) || (jg == num_nodes_per_cube_edge-1) ||
                  (kg == 0) || (kg == num_nodes_per_cube_edge-1))  {
 
-               ifixs[indns] = 1;
-               fixvs[indns] = 0.;
+               femsp->fixs_code.val[indns] = 1;
+               femsp->fixs_values.val[indns] = 0.;
             }
 
             // increase counter of local nodes
@@ -96,7 +89,7 @@ void prepare_subdomain_data(int isub, // global subdomain index
          }
       }
    }
-   if (indns != node_global_map->len) {
+   if (indns != mesh->node_global_map.len) {
       printf("%s : Some bug in node index computing for sub %d\n", routine_name, isub);
       exit(0);
    }
@@ -131,22 +124,22 @@ void prepare_subdomain_data(int isub, // global subdomain index
             n7 = n3 + num_nodes_per_sub_edge * num_nodes_per_sub_edge;
             n8 = n4 + num_nodes_per_sub_edge * num_nodes_per_sub_edge;
 
-            connectivity->elem_node_indices.val[indinets + 0] = n1;
-            connectivity->elem_node_indices.val[indinets + 1] = n2;
-            connectivity->elem_node_indices.val[indinets + 2] = n3;
-            connectivity->elem_node_indices.val[indinets + 3] = n4;
-            connectivity->elem_node_indices.val[indinets + 4] = n5;
-            connectivity->elem_node_indices.val[indinets + 5] = n6;
-            connectivity->elem_node_indices.val[indinets + 6] = n7;
-            connectivity->elem_node_indices.val[indinets + 7] = n8;
+            mesh->elem_node_indices.val[indinets + 0] = n1;
+            mesh->elem_node_indices.val[indinets + 1] = n2;
+            mesh->elem_node_indices.val[indinets + 2] = n3;
+            mesh->elem_node_indices.val[indinets + 3] = n4;
+            mesh->elem_node_indices.val[indinets + 4] = n5;
+            mesh->elem_node_indices.val[indinets + 5] = n6;
+            mesh->elem_node_indices.val[indinets + 6] = n7;
+            mesh->elem_node_indices.val[indinets + 7] = n8;
 
             indinets = indinets + nne;
 
             // number of nodes on element is constant for all elements
-            connectivity->num_nodes_of_elem.val[indels] = nne;
+            mesh->num_nodes_of_elem.val[indels] = nne;
 
             // embedding of local elements into global numbers
-            elem_global_map->val[indels] = indelg;
+            mesh->elem_global_map.val[indels] = indelg;
 
             // increase counter of local elements
             indels = indels + 1;
