@@ -4,26 +4,70 @@
 
 static int num_allocations = 0;
 
+void allocate_sparse_matrix(int length, SparseMatrix *matrix)
+{
+   matrix->len = length;
+   matrix->i = (int*) malloc(length * sizeof(int));
+   matrix->j = (int*) malloc(length * sizeof(int));
+   matrix->val = (real*) malloc(length * sizeof(real));
+
+   num_allocations++;
+}
+
 void allocate_idx_array(int length, IdxArray *array)
 {
    array->len = length;
-   array->val = (int*) malloc(length * sizeof(int));
-   num_allocations++;
+   if(length > 0)
+   {
+      array->val = (int*) malloc(length * sizeof(int));
+      num_allocations++;
+   }
+   else
+   {
+      array->val = NULL;
+   }
 }
 
 void allocate_real_array(int length, RealArray *array)
 {
    array->len = length;
-   array->val = (real*) malloc(length * sizeof(real));
-   num_allocations++;
+   if(length > 0)
+   {
+      array->val = (real*) malloc(length * sizeof(real));
+      num_allocations++;
+   }
+   else
+   {
+      array->val = NULL;
+   }
 }
 
 void allocate_real_2D_array(int length1, int length2, Real2DArray *array)
 {
    array->len1 = length1;
    array->len2 = length2;
-   array->val = (real*) malloc(length1 * length2 * sizeof(real));
-   num_allocations++;
+   if(length1 * length2 > 0)
+   {
+      array->val = (real*) malloc(length1 * length2 * sizeof(real));
+      num_allocations++;
+   }
+   else
+   {
+      array->val = NULL;
+   }
+}
+
+void free_sparse_matrix(SparseMatrix *matrix)
+{
+   free(matrix->val);
+   matrix->val = NULL;
+   free(matrix->i);
+   matrix->i = NULL;
+   free(matrix->j);
+   matrix->j = NULL;
+   matrix->len = 0;
+
+   num_allocations--;
 }
 
 void free_idx_array(IdxArray *array)

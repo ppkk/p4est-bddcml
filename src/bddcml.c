@@ -72,31 +72,19 @@
 // scaled element matrix
    real element_matrix[NDOF_PER_ELEMENT * NDOF_PER_ELEMENT];
 
-   int lrhss;
-   real *rhss;
-   int lsols;
-   real *sols;
+   SparseMatrix matrix;
+   RealArray rhss;
+   RealArray sols;
 
-
-// matrix in coordinate format - triplets (i,j,a_ij)
-   int la;
-   int *i_sparse;
-   int *j_sparse;
-   real *a_sparse;
 
 // user constraints - not really used here
-   int luser_constraints1;
-   int luser_constraints2;
-   real *user_constraints;
+   Real2DArray user_constraints;
 
 // data for elements - not really used here
-   int lelement_data1;
-   int lelement_data2;
-   real *element_data;
+   Real2DArray element_data;
 
 // data for dofs - not really used here
-   int ldof_data;
-   real *dof_data;
+   RealArray dof_data;
 
 // data about resulting convergence
    BddcmlConvergenceInfo convergence_info;
@@ -275,25 +263,21 @@ int main(int argc, char **argv)
                                     &mesh, &femsp);
 
       // create local right hand side
-      lrhss = subdomain_dims.n_dofs;
-      rhss = (real*) malloc(lrhss * sizeof(real));
-      for(idx = 0; idx < lrhss; idx++) {
+      allocate_real_array(subdomain_dims.n_dofs, &rhss);
+      for(idx = 0; idx < rhss.len; idx++) {
          if(femsp.fixs_code.val[idx] > 0) {
             // rhs is zero on boundary
-            rhss[idx] = 0.;
+            rhss.val[idx] = 0.;
          }
          else {
-            rhss[idx] = 1. * el_vol;
+            rhss.val[idx] = 1. * el_vol;
          }
       }
       is_rhs_complete_int = 1;
 
       // create local initial solution
-      lsols = subdomain_dims.n_dofs;
-      sols = (real*) malloc(lsols * sizeof(real));
-      for(idx = 0; idx < lsols; idx++) {
-         sols[idx] = 0.;
-      }
+      allocate_real_array(subdomain_dims.n_dofs, &sols);
+      zero_real_array(&sols);
 
       // create local subdomain matrix for each subdomain
       // full element matrix scaled based on element size
@@ -304,10 +288,7 @@ int main(int argc, char **argv)
       // how much space the upper triangle of the element matrix occupies
       lelm = NDOF_PER_ELEMENT * (NDOF_PER_ELEMENT + 1) / 2;
       // space for all upper triangles of element matrics
-      la = subdomain_dims.n_elems*lelm;
-      i_sparse = (int*) malloc(la * sizeof(int));
-      j_sparse = (int*) malloc(la * sizeof(int));
-      a_sparse = (real*) malloc(la * sizeof(real));
+      allocate_sparse_matrix(subdomain_dims.n_elems*lelm, &matrix);
 
       // copy the upper triangle of the element matrix to the sparse triplet
       ia = 0;
@@ -320,15 +301,15 @@ int main(int argc, char **argv)
                idof = mesh.elem_node_indices.val[indinets + i];
 
                if (idof <= jdof) {
-                  i_sparse[ia] = idof;
-                  j_sparse[ia] = jdof;
+                  matrix.i[ia] = idof;
+                  matrix.j[ia] = jdof;
                }
                else {
                   // transpose the entry
-                  i_sparse[ia] = jdof;
-                  j_sparse[ia] = idof;
+                  matrix.i[ia] = jdof;
+                  matrix.j[ia] = idof;
                }
-               a_sparse[ia] = element_matrix[j * NDOF_PER_ELEMENT + i];
+               matrix.val[ia] = element_matrix[j * NDOF_PER_ELEMENT + i];
 
                ia = ia + 1;
             }
@@ -338,18 +319,13 @@ int main(int argc, char **argv)
       is_assembled_int = 0;
 
       // prepare user constraints - not really used here
-      luser_constraints1 = 0;
-      luser_constraints2 = 0;
-      user_constraints = NULL;
+      allocate_real_2D_array(0, 0, &user_constraints);
 
       // prepare element data - not really used
-      lelement_data1 = 0;
-      lelement_data2 = 0;
-      element_data = NULL;
+      allocate_real_2D_array(0, 0, &element_data);
 
       // prepare dof data - not really used
-      ldof_data = 0 ;
-      dof_data = NULL;
+      allocate_real_array(0, &dof_data);
 
 //       if(myid == 0)
 //       {
@@ -366,21 +342,19 @@ int main(int argc, char **argv)
                                           mesh.node_global_map.val, &mesh.node_global_map.len, femsp.dofs_global_map.val, &femsp.dofs_global_map.len, mesh.elem_global_map.val, &mesh.elem_global_map.len,
                                           mesh.coords.val, &mesh.coords.len1, &mesh.coords.len2,
                                           femsp.fixs_code.val, &femsp.fixs_code.len, femsp.fixs_values.val, &femsp.fixs_values.len,
-                                          rhss, &lrhss, &is_rhs_complete_int,
-                                          sols, &lsols,
-                                          &matrixtype, i_sparse, j_sparse, a_sparse, &la, &is_assembled_int,
-                                          user_constraints, &luser_constraints1, &luser_constraints2,
-                                          element_data, &lelement_data1, &lelement_data2,
-                                          dof_data, &ldof_data, &preconditioner_params.find_components_int);
+                                          rhss.val, &rhss.len, &is_rhs_complete_int,
+                                          sols.val, &sols.len,
+                                          &matrixtype, matrix.i, matrix.j, matrix.val, &matrix.len, &is_assembled_int,
+                                          user_constraints.val, &user_constraints.len1, &user_constraints.len2,
+                                          element_data.val, &element_data.len1, &element_data.len2,
+                                          dof_data.val, &dof_data.len, &preconditioner_params.find_components_int);
 
       free_mesh(&mesh);
       free_fem_space(&femsp);
 
-      free(rhss);
-      free(sols);
-      free(i_sparse);
-      free(j_sparse);
-      free(a_sparse);
+      free_real_array(&rhss);
+      free_real_array(&sols);
+      free_sparse_matrix(&matrix);
    } // end loop over subdomains
 
    ierr = MPI_Barrier(comm_all);
@@ -447,15 +421,15 @@ int main(int argc, char **argv)
       // download local solution
       subdomain_dims.n_nodes    = pow(num_el_per_sub_edge+1, global_dims.n_problem_dims);
       subdomain_dims.n_dofs    = subdomain_dims.n_nodes;
-      lsols = subdomain_dims.n_dofs;
-      sols = (real*) malloc(lsols * sizeof(real));
 
-      bddcml_download_local_solution_c(&isub, sols, &lsols);
+      allocate_real_array(subdomain_dims.n_dofs, &sols);
+
+      bddcml_download_local_solution_c(&isub, sols.val, &sols.len);
 
       // compute norm of local solution
       if (nsub > 1) {
          if (general_params.just_direct_solve_int == 0) {
-            bddcml_dotprod_subdomain_c( &isub, sols, &lsols, sols, &lsols, &normRn2_sub );
+            bddcml_dotprod_subdomain_c( &isub, sols.val, &sols.len, sols.val, &sols.len, &normRn2_sub );
          }
          else {
             // cannot determine norm for solution by a direct solver
@@ -465,8 +439,8 @@ int main(int argc, char **argv)
       else {
          //TODO: call blas... normRn2_sub = dot_product(sols,sols);
          normRn2_sub = 0.;
-         for(i = 0; i < lsols; i++){
-            normRn2_sub += sols[i] * sols[i];
+         for(i = 0; i < sols.len; i++){
+            normRn2_sub += sols.val[i] * sols.val[i];
          }
       }
          
@@ -494,7 +468,7 @@ int main(int argc, char **argv)
          real sum_help = 0.;
          int sum_idx;
          for (sum_idx = indinets; sum_idx < indinets + nne; sum_idx++) { // TODO: nebo +1???
-            sum_help += sols[mesh.elem_node_indices.val[sum_idx]];
+            sum_help += sols.val[mesh.elem_node_indices.val[sum_idx]];
          }
          
          normL2_sub = normL2_sub + el_vol * sum_help / nne;
@@ -504,9 +478,9 @@ int main(int argc, char **argv)
 
       // find maximum of the solution
       int max_idx;
-      for(max_idx = 0; max_idx < lsols; max_idx++) {
-         if(sols[max_idx] > normLinf_loc) {
-            normLinf_loc = sols[max_idx];
+      for(max_idx = 0; max_idx < sols.len; max_idx++) {
+         if(sols.val[max_idx] > normLinf_loc) {
+            normLinf_loc = sols.val[max_idx];
          }
       }
 //      normLinf_loc = max(normLinf_loc, maxval(sols));
@@ -522,8 +496,7 @@ int main(int argc, char **argv)
 
       free_mesh(&mesh);
       free_fem_space(&femsp);
-
-      free(sols);
+      free_real_array(&sols);
    }
    if (general_params.export_solution) {
       // export the umbrella PVD file
