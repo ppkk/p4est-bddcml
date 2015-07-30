@@ -73,8 +73,8 @@
    real element_matrix[NDOF_PER_ELEMENT * NDOF_PER_ELEMENT];
 
 // local subdomain data
-   int  lnndfs;
-   int *nndfs;
+   IdxArray node_num_dofs;
+
    int lxyzs1,   lxyzs2;
    real *xyzs;
    int lifixs;
@@ -85,8 +85,10 @@
    real *rhss;
    int lsols;
    real *sols;
-   int lisegns, lisngns, lisvgvns;
-   int *isegns, *isngns, *isvgvns;
+
+   IdxArray elem_global_map;
+   IdxArray node_global_map;
+   IdxArray dofs_global_map;
 
 // matrix in coordinate format - triplets (i,j,a_ij)
    int la;
@@ -275,18 +277,14 @@ int main(int argc, char **argv)
       subdomain_dims.n_elems   = pow(num_el_per_sub_edge, global_dims.n_problem_dims);
       subdomain_dims.n_nodes    = pow(num_el_per_sub_edge+1, global_dims.n_problem_dims);
       subdomain_dims.n_dofs    = subdomain_dims.n_nodes;
-      lnndfs   = subdomain_dims.n_nodes;
-      lisegns  = subdomain_dims.n_elems;
-      lisngns  = subdomain_dims.n_nodes;
-      lisvgvns = subdomain_dims.n_dofs;
 
       allocate_idx_array(subdomain_dims.n_elems * 8, &connectivity.elem_node_indices);
       allocate_idx_array(subdomain_dims.n_elems, &connectivity.num_nodes_of_elem);
+      allocate_idx_array(subdomain_dims.n_nodes, &node_num_dofs);
 
-      nndfs = (int*) malloc(lnndfs * sizeof(int));
-      isegns = (int*) malloc(lisegns * sizeof(int));
-      isngns = (int*) malloc(lisngns * sizeof(int));
-      isvgvns = (int*) malloc(lisvgvns * sizeof(int));
+      allocate_idx_array(subdomain_dims.n_elems, &elem_global_map);
+      allocate_idx_array(subdomain_dims.n_nodes, &node_global_map);
+      allocate_idx_array(subdomain_dims.n_dofs, &dofs_global_map);
 
       lxyzs1   = subdomain_dims.n_nodes;
       lxyzs2   = global_dims.n_problem_dims;
@@ -298,8 +296,8 @@ int main(int argc, char **argv)
 
       // create subdomain mesh and boundary conditions
       prepare_subdomain_data(isub, num_sub_per_cube_edge, num_el_per_sub_edge, hsize,
-                                    &connectivity, nndfs,lnndfs,
-                                    isegns,lisegns, isngns,lisngns, isvgvns,lisvgvns,
+                                    &connectivity, &node_num_dofs,
+                                    &elem_global_map, &node_global_map, &dofs_global_map,
                                     xyzs,lxyzs1,lxyzs2,
                                     ifixs,lifixs, fixvs,lfixvs);
 
@@ -391,8 +389,8 @@ int main(int argc, char **argv)
 
       bddcml_upload_subdomain_data_c(&global_dims.n_elems, &global_dims.n_nodes, &global_dims.n_dofs, &global_dims.n_problem_dims, &global_dims.n_mesh_dims,
                                           &isub, &subdomain_dims.n_elems, &subdomain_dims.n_nodes, &subdomain_dims.n_dofs,
-                                          connectivity.elem_node_indices.val, &connectivity.elem_node_indices.len, connectivity.num_nodes_of_elem.val, &connectivity.num_nodes_of_elem.len, nndfs, &lnndfs,
-                                          isngns, &lisngns, isvgvns, &lisvgvns, isegns, &lisegns,
+                                          connectivity.elem_node_indices.val, &connectivity.elem_node_indices.len, connectivity.num_nodes_of_elem.val, &connectivity.num_nodes_of_elem.len, node_num_dofs.val, &node_num_dofs.len,
+                                          node_global_map.val, &node_global_map.len, dofs_global_map.val, &dofs_global_map.len, elem_global_map.val, &elem_global_map.len,
                                           xyzs, &lxyzs1, &lxyzs2,
                                           ifixs, &lifixs, fixvs, &lfixvs,
                                           rhss, &lrhss, &is_rhs_complete_int,
@@ -402,12 +400,12 @@ int main(int argc, char **argv)
                                           element_data, &lelement_data1, &lelement_data2,
                                           dof_data, &ldof_data, &preconditioner_params.find_components_int);
 
-      free(connectivity.elem_node_indices.val);
-      free(connectivity.num_nodes_of_elem.val);
-      free(nndfs);
-      free(isegns);
-      free(isngns);
-      free(isvgvns);
+      free_idx_array(&connectivity.elem_node_indices);
+      free_idx_array(&connectivity.num_nodes_of_elem);
+      free_idx_array(&node_num_dofs);
+      free_idx_array(&elem_global_map);
+      free_idx_array(&node_global_map);
+      free_idx_array(&dofs_global_map);
       free(xyzs);
       free(ifixs);
       free(fixvs);
@@ -511,19 +509,14 @@ int main(int argc, char **argv)
       subdomain_dims.n_elems   = pow(num_el_per_sub_edge, global_dims.n_problem_dims);
       subdomain_dims.n_nodes    = pow(num_el_per_sub_edge+1, global_dims.n_problem_dims);
       subdomain_dims.n_dofs    = subdomain_dims.n_nodes;
-      connectivity.elem_node_indices.len   = subdomain_dims.n_elems * 8;
-      connectivity.num_nodes_of_elem.len   = subdomain_dims.n_elems;
-      lnndfs   = subdomain_dims.n_nodes;
-      lisegns  = subdomain_dims.n_elems;
-      lisngns  = subdomain_dims.n_nodes;
-      lisvgvns = subdomain_dims.n_dofs;
       
-      connectivity.elem_node_indices.val = (int*) malloc(connectivity.elem_node_indices.len * sizeof(int));
-      connectivity.num_nodes_of_elem.val = (int*) malloc(connectivity.num_nodes_of_elem.len * sizeof(int));
-      nndfs = (int*) malloc(lnndfs * sizeof(int));
-      isegns = (int*) malloc(lisegns * sizeof(int));
-      isngns = (int*) malloc(lisngns * sizeof(int));
-      isvgvns = (int*) malloc(lisvgvns * sizeof(int));
+      allocate_idx_array(subdomain_dims.n_elems * 8, &connectivity.elem_node_indices);
+      allocate_idx_array(subdomain_dims.n_elems, &connectivity.num_nodes_of_elem);
+      allocate_idx_array(subdomain_dims.n_nodes, &node_num_dofs);
+
+      allocate_idx_array(subdomain_dims.n_elems, &elem_global_map);
+      allocate_idx_array(subdomain_dims.n_nodes, &node_global_map);
+      allocate_idx_array(subdomain_dims.n_dofs, &dofs_global_map);
 
       lxyzs1   = subdomain_dims.n_nodes;
       lxyzs2   = global_dims.n_problem_dims;
@@ -534,8 +527,8 @@ int main(int argc, char **argv)
       fixvs = (real*) malloc(lfixvs * sizeof(real));
 
       prepare_subdomain_data(isub, num_sub_per_cube_edge, num_el_per_sub_edge, hsize,
-                                    &connectivity, nndfs, lnndfs,
-                                    isegns, lisegns, isngns, lisngns, isvgvns, lisvgvns,
+                                    &connectivity, &node_num_dofs,
+                                    &elem_global_map, &node_global_map, &dofs_global_map,
                                     xyzs,lxyzs1,lxyzs2, 
                                     ifixs,lifixs, fixvs,lfixvs);
 
@@ -578,11 +571,10 @@ int main(int argc, char **argv)
 
       free_idx_array(&connectivity.elem_node_indices);
       free_idx_array(&connectivity.num_nodes_of_elem);
-
-      free(nndfs);
-      free(isegns);
-      free(isngns);
-      free(isvgvns);
+      free_idx_array(&node_num_dofs);
+      free_idx_array(&elem_global_map);
+      free_idx_array(&node_global_map);
+      free_idx_array(&dofs_global_map);
       free(xyzs);
       free(ifixs);
       free(fixvs);

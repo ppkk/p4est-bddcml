@@ -9,8 +9,8 @@ void prepare_subdomain_data(int isub, // global subdomain index
                             int num_sub_per_cube_edge, // number of subdomains in one edge of a cube
                             int num_el_per_sub_edge,  // number of elements in one edge of a subdomain
                             real hsize, // element size
-                            BddcmlConnectivity *connectivity, int* nndfs, int lnndfs,
-                            int* isegns, int lisegns, int* isngns, int lisngns, int* isvgvns, int lisvgvns,
+                            BddcmlConnectivity *connectivity, IdxArray* node_num_dofs,
+                            IdxArray *elem_global_map, IdxArray *node_global_map, IdxArray* dofs_global_map,
                             real* xyzs, int lxyzs1, int lxyzs2,
                             int* ifixs, int lifixs, real* fixvs, int lfixvs)
 {
@@ -70,7 +70,7 @@ void prepare_subdomain_data(int isub, // global subdomain index
             // compute global node index
             indng = ig + jg * num_nodes_per_cube_edge + kg * num_nodes_per_cube_edge * num_nodes_per_cube_edge;
 
-            isngns[indns] = indng;
+            node_global_map->val[indns] = indng;
 
             // compute coordinates. In C interface, first all x, then all y, then all z.
             xyzs[indns          ] = ig * hsize;
@@ -78,9 +78,9 @@ void prepare_subdomain_data(int isub, // global subdomain index
             xyzs[indns + 2*lxyz1] = kg * hsize;
 
             // for Poisson problem, there is only one dof per node,
-            nndfs[indns] = 1;
+            node_num_dofs->val[indns] = 1;
             //and thus the numbering of nodes and dofs is the same,
-            isvgvns[indns] = indng;
+            dofs_global_map->val[indns] = indng;
 
             // if node is on the boundary, fix boundary conditions
             if ( (ig == 0) || (ig == num_nodes_per_cube_edge-1) ||
@@ -96,7 +96,7 @@ void prepare_subdomain_data(int isub, // global subdomain index
          }
       }
    }
-   if (indns != lisngns) {
+   if (indns != node_global_map->len) {
       printf("%s : Some bug in node index computing for sub %d\n", routine_name, isub);
       exit(0);
    }
@@ -146,7 +146,7 @@ void prepare_subdomain_data(int isub, // global subdomain index
             connectivity->num_nodes_of_elem.val[indels] = nne;
 
             // embedding of local elements into global numbers
-            isegns[indels] = indelg;
+            elem_global_map->val[indels] = indelg;
 
             // increase counter of local elements
             indels = indels + 1;
