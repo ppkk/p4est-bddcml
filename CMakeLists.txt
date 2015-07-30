@@ -1,6 +1,7 @@
 cmake_minimum_required (VERSION 2.6)
 include(CMake.vars)
 
+set (CMAKE_C_FLAGS "--std=gnu11 -pedantic-errors ${CMAKE_C_FLAGS}")
 
 include_directories("${BDDCML_ROOT}/src")
 link_directories("${BDDCML_ROOT}/lib")

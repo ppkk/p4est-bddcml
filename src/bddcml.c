@@ -4,75 +4,10 @@
 #include <math.h>
 #include <mpi.h>
 #include "bddcml_interface_c.h"
-
 #include "bddcml_structs.h"
 #include "helpers.h"
+#include "bddcml_cube_example.h"
 
-// *************************
-// KRYLOV METHOD PARAMETERS:
-// *************************
-
-// Krylov subspace iterative method to be used
-//   -1 - use solver defaults
-//   0 - PCG
-//   1 - BICGSTAB (choose for general symmetric and general matrices)
-//   2 - steepest descent method
-//   5 - direct solve by MUMPS
-   /*const*/ int krylov_method = 0; 
-
-// use recycling of Krylov subspace
-//   0 - no recycling used
-//   1 - basis of the Krylov subspace will be orthogonalized and also used for new right hand sides
-   /*const*/ int recycling_int = 1;
-   
-// size of the Krylov subspace basis to store
-   /*const*/ int max_number_of_stored_vectors = 50;
-
-// maximum number of iterations of a Krylov subspace method
-   /*const*/ int maxit = 500;
-
-// maximum number of iterations of a Krylov subspace method with non-decreasing residual
-   /*const*/ int ndecrmax = 50;
-
-// relative precision of the Krylov subspace method ||residual||/||right-hand side||
-   /*const*/ real tol = 1.e-6;
-
-// *******************************
-// BDDC PRECONDITIONER PARAMETERS:
-// *******************************
-
-// use default values in preconditioner? In such case, all other parameters are ignored
-   /*const*/ int use_preconditioner_defaults = 0;
-
-// use continuity at corners as constraints?
-   /*const*/ int use_corner_constraints = 1;
-
-// use arithmetic constraints on edges and faces?
-   /*const*/ int use_arithmetic_constraints = 1;
-
-// use adaptive constraints on faces?
-   /*const*/ int use_adaptive_constraints = 0;
-
-// use user constraints? - not used in this example
-   /*const*/ int use_user_constraints = 0;
-
-// what type of weights use on interface?
-//   0 - weights by cardinality
-//   1 - weights by diagonal stiffness
-//   2 - weights based on first row of element data
-//   3 - weights based on dof data
-//   4 - weights by Marta Certikova - unit load
-//   5 - weights by Marta Certikova - unit jump
-//   6 - weights by Schur row sums for whole subdomain
-//   7 - weights by Schur row sums computed face by face
-   /*const*/ int weights_type = 0;
-
-// should parallel division be used (ParMETIS instead of METIS) on the first level?
-   /*const*/ int parallel_division = 1;
-
-// find components of the mesh and handle them as independent subdomains when selecting coarse dofs 
-// recommended for unstructured meshes, but could be switched off for these simple cubes
-   /*const*/ int find_components_int = 1;
 
 // *******************
 // PROBLEM PARAMETERS:
@@ -81,7 +16,7 @@
 //   0 - general (full storage)
 //   1 - symmetric positive definite (only triangle stored)
 //   2 - symmetric general (only triangle stored)
-   /*const*/ int matrixtype = 1;
+    int matrixtype = 1;
 
 // assuming tri-linear hexahedral finite elements
 //     z
@@ -118,11 +53,6 @@
         -1./12.,-1./12., 0.       ,-1./12.,-1./12., 0.       , 1./3. , 0.       ,
         -1./12.,-1./12.,-1./12., 0.       , 0.       ,-1./12., 0.       , 1./3. };
 
-// spacial dimension
-   /*const*/ int ndim = 3;
-
-// topological dimension of elements elements, would be lower for shells or beams
-   /*const*/ int meshdim = 3;
 
    const char routine_name[] = "POISSON_ON_CUBE";
 
@@ -137,17 +67,12 @@
    int myid, nproc, ierr;
 
    int nsub;  // number of subdomains on the first level 
-   int nelem; // number of elements 
-   int ndof;  // number of degrees of freedom 
-   int nnod;  // number of nodes
    
 // scaled element matrix
    real element_matrix[NDOF_PER_ELEMENT * NDOF_PER_ELEMENT];
 
+
 // local subdomain data
-   int nelems;  // subdomain number of elements
-   int ndofs;   // subdomain number on degrees of freedom
-   int nnods;   // subdomain number of nodes
    int linets,   lnnets,   lnndfs;
    int *inets, *nnets, *nndfs;
    int lxyzs1,   lxyzs2;
@@ -184,8 +109,8 @@
    real *dof_data;
 
 // data about resulting convergence
-   int num_iter, converged_reason;
-   real condition_number;
+   BddcmlConvergenceInfo convergence_info;
+
    real normRn_sol, normRn2, normRn2_loc, normRn2_sub;
    real normL2_sol, normL2_loc, normL2_sub;
    real normLinf_sol, normLinf_loc;
@@ -206,9 +131,19 @@
 int main(int argc, char **argv)
 {
    BddcmlGeneralParams general_params;
+   set_implicit_general_params(&general_params);
+
+   BddcmlKrylovParams krylov_params;
+   set_implicit_krylov_params(&krylov_params);
+
+   BddcmlPreconditionerParams preconditioner_params;
+   set_implicit_preconditioner_params(&preconditioner_params);
+
    BddcmlLevelInfo level_info;
 
-   set_implicit(&general_params);
+   BddcmlDimensions global_dims, subdomain_dims;
+   init_dimmensions(&global_dims, 3);
+   init_dimmensions(&subdomain_dims, 3);
 
    // MPI initialization
 //***************************************************************PARALLEL
@@ -261,30 +196,28 @@ int main(int argc, char **argv)
    // element size
    hsize = 1./ num_el_per_cube_edge;
    // element volume
-   el_vol = pow(hsize, ndim);
+   el_vol = pow(hsize, global_dims.n_problem_dims);
    // total number of elements
-   nelem = pow(num_el_per_cube_edge, ndim);
+   global_dims.n_elems = pow(num_el_per_cube_edge, global_dims.n_problem_dims);
    // total number of subdomains
-   nsub  = pow(num_sub_per_cube_edge, ndim);
+   nsub  = pow(num_sub_per_cube_edge, global_dims.n_problem_dims);
    // total number of nodes
-   nnod  = pow(num_el_per_cube_edge + 1, ndim);
+   global_dims.n_nodes  = pow(num_el_per_cube_edge + 1, global_dims.n_problem_dims);
    // total number of degrees of freedom - equal to number of nodes for scalar problem
-   ndof  = nnod;
+   global_dims.n_dofs  = global_dims.n_nodes;
 
-   initialize_levels(nsub, &level_info);
-
-   printf("YYY\nYYY\n nu sublev, %d, %d, %d\n", level_info.nsublev[0], level_info.nsublev[1], level_info.nsublev[2]);
+   init_levels(nsub, &level_info);
 
 // Basic properties 
    if (myid == 0) {
       printf("Characteristics of the problem :\n");
       printf("  number of processors            nproc = %d\n" ,nproc);
-      printf("  number of dimensions             ndim = %d\n", ndim);
-      printf("  mesh dimension                meshdim = %d\n", meshdim);
-      printf("  number of elements global       nelem = %d\n", nelem);
+      printf("  number of dimensions             ndim = %d\n", global_dims.n_problem_dims);
+      printf("  mesh dimension                meshdim = %d\n", global_dims.n_mesh_dims);
+      printf("  number of elements global       nelem = %d\n", global_dims.n_elems);
       printf("  number of subdomains             nsub = %d\n", nsub);
-      printf("  number of nodes global           nnod = %d\n", nnod);
-      printf("  number of DOF                    ndof = %d\n", ndof);
+      printf("  number of nodes global           nnod = %d\n", global_dims.n_nodes);
+      printf("  number of DOF                    ndof = %d\n", global_dims.n_dofs);
       printf("  number of levels              nlevels = %d\n", level_info.nlevels);
       printf("  number of subdomains in levels        = ");
       for(idx = 0; idx < level_info.nlevels; idx++) {
@@ -292,10 +225,10 @@ int main(int argc, char **argv)
       }
       printf("\n");
       printf("Characteristics of iterational process:\n");
-      printf("  tolerance of error                tol = %lf\n", tol);
-      printf("  maximum number of iterations    maxit = %d\n", maxit);
-      printf("  number of incresing residual ndecrmax = %d\n", ndecrmax);
-      printf("  using recycling of Krylov method ?      %d\n", recycling_int);
+      printf("  tolerance of error                tol = %lf\n", krylov_params.tol);
+      printf("  maximum number of iterations    maxit = %d\n", krylov_params.maxit);
+      printf("  number of incresing residual ndecrmax = %d\n", krylov_params.ndecrmax);
+      printf("  using recycling of Krylov method ?      %d\n", krylov_params.recycling_int);
    }
    if (myid == 0) {
          printf("Initializing BDDCML ...");
@@ -337,15 +270,15 @@ int main(int argc, char **argv)
    // Loop over subdomains and load them to BDDCML
    for(isub = sub2proc[myid]; isub <  sub2proc[myid+1]; isub++) {
       // create mesh for subdomain
-      nelems   = pow(num_el_per_sub_edge, ndim);
-      nnods    = pow(num_el_per_sub_edge+1, ndim);
-      ndofs    = nnods;
-      linets   = nelems * 8;
-      lnnets   = nelems;
-      lnndfs   = nnods;
-      lisegns  = nelems;
-      lisngns  = nnods;
-      lisvgvns = ndofs;
+      subdomain_dims.n_elems   = pow(num_el_per_sub_edge, global_dims.n_problem_dims);
+      subdomain_dims.n_nodes    = pow(num_el_per_sub_edge+1, global_dims.n_problem_dims);
+      subdomain_dims.n_dofs    = subdomain_dims.n_nodes;
+      linets   = subdomain_dims.n_elems * 8;
+      lnnets   = subdomain_dims.n_elems;
+      lnndfs   = subdomain_dims.n_nodes;
+      lisegns  = subdomain_dims.n_elems;
+      lisngns  = subdomain_dims.n_nodes;
+      lisvgvns = subdomain_dims.n_dofs;
       inets = (int*) malloc(linets * sizeof(int));
       nnets = (int*) malloc(lnnets * sizeof(int));
       nndfs = (int*) malloc(lnndfs * sizeof(int));
@@ -353,11 +286,11 @@ int main(int argc, char **argv)
       isngns = (int*) malloc(lisngns * sizeof(int));
       isvgvns = (int*) malloc(lisvgvns * sizeof(int));
 
-      lxyzs1   = nnods;
-      lxyzs2   = ndim;
+      lxyzs1   = subdomain_dims.n_nodes;
+      lxyzs2   = global_dims.n_problem_dims;
       xyzs = (real*) malloc(lxyzs1 * lxyzs2 * sizeof(real));
-      lifixs   = nnods;
-      lfixvs   = nnods;
+      lifixs   = subdomain_dims.n_nodes;
+      lfixvs   = subdomain_dims.n_nodes;
       ifixs = (int*) malloc(lifixs * sizeof(int));
       fixvs = (real*) malloc(lfixvs * sizeof(real));
 
@@ -369,7 +302,7 @@ int main(int argc, char **argv)
                                     ifixs,lifixs, fixvs,lfixvs);
 
       // create local right hand side
-      lrhss = ndofs;
+      lrhss = subdomain_dims.n_dofs;
       rhss = (real*) malloc(lrhss * sizeof(real));
       for(idx = 0; idx < lrhss; idx++) {
          if(ifixs[idx] > 0) {
@@ -383,7 +316,7 @@ int main(int argc, char **argv)
       is_rhs_complete_int = 1;
 
       // create local initial solution
-      lsols = ndofs;
+      lsols = subdomain_dims.n_dofs;
       sols = (real*) malloc(lsols * sizeof(real));
       for(idx = 0; idx < lsols; idx++) {
          sols[idx] = 0.;
@@ -398,7 +331,7 @@ int main(int argc, char **argv)
       // how much space the upper triangle of the element matrix occupies
       lelm = NDOF_PER_ELEMENT * (NDOF_PER_ELEMENT + 1) / 2;
       // space for all upper triangles of element matrics
-      la = nelems*lelm;
+      la = subdomain_dims.n_elems*lelm;
       i_sparse = (int*) malloc(la * sizeof(int));
       j_sparse = (int*) malloc(la * sizeof(int));
       a_sparse = (real*) malloc(la * sizeof(real));
@@ -406,7 +339,7 @@ int main(int argc, char **argv)
       // copy the upper triangle of the element matrix to the sparse triplet
       ia = 0;
       indinets = 0;
-      for(ie = 0; ie < nelems; ie++) {
+      for(ie = 0; ie < subdomain_dims.n_elems; ie++) {
          nne = nnets[ie];
          for(j = 0; j < NDOF_PER_ELEMENT; j++) {
             jdof = inets[indinets + j];
@@ -454,8 +387,8 @@ int main(int argc, char **argv)
 //          print_f_array(la, a_sparse, "a");
 //       }
 
-      bddcml_upload_subdomain_data_c(&nelem, &nnod, &ndof, &ndim, &meshdim,
-                                          &isub, &nelems, &nnods, &ndofs,
+      bddcml_upload_subdomain_data_c(&global_dims.n_elems, &global_dims.n_nodes, &global_dims.n_dofs, &global_dims.n_problem_dims, &global_dims.n_mesh_dims,
+                                          &isub, &subdomain_dims.n_elems, &subdomain_dims.n_nodes, &subdomain_dims.n_dofs,
                                           inets, &linets, nnets, &lnnets, nndfs, &lnndfs,
                                           isngns, &lisngns, isvgvns, &lisvgvns, isegns, &lisegns,
                                           xyzs, &lxyzs1, &lxyzs2,
@@ -465,7 +398,7 @@ int main(int argc, char **argv)
                                           &matrixtype, i_sparse, j_sparse, a_sparse, &la, &is_assembled_int,
                                           user_constraints, &luser_constraints1, &luser_constraints2,
                                           element_data, &lelement_data1, &lelement_data2,
-                                          dof_data, &ldof_data, &find_components_int);
+                                          dof_data, &ldof_data, &preconditioner_params.find_components_int);
 
       free(inets);
       free(nnets);
@@ -496,14 +429,7 @@ int main(int argc, char **argv)
    // PRECONDITIONER SETUP
    ierr = MPI_Barrier(comm_all);
    // TODO: call time_start
-   bddcml_setup_preconditioner_c(&matrixtype,
-                                 &use_preconditioner_defaults,
-                                 &parallel_division,
-                                 &use_corner_constraints,
-                                 &use_arithmetic_constraints,
-                                 &use_adaptive_constraints,
-                                 &use_user_constraints,
-                                 &weights_type);
+   bddcml_setup_preconditioner(matrixtype, &preconditioner_params);
 
    ierr = MPI_Barrier(comm_all);
    // TODO: call time_end(t_pc_setup)
@@ -522,10 +448,7 @@ int main(int argc, char **argv)
    // TODO: call time_start
    // call with setting of iterative properties
 
-   int fortran_comm =  MPI_Comm_c2f(comm_all);
-
-   bddcml_solve_c(&fortran_comm, &krylov_method, &tol,&maxit,&ndecrmax, &recycling_int, &max_number_of_stored_vectors,
-                     &num_iter, &converged_reason, &condition_number);
+   bddcml_solve(&krylov_params, &convergence_info, comm_all);
    ierr = MPI_Barrier(comm_all);
    // TODO: call time_end(t_krylov)
    if (myid == 0) {
@@ -534,10 +457,10 @@ int main(int argc, char **argv)
    
    if (myid == 0) {
       printf(" Output of PCG: ==============\n");
-      printf(" Number of iterations: %d\n", num_iter);
-      printf(" Convergence reason:   %d\n", converged_reason);
-      if ( condition_number >= 0. ) {
-         printf(" Condition number: %lf\n", condition_number);
+      printf(" Number of iterations: %d\n", convergence_info.num_iter);
+      printf(" Convergence reason:   %d\n", convergence_info.converged_reason);
+      if ( convergence_info.condition_number >= 0. ) {
+         printf(" Condition number: %lf\n", convergence_info.condition_number);
       }
       printf(" =============================\n");
    }
@@ -555,9 +478,9 @@ int main(int argc, char **argv)
    }
    for(isub = sub2proc[myid]; isub < sub2proc[myid+1]; isub++) {
       // download local solution
-      nnods    = pow(num_el_per_sub_edge+1, ndim);
-      ndofs    = nnods;
-      lsols = ndofs;
+      subdomain_dims.n_nodes    = pow(num_el_per_sub_edge+1, global_dims.n_problem_dims);
+      subdomain_dims.n_dofs    = subdomain_dims.n_nodes;
+      lsols = subdomain_dims.n_dofs;
       sols = (real*) malloc(lsols * sizeof(real));
 
       bddcml_download_local_solution_c(&isub, sols, &lsols);
@@ -583,15 +506,15 @@ int main(int argc, char **argv)
       normRn2_loc = normRn2_loc + normRn2_sub;
 
       // re-create mesh for subdomain
-      nelems   = pow(num_el_per_sub_edge, ndim);
-      nnods    = pow(num_el_per_sub_edge+1, ndim);
-      ndofs    = nnods;
-      linets   = nelems * 8;
-      lnnets   = nelems;
-      lnndfs   = nnods;
-      lisegns  = nelems;
-      lisngns  = nnods;
-      lisvgvns = ndofs;
+      subdomain_dims.n_elems   = pow(num_el_per_sub_edge, global_dims.n_problem_dims);
+      subdomain_dims.n_nodes    = pow(num_el_per_sub_edge+1, global_dims.n_problem_dims);
+      subdomain_dims.n_dofs    = subdomain_dims.n_nodes;
+      linets   = subdomain_dims.n_elems * 8;
+      lnnets   = subdomain_dims.n_elems;
+      lnndfs   = subdomain_dims.n_nodes;
+      lisegns  = subdomain_dims.n_elems;
+      lisngns  = subdomain_dims.n_nodes;
+      lisvgvns = subdomain_dims.n_dofs;
       
       inets = (int*) malloc(linets * sizeof(int));
       nnets = (int*) malloc(lnnets * sizeof(int));
@@ -600,11 +523,11 @@ int main(int argc, char **argv)
       isngns = (int*) malloc(lisngns * sizeof(int));
       isvgvns = (int*) malloc(lisvgvns * sizeof(int));
 
-      lxyzs1   = nnods;
-      lxyzs2   = ndim;
+      lxyzs1   = subdomain_dims.n_nodes;
+      lxyzs2   = global_dims.n_problem_dims;
       xyzs = (real*) malloc(lxyzs1 * lxyzs2 * sizeof(real));
-      lifixs   = nnods;
-      lfixvs   = nnods;
+      lifixs   = subdomain_dims.n_nodes;
+      lfixvs   = subdomain_dims.n_nodes;
       ifixs = (int*) malloc(lifixs * sizeof(int));
       fixvs = (real*) malloc(lfixvs * sizeof(real));
 
@@ -617,7 +540,7 @@ int main(int argc, char **argv)
       // compute L_2 norm of the solution
       normL2_sub = 0.;
       indinets = 0;
-      for (ie = 0; ie < nelems; ie++) {
+      for (ie = 0; ie < subdomain_dims.n_elems; ie++) {
          // number of nodes on element
          nne = nnets[ie];
          

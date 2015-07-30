@@ -1,3 +1,5 @@
+#include <stdio.h>
+#include <stdlib.h>
 #include "bddcml_structs.h"
 #include "bddcml_cube_example.h"
 
