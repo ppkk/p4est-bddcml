@@ -195,9 +195,13 @@ void init_fem_space(BddcmlDimensions* dims, BddcmlFemSpace* femsp);
 void free_fem_space(BddcmlFemSpace* femsp);
 
 void bddcml_init(BddcmlGeneralParams *general_params, BddcmlLevelInfo *level_info, MPI_Comm communicator);
+void bddcml_upload_subdomain_data(BddcmlDimensions *global_dims, BddcmlDimensions *subdomain_dims,
+                                  int isub, BddcmlMesh *mesh, BddcmlFemSpace *femsp,
+                                  RealArray *rhss, int is_rhs_complete, RealArray *sols, SparseMatrix *matrix,
+                                  Real2DArray *user_constraints, Real2DArray *element_data,
+                                  RealArray *dof_data, BddcmlPreconditionerParams* preconditioner_params);
 void bddcml_setup_preconditioner(int matrixtype, BddcmlPreconditionerParams *params);
 void bddcml_solve(BddcmlKrylovParams *krylov_params, BddcmlConvergenceInfo *convergence_info, MPI_Comm communicator);
-
 
 
 #endif // BDDCML_INTERFACE_H

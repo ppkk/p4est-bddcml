@@ -3,13 +3,25 @@
 
 #include "definitions.h"
 
+// general (full storage)
+#define GENERAL 0
+//symmetric positive definite (only triangle stored)
+#define SPD 1
+// symmetric general (only triangle stored)
+#define SYM_GENERAL 2
+
 // matrix in coordinate format - triplets (i,j,a_ij)
 typedef struct SparseMatrix
 {
+   // numerical properties of the matrix (MUMPS-like notation)
+   int type;
+
    int len;
    int *i;
    int *j;
    real *val;
+
+   int is_assembled;
 }
 SparseMatrix;
 
@@ -34,7 +46,7 @@ typedef struct Real2DArray
 }
 Real2DArray;
 
-void allocate_sparse_matrix(int length, SparseMatrix* matrix);
+void allocate_sparse_matrix(int length, int type, SparseMatrix* matrix);
 void free_sparse_matrix(SparseMatrix* matrix);
 
 void allocate_idx_array(int length, IdxArray* array);

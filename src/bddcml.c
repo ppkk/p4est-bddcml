@@ -13,11 +13,6 @@
 // *******************
 // PROBLEM PARAMETERS:
 // *******************
-// numerical properties of the matrix (MUMPS-like notation)
-//   0 - general (full storage)
-//   1 - symmetric positive definite (only triangle stored)
-//   2 - symmetric general (only triangle stored)
-    int matrixtype = 1;
 
 // assuming tri-linear hexahedral finite elements
 //     z
@@ -99,8 +94,7 @@
 // small variables - indices, etc.
    int ia, indinets, nne, idof, jdof, lelm;
    int ie, i, isub, j;
-   int is_rhs_complete_int;
-   int is_assembled_int;
+   int is_rhs_complete;
    char aux[32];
    char command[256];
    int idx;
@@ -273,7 +267,7 @@ int main(int argc, char **argv)
             rhss.val[idx] = 1. * el_vol;
          }
       }
-      is_rhs_complete_int = 1;
+      is_rhs_complete = 1;
 
       // create local initial solution
       allocate_real_array(subdomain_dims.n_dofs, &sols);
@@ -288,7 +282,7 @@ int main(int argc, char **argv)
       // how much space the upper triangle of the element matrix occupies
       lelm = NDOF_PER_ELEMENT * (NDOF_PER_ELEMENT + 1) / 2;
       // space for all upper triangles of element matrics
-      allocate_sparse_matrix(subdomain_dims.n_elems*lelm, &matrix);
+      allocate_sparse_matrix(subdomain_dims.n_elems*lelm, SPD, &matrix);
 
       // copy the upper triangle of the element matrix to the sparse triplet
       ia = 0;
@@ -316,7 +310,6 @@ int main(int argc, char **argv)
          }
          indinets = indinets + nne;
       }
-      is_assembled_int = 0;
 
       // prepare user constraints - not really used here
       allocate_real_2D_array(0, 0, &user_constraints);
@@ -336,18 +329,11 @@ int main(int argc, char **argv)
 //          print_f_array(la, a_sparse, "a");
 //       }
 
-      bddcml_upload_subdomain_data_c(&global_dims.n_elems, &global_dims.n_nodes, &global_dims.n_dofs, &global_dims.n_problem_dims, &global_dims.n_mesh_dims,
-                                          &isub, &subdomain_dims.n_elems, &subdomain_dims.n_nodes, &subdomain_dims.n_dofs,
-                                          mesh.elem_node_indices.val, &mesh.elem_node_indices.len, mesh.num_nodes_of_elem.val, &mesh.num_nodes_of_elem.len, femsp.node_num_dofs.val, &femsp.node_num_dofs.len,
-                                          mesh.node_global_map.val, &mesh.node_global_map.len, femsp.dofs_global_map.val, &femsp.dofs_global_map.len, mesh.elem_global_map.val, &mesh.elem_global_map.len,
-                                          mesh.coords.val, &mesh.coords.len1, &mesh.coords.len2,
-                                          femsp.fixs_code.val, &femsp.fixs_code.len, femsp.fixs_values.val, &femsp.fixs_values.len,
-                                          rhss.val, &rhss.len, &is_rhs_complete_int,
-                                          sols.val, &sols.len,
-                                          &matrixtype, matrix.i, matrix.j, matrix.val, &matrix.len, &is_assembled_int,
-                                          user_constraints.val, &user_constraints.len1, &user_constraints.len2,
-                                          element_data.val, &element_data.len1, &element_data.len2,
-                                          dof_data.val, &dof_data.len, &preconditioner_params.find_components_int);
+      bddcml_upload_subdomain_data(&global_dims, &subdomain_dims,
+                                        isub, &mesh, &femsp,
+                                        &rhss, is_rhs_complete, &sols, &matrix,
+                                        &user_constraints, &element_data,
+                                        &dof_data, &preconditioner_params);
 
       free_mesh(&mesh);
       free_fem_space(&femsp);
@@ -370,7 +356,7 @@ int main(int argc, char **argv)
    // PRECONDITIONER SETUP
    ierr = MPI_Barrier(comm_all);
    // TODO: call time_start
-   bddcml_setup_preconditioner(matrixtype, &preconditioner_params);
+   bddcml_setup_preconditioner(matrix.type, &preconditioner_params);
 
    ierr = MPI_Barrier(comm_all);
    // TODO: call time_end(t_pc_setup)

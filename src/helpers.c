@@ -4,9 +4,11 @@
 
 static int num_allocations = 0;
 
-void allocate_sparse_matrix(int length, SparseMatrix *matrix)
+void allocate_sparse_matrix(int length, int type, SparseMatrix *matrix)
 {
    matrix->len = length;
+   matrix->type = type;
+   matrix->is_assembled = 0;
    matrix->i = (int*) malloc(length * sizeof(int));
    matrix->j = (int*) malloc(length * sizeof(int));
    matrix->val = (real*) malloc(length * sizeof(real));

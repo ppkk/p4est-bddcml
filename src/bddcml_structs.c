@@ -131,16 +131,73 @@ void bddcml_init(BddcmlGeneralParams *general_params, BddcmlLevelInfo *level_inf
                  &general_params->just_direct_solve_int);
 }
 
+void bddcml_upload_subdomain_data(BddcmlDimensions *global_dims, BddcmlDimensions *subdomain_dims,
+                                  int isub, BddcmlMesh *mesh, BddcmlFemSpace *femsp,
+                                  RealArray *rhss, int is_rhs_complete, RealArray *sols, SparseMatrix *matrix,
+                                  Real2DArray *user_constraints, Real2DArray *element_data,
+                                  RealArray *dof_data, BddcmlPreconditionerParams* preconditioner_params)
+{
+   bddcml_upload_subdomain_data_c(&global_dims->n_elems,
+                                  &global_dims->n_nodes,
+                                  &global_dims->n_dofs,
+                                  &global_dims->n_problem_dims,
+                                  &global_dims->n_mesh_dims,
+                                  &isub,
+                                  &subdomain_dims->n_elems,
+                                  &subdomain_dims->n_nodes,
+                                  &subdomain_dims->n_dofs,
+                                  mesh->elem_node_indices.val,
+                                  &mesh->elem_node_indices.len,
+                                  mesh->num_nodes_of_elem.val,
+                                  &mesh->num_nodes_of_elem.len,
+                                  femsp->node_num_dofs.val,
+                                  &femsp->node_num_dofs.len,
+                                  mesh->node_global_map.val,
+                                  &mesh->node_global_map.len,
+                                  femsp->dofs_global_map.val,
+                                  &femsp->dofs_global_map.len,
+                                  mesh->elem_global_map.val,
+                                  &mesh->elem_global_map.len,
+                                  mesh->coords.val,
+                                  &mesh->coords.len1,
+                                  &mesh->coords.len2,
+                                  femsp->fixs_code.val,
+                                  &femsp->fixs_code.len,
+                                  femsp->fixs_values.val,
+                                  &femsp->fixs_values.len,
+                                  rhss->val,
+                                  &rhss->len,
+                                  &is_rhs_complete,
+                                  sols->val,
+                                  &sols->len,
+                                  &matrix->type,
+                                  matrix->i,
+                                  matrix->j,
+                                  matrix->val,
+                                  &matrix->len,
+                                  &matrix->is_assembled,
+                                  user_constraints->val,
+                                  &user_constraints->len1,
+                                  &user_constraints->len2,
+                                  element_data->val,
+                                  &element_data->len1,
+                                  &element_data->len2,
+                                  dof_data->val,
+                                  &dof_data->len,
+                                  &preconditioner_params->find_components_int);
+
+}
+
 void bddcml_setup_preconditioner(int matrixtype, BddcmlPreconditionerParams *params)
 {
-bddcml_setup_preconditioner_c(&matrixtype,
-                              &params->use_preconditioner_defaults,
-                              &params->parallel_division,
-                              &params->use_corner_constraints,
-                              &params->use_arithmetic_constraints,
-                              &params->use_adaptive_constraints,
-                              &params->use_user_constraints,
-                              &params->weights_type);
+   bddcml_setup_preconditioner_c(&matrixtype,
+                                 &params->use_preconditioner_defaults,
+                                 &params->parallel_division,
+                                 &params->use_corner_constraints,
+                                 &params->use_arithmetic_constraints,
+                                 &params->use_adaptive_constraints,
+                                 &params->use_user_constraints,
+                                 &params->weights_type);
 }
 
 void bddcml_solve(BddcmlKrylovParams *krylov_params, BddcmlConvergenceInfo *convergence_info, MPI_Comm communicator)
