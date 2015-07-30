@@ -131,19 +131,19 @@ void prepare_subdomain_data(int isub, // global subdomain index
             n7 = n3 + num_nodes_per_sub_edge * num_nodes_per_sub_edge;
             n8 = n4 + num_nodes_per_sub_edge * num_nodes_per_sub_edge;
 
-            connectivity->elem_node_indices[indinets + 0] = n1;
-            connectivity->elem_node_indices[indinets + 1] = n2;
-            connectivity->elem_node_indices[indinets + 2] = n3;
-            connectivity->elem_node_indices[indinets + 3] = n4;
-            connectivity->elem_node_indices[indinets + 4] = n5;
-            connectivity->elem_node_indices[indinets + 5] = n6;
-            connectivity->elem_node_indices[indinets + 6] = n7;
-            connectivity->elem_node_indices[indinets + 7] = n8;
+            connectivity->elem_node_indices.val[indinets + 0] = n1;
+            connectivity->elem_node_indices.val[indinets + 1] = n2;
+            connectivity->elem_node_indices.val[indinets + 2] = n3;
+            connectivity->elem_node_indices.val[indinets + 3] = n4;
+            connectivity->elem_node_indices.val[indinets + 4] = n5;
+            connectivity->elem_node_indices.val[indinets + 5] = n6;
+            connectivity->elem_node_indices.val[indinets + 6] = n7;
+            connectivity->elem_node_indices.val[indinets + 7] = n8;
 
             indinets = indinets + nne;
 
             // number of nodes on element is constant for all elements
-            connectivity->n_nodes_of_elem[indels] = nne;
+            connectivity->num_nodes_of_elem.val[indels] = nne;
 
             // embedding of local elements into global numbers
             isegns[indels] = indelg;

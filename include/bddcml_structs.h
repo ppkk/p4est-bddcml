@@ -2,9 +2,8 @@
 #define BDDCML_INTERFACE_H
 
 #include <mpi.h>
-
-// type used for floating point
-typedef double real;
+#include "definitions.h"
+#include "helpers.h"
 
 // **************************
 // GENERAL BDDCML PARAMETERS:
@@ -148,15 +147,14 @@ typedef struct BddcmlDimensions
 } BddcmlDimensions;
 
 
+
 // **************************
 // BDDCML MESH CONNECTIVITY
 // **************************
 typedef struct BddcmlConnectivity
 {
-   int* elem_node_indices;
-   int l_elem_node_indices;
-   int* n_nodes_of_elem;
-   int n_elems;
+   IdxArray elem_node_indices;
+   IdxArray num_nodes_of_elem;
 }
 BddcmlConnectivity;
 
@@ -173,6 +171,7 @@ void init_dimmensions(BddcmlDimensions* dimmensions, int mesh_dim);
 void bddcml_init(BddcmlGeneralParams *general_params, BddcmlLevelInfo *level_info, MPI_Comm communicator);
 void bddcml_setup_preconditioner(int matrixtype, BddcmlPreconditionerParams *params);
 void bddcml_solve(BddcmlKrylovParams *krylov_params, BddcmlConvergenceInfo *convergence_info, MPI_Comm communicator);
+
 
 
 #endif // BDDCML_INTERFACE_H

@@ -3,6 +3,7 @@
 #include <string.h>
 #include <math.h>
 #include <mpi.h>
+#include <assert.h>
 #include "bddcml_interface_c.h"
 #include "bddcml_structs.h"
 #include "helpers.h"
@@ -274,14 +275,14 @@ int main(int argc, char **argv)
       subdomain_dims.n_elems   = pow(num_el_per_sub_edge, global_dims.n_problem_dims);
       subdomain_dims.n_nodes    = pow(num_el_per_sub_edge+1, global_dims.n_problem_dims);
       subdomain_dims.n_dofs    = subdomain_dims.n_nodes;
-      connectivity.l_elem_node_indices   = subdomain_dims.n_elems * 8;
-      connectivity.n_elems   = subdomain_dims.n_elems;
       lnndfs   = subdomain_dims.n_nodes;
       lisegns  = subdomain_dims.n_elems;
       lisngns  = subdomain_dims.n_nodes;
       lisvgvns = subdomain_dims.n_dofs;
-      connectivity.elem_node_indices = (int*) malloc(connectivity.l_elem_node_indices * sizeof(int));
-      connectivity.n_nodes_of_elem = (int*) malloc(connectivity.n_elems * sizeof(int));
+
+      allocate_idx_array(subdomain_dims.n_elems * 8, &connectivity.elem_node_indices);
+      allocate_idx_array(subdomain_dims.n_elems, &connectivity.num_nodes_of_elem);
+
       nndfs = (int*) malloc(lnndfs * sizeof(int));
       isegns = (int*) malloc(lisegns * sizeof(int));
       isngns = (int*) malloc(lisngns * sizeof(int));
@@ -341,11 +342,11 @@ int main(int argc, char **argv)
       ia = 0;
       indinets = 0;
       for(ie = 0; ie < subdomain_dims.n_elems; ie++) {
-         nne = connectivity.n_nodes_of_elem[ie];
+         nne = connectivity.num_nodes_of_elem.val[ie];
          for(j = 0; j < NDOF_PER_ELEMENT; j++) {
-            jdof = connectivity.elem_node_indices[indinets + j];
+            jdof = connectivity.elem_node_indices.val[indinets + j];
             for(i = 0; i <= j; i++) {
-               idof = connectivity.elem_node_indices[indinets + i];
+               idof = connectivity.elem_node_indices.val[indinets + i];
 
                if (idof <= jdof) {
                   i_sparse[ia] = idof;
@@ -390,7 +391,7 @@ int main(int argc, char **argv)
 
       bddcml_upload_subdomain_data_c(&global_dims.n_elems, &global_dims.n_nodes, &global_dims.n_dofs, &global_dims.n_problem_dims, &global_dims.n_mesh_dims,
                                           &isub, &subdomain_dims.n_elems, &subdomain_dims.n_nodes, &subdomain_dims.n_dofs,
-                                          connectivity.elem_node_indices, &connectivity.l_elem_node_indices, connectivity.n_nodes_of_elem, &connectivity.n_elems, nndfs, &lnndfs,
+                                          connectivity.elem_node_indices.val, &connectivity.elem_node_indices.len, connectivity.num_nodes_of_elem.val, &connectivity.num_nodes_of_elem.len, nndfs, &lnndfs,
                                           isngns, &lisngns, isvgvns, &lisvgvns, isegns, &lisegns,
                                           xyzs, &lxyzs1, &lxyzs2,
                                           ifixs, &lifixs, fixvs, &lfixvs,
@@ -401,8 +402,8 @@ int main(int argc, char **argv)
                                           element_data, &lelement_data1, &lelement_data2,
                                           dof_data, &ldof_data, &preconditioner_params.find_components_int);
 
-      free(connectivity.elem_node_indices);
-      free(connectivity.n_nodes_of_elem);
+      free(connectivity.elem_node_indices.val);
+      free(connectivity.num_nodes_of_elem.val);
       free(nndfs);
       free(isegns);
       free(isngns);
@@ -510,15 +511,15 @@ int main(int argc, char **argv)
       subdomain_dims.n_elems   = pow(num_el_per_sub_edge, global_dims.n_problem_dims);
       subdomain_dims.n_nodes    = pow(num_el_per_sub_edge+1, global_dims.n_problem_dims);
       subdomain_dims.n_dofs    = subdomain_dims.n_nodes;
-      connectivity.l_elem_node_indices   = subdomain_dims.n_elems * 8;
-      connectivity.n_elems   = subdomain_dims.n_elems;
+      connectivity.elem_node_indices.len   = subdomain_dims.n_elems * 8;
+      connectivity.num_nodes_of_elem.len   = subdomain_dims.n_elems;
       lnndfs   = subdomain_dims.n_nodes;
       lisegns  = subdomain_dims.n_elems;
       lisngns  = subdomain_dims.n_nodes;
       lisvgvns = subdomain_dims.n_dofs;
       
-      connectivity.elem_node_indices = (int*) malloc(connectivity.l_elem_node_indices * sizeof(int));
-      connectivity.n_nodes_of_elem = (int*) malloc(connectivity.n_elems * sizeof(int));
+      connectivity.elem_node_indices.val = (int*) malloc(connectivity.elem_node_indices.len * sizeof(int));
+      connectivity.num_nodes_of_elem.val = (int*) malloc(connectivity.num_nodes_of_elem.len * sizeof(int));
       nndfs = (int*) malloc(lnndfs * sizeof(int));
       isegns = (int*) malloc(lisegns * sizeof(int));
       isngns = (int*) malloc(lisngns * sizeof(int));
@@ -543,13 +544,13 @@ int main(int argc, char **argv)
       indinets = 0;
       for (ie = 0; ie < subdomain_dims.n_elems; ie++) {
          // number of nodes on element
-         nne = connectivity.n_nodes_of_elem[ie];
+         nne = connectivity.num_nodes_of_elem.val[ie];
          
          // sum(sols(inets(indinets+1:indinets+nne)))
          real sum_help = 0.;
          int sum_idx;
          for (sum_idx = indinets; sum_idx < indinets + nne; sum_idx++) { // TODO: nebo +1???
-            sum_help += sols[connectivity.elem_node_indices[sum_idx]];
+            sum_help += sols[connectivity.elem_node_indices.val[sum_idx]];
          }
          
          normL2_sub = normL2_sub + el_vol * sum_help / nne;
@@ -574,8 +575,10 @@ int main(int argc, char **argv)
 //                                              xyzs,lxyzs1,lxyzs2, 
 //                                              sols,lsols);
       }
-      free(connectivity.elem_node_indices);
-      free(connectivity.n_nodes_of_elem);
+
+      free_idx_array(&connectivity.elem_node_indices);
+      free_idx_array(&connectivity.num_nodes_of_elem);
+
       free(nndfs);
       free(isegns);
       free(isngns);
@@ -650,5 +653,6 @@ int main(int argc, char **argv)
 //     free(nsublev);
 //     free(sub2proc);
    
+   assert(get_num_allocations() == 0);
    return(0);
 }
