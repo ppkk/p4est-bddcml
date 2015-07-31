@@ -4,6 +4,9 @@
 #include <stdio.h>
 #include "helpers.h"
 
+int print_rank = 0;
+int mpi_rank;
+
 static int num_allocations = 0;
 
 void allocate_sparse_matrix(int length, int type, SparseMatrix *matrix)

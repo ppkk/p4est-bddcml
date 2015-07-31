@@ -10,6 +10,7 @@
 #include <p8est_vtk.h>
 #endif
 
+#include "helpers.h"
 #include "p4est_common.h"
 
 /** Compute values at hanging nodes by interpolation.
@@ -172,6 +173,95 @@ void plot_solution(p4est_t * p4est, p4est_lnodes_t * lnodes, double* u_sol, doub
       P4EST_FREE (u_interp_sol);
    if(u_exact)
       P4EST_FREE (u_interp_exact);
+}
+
+
+/** info.
+ * \param [in] p4est          The forest is not changed.
+ * \param [in] lnodes         The node numbering is not changed.
+ */
+void print_mesh (p4est_t * p4est, p4est_lnodes_t * lnodes, int which_rank)
+{
+   const int           nloc = lnodes->num_local_nodes;
+   int                 anyhang, hanging_corner[P4EST_CHILDREN];
+   int                 i;
+   p4est_locidx_t      all_lni[P4EST_CHILDREN];
+
+   double              vxyz[3];  /* We embed the 2D vertices into 3D space. */
+   int8_t             *bc;
+   p4est_topidx_t      tt;       /* Connectivity variables have this type. */
+   p4est_locidx_t      k, q, Q;  /* Process-local counters have this type. */
+   p4est_locidx_t      lni;      /* Node index relative to this processor. */
+   p4est_tree_t       *tree;     /* Pointer to one octree */
+   p4est_quadrant_t   *quad, *parent, sp, node;
+   sc_array_t         *tquadrants;       /* Quadrant array for one tree */
+
+   //aaa[0] = 0;
+   /* Loop over local quadrants to apply the element matrices. */
+   for (tt = p4est->first_local_tree, k = 0;
+        tt <= p4est->last_local_tree; ++tt) {
+      tree = p4est_tree_array_index (p4est->trees, tt);
+      tquadrants = &tree->quadrants;
+      Q = (p4est_locidx_t) tquadrants->elem_count;
+
+      print_rank = which_rank;
+      PPP printf("rank %d, owned count = %d, global offset = %d\n", print_rank, lnodes->owned_count, (int)lnodes->global_offset);
+      for(i = 0; i < lnodes->num_local_nodes; i++)
+      {
+         PPP printf("loc %d -> glob %ld\n", i, node_loc_to_glob(lnodes, i));
+      }
+      for (q = 0; q < Q; ++q, ++k) {
+         quad = p4est_quadrant_array_index (tquadrants, q);
+
+         for (i = 0; i < P4EST_CHILDREN; ++i) {
+            /* Cache some information on corner nodes. */
+            lni = lnodes->element_nodes[P4EST_CHILDREN * k + i];
+            //      isboundary[i] = (bc == NULL ? 0 : bc[lni]);
+            //       inloc[i] = !isboundary[i] ? in[lni] : 0.;
+            all_lni[i] = lni;
+         }
+
+         PPP printf("elem %d: %d, %d, %d, %d", (int)p4est->global_first_quadrant[p4est->mpirank] + k, all_lni[0], all_lni[1], all_lni[2], all_lni[3]);
+         //PPP printf("%d, %d, %d, %d", glob_all_lni[0], glob_all_lni[1], glob_all_lni[2], glob_all_lni[3]);
+
+
+         /* Figure out the hanging corners on this element, if any. */
+         anyhang = lnodes_decode2 (lnodes->face_code[k], hanging_corner);
+
+
+         if (!anyhang) {
+            parent = NULL;          /* Defensive programming. */
+         }
+         else {
+            /* At least one node is hanging.  We need the parent quadrant to
+        * find the location of the corresponding non-hanging node. */
+            parent = &sp;
+            p4est_quadrant_parent (quad, parent);
+         }
+         for (i = 0; i < P4EST_CHILDREN; ++i) {
+            lni = lnodes->element_nodes[P4EST_CHILDREN * k + i];
+            P4EST_ASSERT (lni >= 0 && lni < nloc);
+            if (anyhang && hanging_corner[i] >= 0) {
+               /* This node is hanging; access the referenced node instead. */
+               p4est_quadrant_corner_node (parent, i, &node);
+            }
+            else {
+               p4est_quadrant_corner_node (quad, i, &node);
+            }
+
+            /* Transform per-tree reference coordinates into physical space. */
+            p4est_qcoord_to_vertex (p4est->connectivity, tt, node.x, node.y,
+                        #ifdef P4_TO_P8
+                                    node.z,
+                        #endif
+                                    vxyz);
+            PPP printf("(%3.2lf, %3.2lf), ", vxyz[0], vxyz[1]);
+
+         }
+         PPP printf("\n");
+      }
+   }
+
 }
 
 

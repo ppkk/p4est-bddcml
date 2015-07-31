@@ -13,7 +13,14 @@
 #include <p8est_vtk.h>
 #endif
 
-#define PPP if(mpi_rank == print_rank)
+#define for_all_quads(p4est, quad_idx, quad) \
+   for (p4est_topidx_t tt = p4est->first_local_tree, quad_idx = 0;\
+        tt <= p4est->last_local_tree; ++tt) {\
+      p4est_tree_t *tree = p4est_tree_array_index (p4est->trees, tt);\
+      sc_array_t *tquadrants = &tree->quadrants;\
+      p4est_locidx_t num_tree_quads = (p4est_locidx_t) tquadrants->elem_count;\
+      for (p4est_locidx_t tree_quad_idx = 0; tree_quad_idx < num_tree_quads; ++tree_quad_idx, ++quad_idx) {\
+         quad = p4est_quadrant_array_index (tquadrants, tree_quad_idx);\
 
 /** List number of possible independent nodes for each hanging node. */
 static const int    corner_num_hanging[P4EST_CHILDREN] =
@@ -38,6 +45,8 @@ int lnodes_decode2 (p4est_lnodes_code_t face_code,
                 int hanging_corner[P4EST_CHILDREN]);
 
 void plot_solution(p4est_t * p4est, p4est_lnodes_t * lnodes, double* u_sol, double* u_exact);
+
+void print_mesh (p4est_t * p4est, p4est_lnodes_t * lnodes, int which_rank);
 
 p4est_gloidx_t node_loc_to_glob(p4est_lnodes_t * lnodes, p4est_locidx_t loc_idx);
 

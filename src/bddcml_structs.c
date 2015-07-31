@@ -1,6 +1,7 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+#include <assert.h>
 #include <math.h>
 #include <mpi.h>
 #include "bddcml_interface_c.h"
@@ -36,6 +37,8 @@ void set_implicit_preconditioner_params(BddcmlPreconditionerParams *params)
    params->parallel_division = 1;
    params->find_components_int = 1;
 }
+
+//*******************************************************************************************
 
 void init_levels(int n_subdomains_first_level, BddcmlLevelInfo *level_info)
 {
@@ -79,7 +82,16 @@ void init_dimmensions(BddcmlDimensions* dimmensions, int mesh_dim)
    dimmensions->n_dofs = 0;
    dimmensions->n_elems = 0;
    dimmensions->n_nodes = 0;
+
+   if(mesh_dim == 2)
+      dimmensions->n_elem_nodes = 4;
+   else if(mesh_dim == 3)
+      dimmensions->n_elem_nodes = 8;
+   else
+      assert(0);
 }
+
+//*******************************************************************************************
 
 void init_mesh(BddcmlDimensions* subdomain_dims, BddcmlMesh* mesh)
 {
@@ -100,6 +112,23 @@ void free_mesh(BddcmlMesh* mesh)
    free_real_2D_array(&mesh->coords);
 }
 
+void print_bddcml_mesh(BddcmlMesh *mesh, int which_rank)
+{
+   print_rank = which_rank;
+   for(int elem = 0; elem < mesh->elem_global_map.len; elem++)
+   {
+      PPP printf("%d -> ", mesh->elem_global_map.val[elem]);
+      for (int lnode = 0; lnode < mesh->subdomain_dims->n_elem_nodes; lnode++)
+      {
+         PPP printf("%d, ", mesh->elem_node_indices.val[elem*mesh->subdomain_dims->n_elem_nodes + lnode]);
+      }
+      PPP printf("\n");
+   }
+}
+
+//*******************************************************************************************
+
+
 void init_fem_space(BddcmlDimensions* dims, BddcmlFemSpace* femsp)
 {
    femsp->subdomain_dims = dims;
@@ -116,6 +145,10 @@ void free_fem_space(BddcmlFemSpace* femsp)
    free_idx_array(&femsp->fixs_code);
    free_real_array(&femsp->fixs_values);
 }
+
+
+//*******************************************************************************************
+
 
 void bddcml_init(BddcmlGeneralParams *general_params, BddcmlLevelInfo *level_info, MPI_Comm communicator)
 {

@@ -144,6 +144,8 @@ typedef struct BddcmlDimensions
    // topological dimension of elements elements, would be lower for shells or beams
    int n_mesh_dims;
 
+   int n_elem_nodes;
+
 } BddcmlDimensions;
 
 
@@ -191,6 +193,8 @@ void init_dimmensions(BddcmlDimensions* dimmensions, int mesh_dim);
 
 void init_mesh(BddcmlDimensions* subdomain_dims, BddcmlMesh* mesh);
 void free_mesh(BddcmlMesh* mesh);
+void print_bddcml_mesh(BddcmlMesh* mesh, int which_rank);
+
 void init_fem_space(BddcmlDimensions* dims, BddcmlFemSpace* femsp);
 void free_fem_space(BddcmlFemSpace* femsp);
 

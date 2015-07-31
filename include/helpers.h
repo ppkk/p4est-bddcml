@@ -3,6 +3,12 @@
 
 #include "definitions.h"
 
+extern int mpi_rank;
+extern int print_rank;
+
+#define PPP if(mpi_rank == print_rank)
+
+
 typedef enum MatrixType{
    GENERAL = 0,      // general (full storage)
    SPD = 1,          //symmetric positive definite (only triangle stored)

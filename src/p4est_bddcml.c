@@ -14,101 +14,82 @@
 #include "bddcml_structs.h"
 #include "p4est_common.h"
 
-int mpi_rank;
-int print_rank = 0;
-
 void prepare_subdomain_mesh(p4est_t *p4est, p4est_lnodes_t *lnodes, BddcmlDimensions *subdomain_dims, BddcmlMesh *mesh)
 {
-   int                 anyhang, hanging_corner[P4EST_CHILDREN];
-   int                 i;
-   p4est_locidx_t      all_lni[P4EST_CHILDREN];
-
    double              vxyz[3];  /* We embed the 2D vertices into 3D space. */
-   int8_t             *bc;
-   p4est_topidx_t      tt;       /* Connectivity variables have this type. */
-   p4est_locidx_t      k, q, Q;  /* Process-local counters have this type. */
-   p4est_locidx_t      lni;      /* Node index relative to this processor. */
-   p4est_tree_t       *tree;     /* Pointer to one octree */
-   p4est_quadrant_t   *quad, *parent, sp, node;
-   sc_array_t         *tquadrants;       /* Quadrant array for one tree */
+   p4est_quadrant_t   sp, node;
 
+#ifndef P4_TO_P8
+   init_dimmensions(subdomain_dims, 2);
+#else
+   init_dimmensions(subdomain_dims, 3);
+#endif
    subdomain_dims->n_nodes = lnodes->num_local_nodes;
    subdomain_dims->n_dofs  = lnodes->num_local_nodes;
    subdomain_dims->n_elems = lnodes->num_local_elements;
-#ifndef P4_TO_P8
-   subdomain_dims->n_problem_dims = 2;
-   subdomain_dims->n_mesh_dims = 2;
-#else
-   subdomain_dims->n_problem_dims = 3;
-   subdomain_dims->n_mesh_dims = 3;
-#endif
 
    init_mesh(subdomain_dims, mesh);
-
+   for(int lnode = 0; lnode < lnodes->num_local_nodes; lnode++)
+   {
+      mesh->node_global_map.val[lnode] = node_loc_to_glob(lnodes, lnode);
+   }
+   //p4est->global_first_quadrant
    /* Loop over local quadrants to apply the element matrices. */
-   for (tt = p4est->first_local_tree, k = 0;
-        tt <= p4est->last_local_tree; ++tt) {
-      tree = p4est_tree_array_index (p4est->trees, tt);
-      tquadrants = &tree->quadrants;
-      Q = (p4est_locidx_t) tquadrants->elem_count;
+   p4est_locidx_t quad_idx = 0;
+   p4est_quadrant_t *quad;
 
-      print_rank = 3;
-      PPP printf("rank %d, elems %d, nodes %d (owned %d), global offset = %d\n", print_rank, lnodes->num_local_elements, lnodes->num_local_nodes, lnodes->owned_count, (int)lnodes->global_offset);
-      for(i = 0; i < lnodes->num_local_nodes; i++)
-      {
-         PPP printf("loc %d -> glob %ld\n", i, node_loc_to_glob(lnodes, i));
+   for_all_quads(p4est, quad_idx, quad)
+   {
+      mesh->elem_global_map.val[quad_idx] = (int)p4est->global_first_quadrant[p4est->mpirank] + quad_idx;
+
+      for (int lnode = 0; lnode < P4EST_CHILDREN; ++lnode) {
+         /* Cache some information on corner nodes. */
+         p4est_locidx_t node_idx = lnodes->element_nodes[P4EST_CHILDREN * quad_idx + lnode];
+         //      isboundary[i] = (bc == NULL ? 0 : bc[lni]);
+         //       inloc[i] = !isboundary[i] ? in[lni] : 0.;
+         mesh->elem_node_indices.val[quad_idx + lnode] = node_idx;
       }
-      for (q = 0; q < Q; ++q, ++k) {
-         quad = p4est_quadrant_array_index (tquadrants, q);
-
-         for (i = 0; i < P4EST_CHILDREN; ++i) {
-            /* Cache some information on corner nodes. */
-            lni = lnodes->element_nodes[P4EST_CHILDREN * k + i];
-            //      isboundary[i] = (bc == NULL ? 0 : bc[lni]);
-            //       inloc[i] = !isboundary[i] ? in[lni] : 0.;
-            all_lni[i] = lni;
-         }
-
-         PPP printf("%d, %d, %d, %d", all_lni[0], all_lni[1], all_lni[2], all_lni[3]);
-         //PPP printf("%d, %d, %d, %d", glob_all_lni[0], glob_all_lni[1], glob_all_lni[2], glob_all_lni[3]);
 
 
-         /* Figure out the hanging corners on this element, if any. */
-         anyhang = lnodes_decode2 (lnodes->face_code[k], hanging_corner);
+      /* Figure out the hanging corners on this element, if any. */
+      int hanging_corner[P4EST_CHILDREN];
+      int anyhang = lnodes_decode2 (lnodes->face_code[quad_idx], hanging_corner);
 
-
-         if (!anyhang) {
-            parent = NULL;          /* Defensive programming. */
+      p4est_quadrant_t* parent;
+      if (!anyhang) {
+         parent = NULL;          /* Defensive programming. */
+      }
+      else {
+         /* At least one node is hanging.  We need the parent quadrant to
+           * find the location of the corresponding non-hanging node. */
+         parent = &sp;
+         p4est_quadrant_parent (quad, parent);
+      }
+      for (int lnode = 0; lnode < P4EST_CHILDREN; ++lnode) {
+         p4est_locidx_t lni = lnodes->element_nodes[P4EST_CHILDREN * quad_idx + lnode];
+         P4EST_ASSERT (lni >= 0 && lni < subdomain_dims->n_nodes);
+         if (anyhang && hanging_corner[lnode] >= 0) {
+            /* This node is hanging; access the referenced node instead. */
+            p4est_quadrant_corner_node (parent, lnode, &node);
          }
          else {
-            /* At least one node is hanging.  We need the parent quadrant to
-           * find the location of the corresponding non-hanging node. */
-            parent = &sp;
-            p4est_quadrant_parent (quad, parent);
+            p4est_quadrant_corner_node (quad, lnode, &node);
          }
-         for (i = 0; i < P4EST_CHILDREN; ++i) {
-            lni = lnodes->element_nodes[P4EST_CHILDREN * k + i];
-            P4EST_ASSERT (lni >= 0 && lni < subdomain_dims->n_nodes);
-            if (anyhang && hanging_corner[i] >= 0) {
-               /* This node is hanging; access the referenced node instead. */
-               p4est_quadrant_corner_node (parent, i, &node);
-            }
-            else {
-               p4est_quadrant_corner_node (quad, i, &node);
-            }
 
-            /* Transform per-tree reference coordinates into physical space. */
-            p4est_qcoord_to_vertex (p4est->connectivity, tt, node.x, node.y,
+         /* Transform per-tree reference coordinates into physical space. */
+         p4est_qcoord_to_vertex (p4est->connectivity, tt, node.x, node.y,
                         #ifdef P4_TO_P8
-                                    node.z,
+                                 node.z,
                         #endif
-                                    vxyz);
-            PPP printf("(%3.2lf, %3.2lf), ", vxyz[0], vxyz[1]);
+                                 vxyz);
 
-         }
-         PPP printf("\n");
+
+         PPP printf("(%3.2lf, %3.2lf), ", vxyz[0], vxyz[1]);
+
       }
-   }
+      PPP printf("\n");
+
+   }}}//for all quads
 
 }
 
@@ -186,7 +167,9 @@ int main (int argc, char **argv)
    BddcmlDimensions subdomain_dims;
    BddcmlMesh mesh;
 
+   print_mesh(p4est, lnodes, 0);
    prepare_subdomain_mesh(p4est, lnodes, &subdomain_dims, &mesh);
+   print_bddcml_mesh(&mesh, 0);
    plot_solution(p4est, lnodes, NULL, NULL);
 
    /* Destroy the p4est and the connectivity structure. */
