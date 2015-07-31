@@ -1,4 +1,6 @@
 #include <stdlib.h>
+#include <string.h>
+#include <assert.h>
 #include <stdio.h>
 #include "helpers.h"
 
@@ -14,6 +16,33 @@ void allocate_sparse_matrix(int length, int type, SparseMatrix *matrix)
    matrix->val = (real*) malloc(length * sizeof(real));
 
    num_allocations++;
+}
+
+void zero_matrix(SparseMatrix *matrix)
+{
+   matrix->nnz = 0;
+   memset(matrix->i, 0, matrix->len * sizeof(int));
+   memset(matrix->j, 0, matrix->len * sizeof(int));
+   memset(matrix->val, 0, matrix->len * sizeof(double));
+}
+
+void add_matrix_entry(SparseMatrix *matrix, int i, int j, real value)
+{
+   assert(matrix->nnz < matrix->len);
+   if((matrix->type == SPD) || (matrix->type == SYM_GENERAL))
+   {
+      if(i > j)
+      {
+         int help = i;
+         i = j;
+         j = help;
+      }
+   }
+
+   matrix->i[matrix->nnz] = i;
+   matrix->j[matrix->nnz] = j;
+   matrix->val[matrix->nnz] = value;
+   matrix->nnz++;
 }
 
 void allocate_idx_array(int length, IdxArray *array)

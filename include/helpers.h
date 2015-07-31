@@ -3,23 +3,24 @@
 
 #include "definitions.h"
 
-// general (full storage)
-#define GENERAL 0
-//symmetric positive definite (only triangle stored)
-#define SPD 1
-// symmetric general (only triangle stored)
-#define SYM_GENERAL 2
+typedef enum MatrixType{
+   GENERAL = 0,      // general (full storage)
+   SPD = 1,          //symmetric positive definite (only triangle stored)
+   SYM_GENERAL =  2  // symmetric general (only triangle stored)
+}
+MatrixType;
 
 // matrix in coordinate format - triplets (i,j,a_ij)
 typedef struct SparseMatrix
 {
    // numerical properties of the matrix (MUMPS-like notation)
-   int type;
+   MatrixType type;
 
    int len;
    int *i;
    int *j;
    real *val;
+   int nnz;
 
    int is_assembled;
 }
@@ -48,6 +49,10 @@ Real2DArray;
 
 void allocate_sparse_matrix(int length, int type, SparseMatrix* matrix);
 void free_sparse_matrix(SparseMatrix* matrix);
+void zero_matrix(SparseMatrix* matrix);
+
+// if matrix type is symmetric, it will add the entry to the upper triangle
+void add_matrix_entry(SparseMatrix *matrix, int i, int j, real value );
 
 void allocate_idx_array(int length, IdxArray* array);
 void free_idx_array(IdxArray* array);

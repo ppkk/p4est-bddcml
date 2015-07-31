@@ -4,7 +4,6 @@
 #include <math.h>
 #include <mpi.h>
 #include <assert.h>
-#include "bddcml_interface_c.h"
 #include "bddcml_structs.h"
 #include "helpers.h"
 #include "bddcml_cube_example.h"
@@ -92,7 +91,7 @@
    real t_total, t_load, t_pc_setup, t_krylov;
 
 // small variables - indices, etc.
-   int ia, indinets, nne, idof, jdof, lelm;
+   int ia, element_offset, num_nodes_of_elem, idof, jdof, lelm;
    int ie, i, isub, j;
    int is_rhs_complete;
    char aux[32];
@@ -283,32 +282,22 @@ int main(int argc, char **argv)
       lelm = NDOF_PER_ELEMENT * (NDOF_PER_ELEMENT + 1) / 2;
       // space for all upper triangles of element matrics
       allocate_sparse_matrix(subdomain_dims.n_elems*lelm, SPD, &matrix);
+      zero_matrix(&matrix);
 
       // copy the upper triangle of the element matrix to the sparse triplet
       ia = 0;
-      indinets = 0;
+      element_offset = 0;
       for(ie = 0; ie < subdomain_dims.n_elems; ie++) {
-         nne = mesh.num_nodes_of_elem.val[ie];
+         num_nodes_of_elem = mesh.num_nodes_of_elem.val[ie];
          for(j = 0; j < NDOF_PER_ELEMENT; j++) {
-            jdof = mesh.elem_node_indices.val[indinets + j];
+            jdof = mesh.elem_node_indices.val[element_offset + j];
             for(i = 0; i <= j; i++) {
-               idof = mesh.elem_node_indices.val[indinets + i];
+               idof = mesh.elem_node_indices.val[element_offset + i];
 
-               if (idof <= jdof) {
-                  matrix.i[ia] = idof;
-                  matrix.j[ia] = jdof;
-               }
-               else {
-                  // transpose the entry
-                  matrix.i[ia] = jdof;
-                  matrix.j[ia] = idof;
-               }
-               matrix.val[ia] = element_matrix[j * NDOF_PER_ELEMENT + i];
-
-               ia = ia + 1;
+               add_matrix_entry(&matrix, idof, jdof, element_matrix[j * NDOF_PER_ELEMENT + i]);
             }
          }
-         indinets = indinets + nne;
+         element_offset += num_nodes_of_elem;
       }
 
       // prepare user constraints - not really used here
@@ -410,12 +399,12 @@ int main(int argc, char **argv)
 
       allocate_real_array(subdomain_dims.n_dofs, &sols);
 
-      bddcml_download_local_solution_c(&isub, sols.val, &sols.len);
+      bddcml_download_local_solution(isub, &sols);
 
       // compute norm of local solution
       if (nsub > 1) {
          if (general_params.just_direct_solve_int == 0) {
-            bddcml_dotprod_subdomain_c( &isub, sols.val, &sols.len, sols.val, &sols.len, &normRn2_sub );
+            bddcml_dotprod_subdomain( isub, &sols, &sols, &normRn2_sub );
          }
          else {
             // cannot determine norm for solution by a direct solver
@@ -445,20 +434,20 @@ int main(int argc, char **argv)
 
       // compute L_2 norm of the solution
       normL2_sub = 0.;
-      indinets = 0;
+      element_offset = 0;
       for (ie = 0; ie < subdomain_dims.n_elems; ie++) {
          // number of nodes on element
-         nne = mesh.num_nodes_of_elem.val[ie];
+         num_nodes_of_elem = mesh.num_nodes_of_elem.val[ie];
          
          // sum(sols(inets(indinets+1:indinets+nne)))
          real sum_help = 0.;
          int sum_idx;
-         for (sum_idx = indinets; sum_idx < indinets + nne; sum_idx++) { // TODO: nebo +1???
+         for (sum_idx = element_offset; sum_idx < element_offset + num_nodes_of_elem; sum_idx++) { // TODO: nebo +1???
             sum_help += sols.val[mesh.elem_node_indices.val[sum_idx]];
          }
          
-         normL2_sub = normL2_sub + el_vol * sum_help / nne;
-         indinets = indinets + nne;
+         normL2_sub = normL2_sub + el_vol * sum_help / num_nodes_of_elem;
+         element_offset = element_offset + num_nodes_of_elem;
       }
       normL2_loc = normL2_loc + normL2_sub;
 
@@ -495,7 +484,7 @@ int main(int argc, char **argv)
       printf("Finalizing BDDCML ...\n");
    }
    
-   bddcml_finalize_c();      
+   bddcml_finalize();
    if (myid == 0) {
       printf("Finalizing BDDCML done.\n");
    }

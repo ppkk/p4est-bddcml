@@ -170,7 +170,7 @@ void bddcml_upload_subdomain_data(BddcmlDimensions *global_dims, BddcmlDimension
                                   &is_rhs_complete,
                                   sols->val,
                                   &sols->len,
-                                  &matrix->type,
+                                  (int*) &matrix->type,
                                   matrix->i,
                                   matrix->j,
                                   matrix->val,
@@ -188,9 +188,9 @@ void bddcml_upload_subdomain_data(BddcmlDimensions *global_dims, BddcmlDimension
 
 }
 
-void bddcml_setup_preconditioner(int matrixtype, BddcmlPreconditionerParams *params)
+void bddcml_setup_preconditioner(MatrixType matrixtype, BddcmlPreconditionerParams *params)
 {
-   bddcml_setup_preconditioner_c(&matrixtype,
+   bddcml_setup_preconditioner_c((int*) &matrixtype,
                                  &params->use_preconditioner_defaults,
                                  &params->parallel_division,
                                  &params->use_corner_constraints,
@@ -216,3 +216,19 @@ void bddcml_solve(BddcmlKrylovParams *krylov_params, BddcmlConvergenceInfo *conv
                   &convergence_info->condition_number);
 }
 
+void bddcml_download_local_solution(int isub, RealArray *sols)
+{
+   bddcml_download_local_solution_c(&isub,
+                                    sols->val,
+                                    &sols->len);
+}
+
+void bddcml_dotprod_subdomain(int isub, RealArray *sols1, RealArray *sols2, real *normRn2_sub)
+{
+   bddcml_dotprod_subdomain_c( &isub, sols1->val, &sols1->len, sols2->val, &sols2->len, normRn2_sub );
+}
+
+void bddcml_finalize()
+{
+   bddcml_finalize_c();
+}
