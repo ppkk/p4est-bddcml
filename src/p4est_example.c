@@ -47,24 +47,11 @@
 #include <p8est_vtk.h>
 #endif
 
+#include "p4est_common.h"
+
 int mpi_rank;
 int print_rank = 0;
 
-#define PPP if(mpi_rank == print_rank)
-
-/** List number of possible independent nodes for each hanging node. */
-static const int    corner_num_hanging[P4EST_CHILDREN] =
-      #ifndef P4_TO_P8
-{ 1, 2, 2, 1 }
-#else
-{ 1, 2, 2, 4, 2, 4, 4, 1 }
-#endif
-;
-static const int    zero = 0;           /**< Constant zero. */
-static const int    ones = P4EST_CHILDREN - 1;  /**< One bit per dimension. */
-
-/** For each node i of the reference quadrant, corner_num_hanging[i] many. */
-static const int   *corner_to_hanging[P4EST_CHILDREN];
 
 /** Callback function to decide on refinement.
  *
@@ -194,52 +181,6 @@ lnodes_decode2 (p4est_lnodes_code_t face_code,
    return 0;
 }
 
-/** Compute values at hanging nodes by interpolation.
- * A face hanging node in 3D depends on the four corner nodes of the face,
- * edge hanging nodes or face hanging nodes in 2D depend on two nodes.
- * This function works in place, we have to be careful about the ordering.
- * Face hanging node values are not reused, so they are overwritten first.
- * \param [in] face_code    This number encodes the child id of the quadrant
- *                          and the hanging status of faces and edges.
- * \param [in,out] inplace  On input, the values at the independent nodes.
- *                          On output, interpolated to hanging node locations.
- */
-static void
-interpolate_hanging_nodes (p4est_lnodes_code_t face_code,
-                           double inplace[P4EST_CHILDREN])
-{
-   const int           c = (int) (face_code & ones);
-   int                 i, j;
-   int                 ef;
-   int                 work = (int) (face_code >> P4EST_DIM);
-   double              sum;
-   const double        factor = 1. / P4EST_HALF;
-
-   /* Compute face hanging nodes first (this is all there is in 2D). */
-   for (i = 0; i < P4EST_DIM; ++i) {
-      if (work & 1) {
-         ef = p4est_corner_faces[c][i];
-         sum = 0.;
-         for (j = 0; j < P4EST_HALF; ++j) {
-            sum += inplace[p4est_face_corners[ef][j]];
-         }
-         inplace[c ^ ones ^ (1 << i)] = factor * sum;
-      }
-      work >>= 1;
-   }
-
-#ifdef P4_TO_P8
-   /* Compute edge hanging nodes afterwards */
-   for (i = 0; i < P4EST_DIM; ++i) {
-      if (work & 1) {
-         ef = p8est_corner_edges[c][i];
-         inplace[c ^ (1 << i)] = .5 * (inplace[p8est_edge_corners[ef][0]] +
-               inplace[p8est_edge_corners[ef][1]]);
-      }
-      work >>= 1;
-   }
-#endif
-}
 
 /** Parallel sum of values in node vector across all sharers.
  *

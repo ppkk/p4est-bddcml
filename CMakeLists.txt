@@ -1,4 +1,5 @@
 cmake_minimum_required (VERSION 2.6)
+project(p4est-bddcml)
 include(CMake.vars)
 
 set (CMAKE_C_FLAGS "--std=gnu11 -pedantic-errors ${CMAKE_C_FLAGS}")
@@ -45,9 +46,11 @@ set(LIBS ${LIBS}  mpi pthread mpi_f77)
 include_directories("include")
 
 
-add_executable(p4est-bddcml src/p4est-bddcml.c)
-add_executable(p8est-bddcml src/p8est-bddcml.c)
-add_executable(bddcml-example ${BLOPEX_OBJECTS} src/bddcml.c src/bddcml_structs.c src/bddcml_cube_example.c src/helpers.c)
-target_link_libraries(p4est-bddcml ${LIBS})
-target_link_libraries(p8est-bddcml ${LIBS})
-target_link_libraries(bddcml-example ${LIBS})
+add_executable(p4est_example src/p4est_example.c  src/p4est_common.c)
+add_executable(p8est_example src/p8est_example.c src/p4est_common.c)
+add_executable(bddcml_example ${BLOPEX_OBJECTS} src/bddcml_cube_example.c src/bddcml_structs.c src/bddcml_cube_example_subdomain.c src/helpers.c)
+add_executable(p4est_bddcml ${BLOPEX_OBJECTS} src/p4est_example.c  src/p4est_common.c src/bddcml_structs.c  src/helpers.c)
+target_link_libraries(p4est_example ${LIBS})
+target_link_libraries(p8est_example ${LIBS})
+target_link_libraries(bddcml_example ${LIBS})
+target_link_libraries(p4est_bddcml ${LIBS})
