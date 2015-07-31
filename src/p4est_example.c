@@ -142,44 +142,6 @@ is_boundary_unitsquare (p4est_t * p4est, p4est_topidx_t tt,
            0);
 }
 
-/** Decode the information from p{4,8}est_lnodes_t for a given element.
- *
- * \see p4est_lnodes.h for an in-depth discussion of the encoding.
- * \param [in] face_code         Bit code as defined in p{4,8}est_lnodes.h.
- * \param [out] hanging_corner   Undefined if no node is hanging.
- *                               If any node is hanging, this contains
- *                               one integer per corner, which is -1
- *                               for corners that are not hanging,
- *                               and the number of the non-hanging
- *                               corner on the hanging face/edge otherwise.
- *                               For faces in 3D, it is diagonally opposite.
- * \return true if any node is hanging, false otherwise.
- */
-static int
-lnodes_decode2 (p4est_lnodes_code_t face_code,
-                int hanging_corner[P4EST_CHILDREN])
-{
-   if (face_code) {
-      const int           c = (int) (face_code & ones);
-      int                 i, h;
-      int                 work = (int) (face_code >> P4EST_DIM);
-
-      /* These two corners are never hanging by construction. */
-      hanging_corner[c] = hanging_corner[c ^ ones] = -1;
-      for (i = 0; i < P4EST_DIM; ++i) {
-         /* Process face hanging corners. */
-         h = c ^ (1 << i);
-         hanging_corner[h ^ ones] = (work & 1) ? c : -1;
-#ifdef P4_TO_P8
-         /* Process edge hanging corners. */
-         hanging_corner[h] = (work & P4EST_CHILDREN) ? c : -1;
-#endif
-         work >>= 1;
-      }
-      return 1;
-   }
-   return 0;
-}
 
 
 /** Parallel sum of values in node vector across all sharers.
@@ -687,15 +649,6 @@ solve_by_cg (p4est_t * p4est, p4est_lnodes_t * lnodes, const int8_t * bc,
 }
 
 
-static p4est_gloidx_t
-node_loc_to_glob(p4est_lnodes_t * lnodes, p4est_locidx_t loc_idx)
-{
-   if(loc_idx < lnodes->owned_count)
-      return loc_idx + lnodes->global_offset;
-   else
-      return lnodes->nonlocal_nodes[loc_idx - lnodes->owned_count];
-}
-
 
 
 /** info.
@@ -718,8 +671,6 @@ print_info (p4est_t * p4est, p4est_lnodes_t * lnodes)
    p4est_tree_t       *tree;     /* Pointer to one octree */
    p4est_quadrant_t   *quad, *parent, sp, node;
    sc_array_t         *tquadrants;       /* Quadrant array for one tree */
-   int      aaa[100];
-
 
    //aaa[0] = 0;
    /* Loop over local quadrants to apply the element matrices. */
@@ -790,67 +741,6 @@ print_info (p4est_t * p4est, p4est_lnodes_t * lnodes)
    /* Parallel sum of result. */
    // share_sum (p4est, lnodes, out);
 }
-
-static void
-plot_solution(p4est_t * p4est, p4est_lnodes_t * lnodes, double* u_sol, double* u_exact)
-{
-   p4est_topidx_t      tt;       /* Connectivity variables have this type. */
-   p4est_locidx_t      k, q, Q, node_total;  /* Process-local counters have this type. */
-   p4est_locidx_t      lni;      /* Node index relative to this processor. */
-   p4est_tree_t       *tree;     /* Pointer to one octree */
-   p4est_quadrant_t   *quad, *parent, sp, node;
-   sc_array_t         *tquadrants;       /* Quadrant array for one tree */
-   int                 i;
-   double              loc_vertex_values_sol[P4EST_CHILDREN], loc_vertex_values_exact[P4EST_CHILDREN];
-
-
-   /* Write the forest to disk for visualization, one file per processor. */
-   double *u_interp_sol = P4EST_ALLOC (double, p4est->local_num_quadrants * P4EST_CHILDREN);
-   double *u_interp_exact = P4EST_ALLOC (double, p4est->local_num_quadrants * P4EST_CHILDREN);
-
-   /* Loop over local quadrants to apply the element matrices. */
-   for (tt = p4est->first_local_tree, k = 0, node_total = 0;
-        tt <= p4est->last_local_tree; ++tt) {
-      tree = p4est_tree_array_index (p4est->trees, tt);
-      tquadrants = &tree->quadrants;
-      Q = (p4est_locidx_t) tquadrants->elem_count;
-
-      for (q = 0; q < Q; ++q, ++k) {
-         quad = p4est_quadrant_array_index (tquadrants, q);
-
-         for (i = 0; i < P4EST_CHILDREN; ++i) {
-            lni = lnodes->element_nodes[P4EST_CHILDREN * k + i];
-            loc_vertex_values_sol[i] = u_sol[lni];
-            loc_vertex_values_exact[i] = u_exact[lni];
-         }
-
-         interpolate_hanging_nodes (lnodes->face_code[k], loc_vertex_values_sol);
-         interpolate_hanging_nodes (lnodes->face_code[k], loc_vertex_values_exact);
-
-         for (i = 0; i < P4EST_CHILDREN; ++i) {
-            u_interp_sol[node_total]   = loc_vertex_values_sol[i];
-            u_interp_exact[node_total] = loc_vertex_values_exact[i];
-            ++node_total;
-         }
-      }
-   }
-
-   p4est_vtk_write_all (p4est, NULL,     /* we do not need to transform from the vertex space into physical space, so we do not need a p4est_geometry_t * pointer */
-                        0.99999,    /* draw each quadrant at almost full scale */
-                        0,       /* do not write the tree id's of each quadrant (there is only one tree in this example) */
-                        1,       /* do write the refinement level of each quadrant */
-                        1,       /* do write the mpi process id of each quadrant */
-                        0,       /* do not wrap the mpi rank (if this were > 0, the modulus of the rank relative to this number would be written instead of the rank) */
-                        2,       /* write one scalar field: the solution value */
-                        0,       /* write no vector fields */
-                        P4EST_STRING "_step4",
-                        "solution", u_interp_sol,
-                        "exact", u_interp_exact);
-
-   P4EST_FREE (u_interp_sol);
-   P4EST_FREE (u_interp_exact);   
-}
-
 
 
 /** Execute the numerical part of the example: Solve Poisson's equation.

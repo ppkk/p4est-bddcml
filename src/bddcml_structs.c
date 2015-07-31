@@ -81,14 +81,14 @@ void init_dimmensions(BddcmlDimensions* dimmensions, int mesh_dim)
    dimmensions->n_nodes = 0;
 }
 
-void init_mesh(BddcmlDimensions* dims, BddcmlMesh* mesh)
+void init_mesh(BddcmlDimensions* subdomain_dims, BddcmlMesh* mesh)
 {
-   mesh->subdomain_dims = dims;
-   allocate_idx_array(dims->n_elems * 8, &mesh->elem_node_indices);
-   allocate_idx_array(dims->n_elems, &mesh->num_nodes_of_elem);
-   allocate_idx_array(dims->n_elems, &mesh->elem_global_map);
-   allocate_idx_array(dims->n_nodes, &mesh->node_global_map);
-   allocate_real_2D_array(dims->n_nodes, dims->n_problem_dims, &mesh->coords);
+   mesh->subdomain_dims = subdomain_dims;
+   allocate_idx_array(subdomain_dims->n_elems * 8, &mesh->elem_node_indices);
+   allocate_idx_array(subdomain_dims->n_elems, &mesh->num_nodes_of_elem);
+   allocate_idx_array(subdomain_dims->n_elems, &mesh->elem_global_map);
+   allocate_idx_array(subdomain_dims->n_nodes, &mesh->node_global_map);
+   allocate_real_2D_array(subdomain_dims->n_nodes, subdomain_dims->n_problem_dims, &mesh->coords);
 }
 
 void free_mesh(BddcmlMesh* mesh)

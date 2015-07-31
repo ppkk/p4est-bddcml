@@ -2,7 +2,8 @@ cmake_minimum_required (VERSION 2.6)
 project(p4est-bddcml)
 include(CMake.vars)
 
-set (CMAKE_C_FLAGS "--std=gnu11 -pedantic-errors ${CMAKE_C_FLAGS}")
+#debug, remove...
+set (CMAKE_C_FLAGS " -g --std=gnu11 -pedantic-errors ${CMAKE_C_FLAGS}")
 
 include_directories("${BDDCML_ROOT}/src")
 link_directories("${BDDCML_ROOT}/lib")
@@ -49,7 +50,7 @@ include_directories("include")
 add_executable(p4est_example src/p4est_example.c  src/p4est_common.c)
 add_executable(p8est_example src/p8est_example.c src/p4est_common.c)
 add_executable(bddcml_example ${BLOPEX_OBJECTS} src/bddcml_cube_example.c src/bddcml_structs.c src/bddcml_cube_example_subdomain.c src/helpers.c)
-add_executable(p4est_bddcml ${BLOPEX_OBJECTS} src/p4est_example.c  src/p4est_common.c src/bddcml_structs.c  src/helpers.c)
+add_executable(p4est_bddcml ${BLOPEX_OBJECTS} src/p4est_bddcml.c  src/p4est_common.c src/bddcml_structs.c  src/helpers.c)
 target_link_libraries(p4est_example ${LIBS})
 target_link_libraries(p8est_example ${LIBS})
 target_link_libraries(bddcml_example ${LIBS})
