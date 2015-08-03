@@ -182,28 +182,8 @@ int main(int argc, char **argv)
 
    init_levels(nsub, &level_info);
 
-// Basic properties 
-   if (myid == 0) {
-      printf("Characteristics of the problem :\n");
-      printf("  number of processors            nproc = %d\n" ,nproc);
-      printf("  number of dimensions             ndim = %d\n", global_dims.n_problem_dims);
-      printf("  mesh dimension                meshdim = %d\n", global_dims.n_mesh_dims);
-      printf("  number of elements global       nelem = %d\n", global_dims.n_elems);
-      printf("  number of subdomains             nsub = %d\n", nsub);
-      printf("  number of nodes global           nnod = %d\n", global_dims.n_nodes);
-      printf("  number of DOF                    ndof = %d\n", global_dims.n_dofs);
-      printf("  number of levels              nlevels = %d\n", level_info.nlevels);
-      printf("  number of subdomains in levels        = ");
-      for(idx = 0; idx < level_info.nlevels; idx++) {
-         printf("%d, ", level_info.nsublev[idx]);
-      }
-      printf("\n");
-      printf("Characteristics of iterational process:\n");
-      printf("  tolerance of error                tol = %lf\n", krylov_params.tol);
-      printf("  maximum number of iterations    maxit = %d\n", krylov_params.maxit);
-      printf("  number of incresing residual ndecrmax = %d\n", krylov_params.ndecrmax);
-      printf("  using recycling of Krylov method ?      %d\n", krylov_params.recycling_int);
-   }
+   print_basic_properties(&global_dims, nsub, &level_info, &krylov_params);
+
    if (myid == 0) {
          printf("Initializing BDDCML ...");
    }

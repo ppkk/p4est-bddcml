@@ -757,7 +757,7 @@ solve_poisson (p4est_t * p4est)
    err = sqrt (err2);
    P4EST_GLOBAL_PRODUCTIONF ("||u_fe - u_exact||_L2 = %g\n", err);
 
-   print_mesh(p4est, lnodes, 1);
+   print_p4est_mesh(p4est, lnodes, 1);
 
    /* Free finite element vectors */
    P4EST_FREE (diff_mass);

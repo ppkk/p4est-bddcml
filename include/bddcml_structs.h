@@ -197,6 +197,9 @@ void print_bddcml_mesh(BddcmlMesh* mesh, int which_rank);
 
 void init_fem_space(BddcmlDimensions* dims, BddcmlFemSpace* femsp);
 void free_fem_space(BddcmlFemSpace* femsp);
+void print_bddcml_fem_space(BddcmlFemSpace *femsp, BddcmlMesh *mesh, int which_rank);
+
+void print_basic_properties(BddcmlDimensions *global_dims, int num_subdomains, BddcmlLevelInfo *level_info, BddcmlKrylovParams *krylov_params);
 
 
 // **************************************************************

@@ -4,6 +4,7 @@
 #include "definitions.h"
 
 extern int mpi_rank;
+extern int mpi_size;
 extern int print_rank;
 
 #define PPP if(mpi_rank == print_rank)
@@ -46,10 +47,12 @@ typedef struct RealArray
 }
 RealArray;
 
+// todo: helping 2D array
 typedef struct Real2DArray
 {
    int len1, len2;
-   real *val;
+   real **val;
+   real *val_serialized;
 }
 Real2DArray;
 

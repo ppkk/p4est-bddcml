@@ -10,23 +10,46 @@
 #include <p8est_vtk.h>
 #endif
 
+#include <stdbool.h>
+#include <assert.h>
+
 #include "helpers.h"
 #include "bddcml_structs.h"
 #include "p4est_common.h"
+
+const int degree = 1;
+
+void prepare_dimmensions(p4est_t *p4est, p4est_lnodes_t *lnodes,
+                         BddcmlDimensions *subdomain_dims, BddcmlDimensions *global_dims,
+                         sc_MPI_Comm mpicomm)
+{
+#ifndef P4_TO_P8
+   init_dimmensions(subdomain_dims, 2);
+   init_dimmensions(global_dims, 2);
+#else
+   init_dimmensions(subdomain_dims, 3);
+   init_dimmensions(global_dims, 3);
+#endif
+   subdomain_dims->n_nodes = lnodes->num_local_nodes;
+   subdomain_dims->n_dofs  = lnodes->num_local_nodes;
+   subdomain_dims->n_elems = lnodes->num_local_elements;
+
+   int global_num_nodes;
+   if(mpi_rank == mpi_size - 1)
+   {
+      global_num_nodes = lnodes->global_offset + lnodes->owned_count;
+   }
+   sc_MPI_Bcast(&global_num_nodes, 1, MPI_INT, mpi_size - 1, mpicomm);
+
+   global_dims->n_nodes = global_num_nodes;
+   global_dims->n_dofs = global_num_nodes;
+   global_dims->n_elems = p4est->global_num_quadrants;
+}
 
 void prepare_subdomain_mesh(p4est_t *p4est, p4est_lnodes_t *lnodes, BddcmlDimensions *subdomain_dims, BddcmlMesh *mesh)
 {
    double              vxyz[3];  /* We embed the 2D vertices into 3D space. */
    p4est_quadrant_t   sp, node;
-
-#ifndef P4_TO_P8
-   init_dimmensions(subdomain_dims, 2);
-#else
-   init_dimmensions(subdomain_dims, 3);
-#endif
-   subdomain_dims->n_nodes = lnodes->num_local_nodes;
-   subdomain_dims->n_dofs  = lnodes->num_local_nodes;
-   subdomain_dims->n_elems = lnodes->num_local_elements;
 
    init_mesh(subdomain_dims, mesh);
    for(int lnode = 0; lnode < lnodes->num_local_nodes; lnode++)
@@ -41,13 +64,14 @@ void prepare_subdomain_mesh(p4est_t *p4est, p4est_lnodes_t *lnodes, BddcmlDimens
    for_all_quads(p4est, quad_idx, quad)
    {
       mesh->elem_global_map.val[quad_idx] = (int)p4est->global_first_quadrant[p4est->mpirank] + quad_idx;
+      mesh->num_nodes_of_elem.val[quad_idx] = P4EST_CHILDREN;
 
       for (int lnode = 0; lnode < P4EST_CHILDREN; ++lnode) {
          /* Cache some information on corner nodes. */
          p4est_locidx_t node_idx = lnodes->element_nodes[P4EST_CHILDREN * quad_idx + lnode];
          //      isboundary[i] = (bc == NULL ? 0 : bc[lni]);
          //       inloc[i] = !isboundary[i] ? in[lni] : 0.;
-         mesh->elem_node_indices.val[quad_idx + lnode] = node_idx;
+         mesh->elem_node_indices.val[P4EST_CHILDREN * quad_idx + lnode] = node_idx;
       }
 
 
@@ -66,8 +90,8 @@ void prepare_subdomain_mesh(p4est_t *p4est, p4est_lnodes_t *lnodes, BddcmlDimens
          p4est_quadrant_parent (quad, parent);
       }
       for (int lnode = 0; lnode < P4EST_CHILDREN; ++lnode) {
-         p4est_locidx_t lni = lnodes->element_nodes[P4EST_CHILDREN * quad_idx + lnode];
-         P4EST_ASSERT (lni >= 0 && lni < subdomain_dims->n_nodes);
+         p4est_locidx_t node_idx = lnodes->element_nodes[P4EST_CHILDREN * quad_idx + lnode];
+         P4EST_ASSERT (node_idx >= 0 && node_idx < subdomain_dims->n_nodes);
          if (anyhang && hanging_corner[lnode] >= 0) {
             /* This node is hanging; access the referenced node instead. */
             p4est_quadrant_corner_node (parent, lnode, &node);
@@ -77,22 +101,59 @@ void prepare_subdomain_mesh(p4est_t *p4est, p4est_lnodes_t *lnodes, BddcmlDimens
          }
 
          /* Transform per-tree reference coordinates into physical space. */
-         p4est_qcoord_to_vertex (p4est->connectivity, tt, node.x, node.y,
-                        #ifdef P4_TO_P8
+         p4est_qcoord_to_vertex (p4est->connectivity, tt, node.x, node.y,         
+#ifdef P4_TO_P8
                                  node.z,
-                        #endif
+#endif
                                  vxyz);
 
+         mesh->coords.val[0][node_idx] = vxyz[0];
+         mesh->coords.val[1][node_idx] = vxyz[1];
+#ifdef P4_TO_P8
+         mesh->coords.val[2][node_idx] = vxyz[2];
+#endif
 
-         PPP printf("(%3.2lf, %3.2lf), ", vxyz[0], vxyz[1]);
+
+
+//         PPP printf("(%3.2lf, %3.2lf), ", vxyz[0], vxyz[1]);
 
       }
-      PPP printf("\n");
+//      PPP printf("\n");
 
    }}}//for all quads
 
 }
 
+
+const double EPS = 1e-10;
+bool real_equal(real a, real b)
+{
+   return fabs(a - b) < EPS;
+}
+
+void prepare_subdomain_fem_space(BddcmlMesh *mesh, BddcmlFemSpace *femsp)
+{
+   init_fem_space(mesh->subdomain_dims, femsp);
+   mesh->subdomain_dims->n_dofs = mesh->subdomain_dims->n_nodes;
+   for(int node = 0; node < mesh->subdomain_dims->n_dofs; node++)
+   {
+      femsp->node_num_dofs.val[node] = 1;
+      femsp->dofs_global_map.val[node] = mesh->node_global_map.val[node];
+      if((real_equal(mesh->coords.val[0][node], 0.0)) || (real_equal(mesh->coords.val[0][node], 1.0))
+            || (real_equal(mesh->coords.val[0][node], 0.0)) || (real_equal(mesh->coords.val[0][node], 1.0))
+            || (real_equal(mesh->coords.val[0][node], 0.0)) || (real_equal(mesh->coords.val[0][node], 1.0))
+            )
+      {
+         femsp->fixs_code.val[node] = 1;
+         femsp->fixs_values.val[node] = 0.0;
+      }
+      else
+      {
+         femsp->fixs_code.val[node] = 0;
+      }
+
+   }
+}
 
 void assemble_matrix(p4est_t * p4est, SparseMatrix *matrix)
 {
@@ -117,6 +178,7 @@ int main (int argc, char **argv)
    SC_CHECK_MPI (mpiret);
    mpicomm = sc_MPI_COMM_WORLD;
    mpiret = sc_MPI_Comm_rank(mpicomm, &mpi_rank);
+   mpiret = sc_MPI_Comm_size(mpicomm, &mpi_size);
 
    /* These functions are optional.  If called they store the MPI rank as a
    * static variable so subsequent global p4est log messages are only issued
@@ -158,18 +220,28 @@ int main (int argc, char **argv)
    p4est_ghost_t *ghost = p4est_ghost_new (p4est, P4EST_CONNECT_FULL);
 
    /* Create a node numbering for continuous linear finite elements. */
-   p4est_lnodes_t *lnodes = p4est_lnodes_new (p4est, ghost, 1);
+   p4est_lnodes_t *lnodes = p4est_lnodes_new (p4est, ghost, degree);
 
    /* Destroy the ghost structure -- no longer needed after node creation. */
    p4est_ghost_destroy (ghost);
    ghost = NULL;
 
-   BddcmlDimensions subdomain_dims;
+   BddcmlDimensions subdomain_dims, global_dims;
    BddcmlMesh mesh;
 
-   print_mesh(p4est, lnodes, 0);
+   int print_rank_l = 2;
+
+   // todo: using MPI Bcast in the following, should be possible to do without
+   prepare_dimmensions(p4est, lnodes, &subdomain_dims, &global_dims, mpicomm);
+
+   print_p4est_mesh(p4est, lnodes, print_rank_l);
    prepare_subdomain_mesh(p4est, lnodes, &subdomain_dims, &mesh);
-   print_bddcml_mesh(&mesh, 0);
+   print_bddcml_mesh(&mesh, print_rank_l);
+
+   BddcmlFemSpace femsp;
+   prepare_subdomain_fem_space(&mesh, &femsp);
+   print_bddcml_fem_space(&femsp, &mesh, print_rank_l);
+
    plot_solution(p4est, lnodes, NULL, NULL);
 
    /* Destroy the p4est and the connectivity structure. */
@@ -180,6 +252,61 @@ int main (int argc, char **argv)
    /* Verify that allocations internal to p4est and sc do not leak memory.
    * This should be called if sc_init () has been called earlier. */
    sc_finalize ();
+
+   //*************************************************************************************
+   //*************************************************************************************
+   //    BDDCML part of the example
+   //*************************************************************************************
+   //*************************************************************************************
+
+   BddcmlLevelInfo level_info;
+   // Number of elements in an edge of a subdomain and number of subdomains in an edge of the unit cube
+   if(argc == 1 + 1) {
+      level_info.nlevels = atoi(argv[1]);
+   }
+   else {
+      if ( mpi_rank == 0 ) {
+         printf(" Usage: mpirun -np X ./p4est_bddcml NLEVELS");
+      }
+      exit(0);
+   }
+
+   // number of subdomains == mpi_size
+   init_levels(mpi_size, &level_info);
+
+   BddcmlGeneralParams general_params;
+   set_implicit_general_params(&general_params);
+
+   BddcmlKrylovParams krylov_params;
+   set_implicit_krylov_params(&krylov_params);
+
+   BddcmlPreconditionerParams preconditioner_params;
+   set_implicit_preconditioner_params(&preconditioner_params);
+
+   print_rank = print_rank_l;
+   print_basic_properties(&global_dims, mpi_size, &level_info, &krylov_params);
+   PPP printf("Initializing BDDCML ...");
+   // tell me how much subdomains should I load
+   level_info.nsub_loc_1 = -1;
+
+   bddcml_init(&general_params, &level_info, mpicomm);
+   // should be 1 subdomain per processor
+   assert(level_info.nsub_loc_1 == 1);
+
+   mpiret = MPI_Barrier(mpicomm);
+   PPP printf("Initializing BDDCML done.\n");
+
+   PPP printf("Loading data ...\n");
+
+   bddcml_upload_subdomain_data(&global_dims, &subdomain_dims,
+                                     mpi_rank, &mesh, &femsp,
+                                     &rhss, is_rhs_complete, &sols, &matrix,
+                                     &user_constraints, &element_data,
+                                     &dof_data, &preconditioner_params);
+
+   mpiret = MPI_Barrier(mpicomm);
+   PPP printf("Loading data done.\n");
+
 
    /* This is standard MPI programs.  Without --enable-mpi, this is a dummy. */
    mpiret = sc_MPI_Finalize ();

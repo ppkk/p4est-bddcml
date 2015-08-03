@@ -71,8 +71,6 @@ void init_levels(int n_subdomains_first_level, BddcmlLevelInfo *level_info)
       exit(0);
    }
 
-   printf("XXX\nXXX\n nu sublev, %d, %d, %d\n", level_info->nsublev[0], level_info->nsublev[1], level_info->nsublev[2]);
-
 }
 
 void init_dimmensions(BddcmlDimensions* dimmensions, int mesh_dim)
@@ -115,15 +113,25 @@ void free_mesh(BddcmlMesh* mesh)
 void print_bddcml_mesh(BddcmlMesh *mesh, int which_rank)
 {
    print_rank = which_rank;
+   PPP printf("\n*************** BEGIN BDDCML MESH ************************\n");
+   PPP printf("elems: %d, nodes: %d\n", mesh->subdomain_dims->n_elems, mesh->subdomain_dims->n_nodes);
    for(int elem = 0; elem < mesh->elem_global_map.len; elem++)
    {
-      PPP printf("%d -> ", mesh->elem_global_map.val[elem]);
-      for (int lnode = 0; lnode < mesh->subdomain_dims->n_elem_nodes; lnode++)
+      PPP printf("elem %d -> ", mesh->elem_global_map.val[elem]);
+      for (int lnode = 0; lnode < mesh->num_nodes_of_elem.val[elem]; lnode++)
       {
-         PPP printf("%d, ", mesh->elem_node_indices.val[elem*mesh->subdomain_dims->n_elem_nodes + lnode]);
+         int node_local_idx = mesh->elem_node_indices.val[elem*mesh->subdomain_dims->n_elem_nodes + lnode];
+         int node_global_idx = mesh->node_global_map.val[node_local_idx];
+         PPP printf("%d[%d], ", node_global_idx, node_local_idx);
+      }
+      for (int lnode = 0; lnode < mesh->num_nodes_of_elem.val[elem]; lnode++)
+      {
+         int node_local_idx = mesh->elem_node_indices.val[elem*mesh->subdomain_dims->n_elem_nodes + lnode];
+         PPP printf("(%3.2lf, %3.2lf), ", mesh->coords.val[0][node_local_idx], mesh->coords.val[1][node_local_idx]);
       }
       PPP printf("\n");
    }
+   PPP printf("*************** END BDDCML MESH ************************\n\n");
 }
 
 //*******************************************************************************************
@@ -146,7 +154,50 @@ void free_fem_space(BddcmlFemSpace* femsp)
    free_real_array(&femsp->fixs_values);
 }
 
+void print_bddcml_fem_space(BddcmlFemSpace *femsp, BddcmlMesh *mesh, int which_rank)
+{
+   print_rank = which_rank;
+   PPP printf("\n*************** BEGIN BDDCML FEM SPACE ************************\n");
+   PPP printf("dofs: %d\n", femsp->subdomain_dims->n_dofs);
+   assert(femsp->subdomain_dims->n_dofs == femsp->subdomain_dims->n_nodes);
+   for(int node = 0; node < femsp->subdomain_dims->n_dofs; node++)
+   {
+      assert(femsp->node_num_dofs.val[node] == 1);
+      PPP printf("node %d -> num dofs %d, gdofs: (%d ), bc code %d, bc val %6.4lf, coords (%4.3lf, %4.3lf)\n", node, femsp->node_num_dofs.val[node],
+                 femsp->dofs_global_map.val[node], femsp->fixs_code.val[node], femsp->fixs_values.val[node],
+                 mesh->coords.val[0][node], mesh->coords.val[1][node]);
+   }
+   PPP printf("*************** END BDDCML FEM SPACE ************************\n\n");
+}
 
+//*******************************************************************************************
+
+
+// Basic properties
+void print_basic_properties(BddcmlDimensions *global_dims, int num_subdomains, BddcmlLevelInfo *level_info, BddcmlKrylovParams *krylov_params)
+{
+   if (mpi_rank == print_rank) {
+      printf("Characteristics of the problem :\n");
+      printf("  number of processors            nproc = %d\n" ,mpi_size);
+      printf("  number of dimensions             ndim = %d\n", global_dims->n_problem_dims);
+      printf("  mesh dimension                meshdim = %d\n", global_dims->n_mesh_dims);
+      printf("  number of elements global       nelem = %d\n", global_dims->n_elems);
+      printf("  number of subdomains             nsub = %d\n", num_subdomains);
+      printf("  number of nodes global           nnod = %d\n", global_dims->n_nodes);
+      printf("  number of DOF                    ndof = %d\n", global_dims->n_dofs);
+      printf("  number of levels              nlevels = %d\n", level_info->nlevels);
+      printf("  number of subdomains in levels        = ");
+      for(int idx = 0; idx < level_info->nlevels; idx++) {
+         printf("%d, ", level_info->nsublev[idx]);
+      }
+      printf("\n");
+      printf("Characteristics of iterational process:\n");
+      printf("  tolerance of error                tol = %lf\n", krylov_params->tol);
+      printf("  maximum number of iterations    maxit = %d\n", krylov_params->maxit);
+      printf("  number of incresing residual ndecrmax = %d\n", krylov_params->ndecrmax);
+      printf("  using recycling of Krylov method ?      %d\n", krylov_params->recycling_int);
+   }
+}
 //*******************************************************************************************
 
 
@@ -191,7 +242,7 @@ void bddcml_upload_subdomain_data(BddcmlDimensions *global_dims, BddcmlDimension
                                   &femsp->dofs_global_map.len,
                                   mesh->elem_global_map.val,
                                   &mesh->elem_global_map.len,
-                                  mesh->coords.val,
+                                  mesh->coords.val_serialized,
                                   &mesh->coords.len1,
                                   &mesh->coords.len2,
                                   femsp->fixs_code.val,
@@ -209,10 +260,10 @@ void bddcml_upload_subdomain_data(BddcmlDimensions *global_dims, BddcmlDimension
                                   matrix->val,
                                   &matrix->len,
                                   &matrix->is_assembled,
-                                  user_constraints->val,
+                                  user_constraints->val_serialized,
                                   &user_constraints->len1,
                                   &user_constraints->len2,
-                                  element_data->val,
+                                  element_data->val_serialized,
                                   &element_data->len1,
                                   &element_data->len2,
                                   dof_data->val,

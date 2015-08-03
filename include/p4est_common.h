@@ -14,7 +14,8 @@
 #endif
 
 #define for_all_quads(p4est, quad_idx, quad) \
-   for (p4est_topidx_t tt = p4est->first_local_tree, quad_idx = 0;\
+   quad_idx = 0;\
+   for (p4est_topidx_t tt = p4est->first_local_tree;\
         tt <= p4est->last_local_tree; ++tt) {\
       p4est_tree_t *tree = p4est_tree_array_index (p4est->trees, tt);\
       sc_array_t *tquadrants = &tree->quadrants;\
@@ -46,7 +47,7 @@ int lnodes_decode2 (p4est_lnodes_code_t face_code,
 
 void plot_solution(p4est_t * p4est, p4est_lnodes_t * lnodes, double* u_sol, double* u_exact);
 
-void print_mesh (p4est_t * p4est, p4est_lnodes_t * lnodes, int which_rank);
+void print_p4est_mesh (p4est_t * p4est, p4est_lnodes_t * lnodes, int which_rank);
 
 p4est_gloidx_t node_loc_to_glob(p4est_lnodes_t * lnodes, p4est_locidx_t loc_idx);
 

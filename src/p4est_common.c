@@ -180,87 +180,79 @@ void plot_solution(p4est_t * p4est, p4est_lnodes_t * lnodes, double* u_sol, doub
  * \param [in] p4est          The forest is not changed.
  * \param [in] lnodes         The node numbering is not changed.
  */
-void print_mesh (p4est_t * p4est, p4est_lnodes_t * lnodes, int which_rank)
+void print_p4est_mesh (p4est_t * p4est, p4est_lnodes_t * lnodes, int which_rank)
 {
    const int           nloc = lnodes->num_local_nodes;
    int                 anyhang, hanging_corner[P4EST_CHILDREN];
-   int                 i;
-   p4est_locidx_t      all_lni[P4EST_CHILDREN];
 
    double              vxyz[3];  /* We embed the 2D vertices into 3D space. */
    int8_t             *bc;
    p4est_topidx_t      tt;       /* Connectivity variables have this type. */
-   p4est_locidx_t      k, q, Q;  /* Process-local counters have this type. */
-   p4est_locidx_t      lni;      /* Node index relative to this processor. */
-   p4est_tree_t       *tree;     /* Pointer to one octree */
+   p4est_locidx_t      node_idx;      /* Node index relative to this processor. */
    p4est_quadrant_t   *quad, *parent, sp, node;
-   sc_array_t         *tquadrants;       /* Quadrant array for one tree */
 
-   //aaa[0] = 0;
    /* Loop over local quadrants to apply the element matrices. */
-   for (tt = p4est->first_local_tree, k = 0;
-        tt <= p4est->last_local_tree; ++tt) {
-      tree = p4est_tree_array_index (p4est->trees, tt);
-      tquadrants = &tree->quadrants;
-      Q = (p4est_locidx_t) tquadrants->elem_count;
+   print_rank = which_rank;
+   PPP printf("\n*************** BEGIN P4EST MESH ************************\n");
+   PPP printf("rank %d, nodes owned count = %d, nodes global offset = %d\n", print_rank, lnodes->owned_count, (int)lnodes->global_offset);
+   PPP printf("local num quadrants %d\n", p4est->local_num_quadrants);
+   PPP printf("global nodes: ");
+   for(int i = 0; i < lnodes->num_local_nodes; i++)
+   {
+      PPP printf("%ld, ", node_loc_to_glob(lnodes, i));
+   }
+   PPP printf("\nglobal[local]\n");
 
-      print_rank = which_rank;
-      PPP printf("rank %d, owned count = %d, global offset = %d\n", print_rank, lnodes->owned_count, (int)lnodes->global_offset);
-      for(i = 0; i < lnodes->num_local_nodes; i++)
+  p4est_locidx_t quad_idx;
+  for_all_quads(p4est, quad_idx, quad)
+  {
+
+      PPP printf("elem %d: ", (int)p4est->global_first_quadrant[p4est->mpirank] + quad_idx);
+      for(int lnode = 0; lnode < P4EST_CHILDREN; lnode++)
       {
-         PPP printf("loc %d -> glob %ld\n", i, node_loc_to_glob(lnodes, i));
+         node_idx = lnodes->element_nodes[P4EST_CHILDREN * quad_idx + lnode];
+         PPP printf("%d[%d], ", (int)node_loc_to_glob(lnodes, node_idx), node_idx);
       }
-      for (q = 0; q < Q; ++q, ++k) {
-         quad = p4est_quadrant_array_index (tquadrants, q);
-
-         for (i = 0; i < P4EST_CHILDREN; ++i) {
-            /* Cache some information on corner nodes. */
-            lni = lnodes->element_nodes[P4EST_CHILDREN * k + i];
-            //      isboundary[i] = (bc == NULL ? 0 : bc[lni]);
-            //       inloc[i] = !isboundary[i] ? in[lni] : 0.;
-            all_lni[i] = lni;
-         }
-
-         PPP printf("elem %d: %d, %d, %d, %d", (int)p4est->global_first_quadrant[p4est->mpirank] + k, all_lni[0], all_lni[1], all_lni[2], all_lni[3]);
-         //PPP printf("%d, %d, %d, %d", glob_all_lni[0], glob_all_lni[1], glob_all_lni[2], glob_all_lni[3]);
+      //PPP printf("%d, %d, %d, %d", glob_all_lni[0], glob_all_lni[1], glob_all_lni[2], glob_all_lni[3]);
 
 
-         /* Figure out the hanging corners on this element, if any. */
-         anyhang = lnodes_decode2 (lnodes->face_code[k], hanging_corner);
+      /* Figure out the hanging corners on this element, if any. */
+      anyhang = lnodes_decode2 (lnodes->face_code[quad_idx], hanging_corner);
 
 
-         if (!anyhang) {
-            parent = NULL;          /* Defensive programming. */
+      if (!anyhang) {
+         parent = NULL;          /* Defensive programming. */
+      }
+      else {
+         /* At least one node is hanging.  We need the parent quadrant to
+        * find the location of the corresponding non-hanging node. */
+         parent = &sp;
+         p4est_quadrant_parent (quad, parent);
+      }
+      for (int lnode = 0; lnode < P4EST_CHILDREN; ++lnode) {
+         node_idx = lnodes->element_nodes[P4EST_CHILDREN * quad_idx + lnode];
+         P4EST_ASSERT (node_idx >= 0 && node_idx < nloc);
+         if (anyhang && hanging_corner[lnode] >= 0) {
+            /* This node is hanging; access the referenced node instead. */
+            p4est_quadrant_corner_node (parent, lnode, &node);
          }
          else {
-            /* At least one node is hanging.  We need the parent quadrant to
-        * find the location of the corresponding non-hanging node. */
-            parent = &sp;
-            p4est_quadrant_parent (quad, parent);
+            p4est_quadrant_corner_node (quad, lnode, &node);
          }
-         for (i = 0; i < P4EST_CHILDREN; ++i) {
-            lni = lnodes->element_nodes[P4EST_CHILDREN * k + i];
-            P4EST_ASSERT (lni >= 0 && lni < nloc);
-            if (anyhang && hanging_corner[i] >= 0) {
-               /* This node is hanging; access the referenced node instead. */
-               p4est_quadrant_corner_node (parent, i, &node);
-            }
-            else {
-               p4est_quadrant_corner_node (quad, i, &node);
-            }
 
-            /* Transform per-tree reference coordinates into physical space. */
-            p4est_qcoord_to_vertex (p4est->connectivity, tt, node.x, node.y,
+         /* Transform per-tree reference coordinates into physical space. */
+         p4est_qcoord_to_vertex (p4est->connectivity, tt, node.x, node.y,
                         #ifdef P4_TO_P8
-                                    node.z,
+                                 node.z,
                         #endif
-                                    vxyz);
-            PPP printf("(%3.2lf, %3.2lf), ", vxyz[0], vxyz[1]);
+                                 vxyz);
+         PPP printf("(%3.2lf, %3.2lf), ", vxyz[0], vxyz[1]);
 
-         }
-         PPP printf("\n");
       }
-   }
+      PPP printf("\n");
+   }}} // for all quads
+   PPP printf("*************** END P4EST MESH ************************\n\n");
+
 
 }
 

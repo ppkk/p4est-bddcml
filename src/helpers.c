@@ -6,6 +6,7 @@
 
 int print_rank = 0;
 int mpi_rank;
+int mpi_size;
 
 static int num_allocations = 0;
 
@@ -82,12 +83,18 @@ void allocate_real_2D_array(int length1, int length2, Real2DArray *array)
    array->len2 = length2;
    if(length1 * length2 > 0)
    {
-      array->val = (real*) malloc(length1 * length2 * sizeof(real));
+      array->val_serialized = (real*) malloc(length1 * length2 * sizeof(real));
+      array->val = (real**) malloc(length2 * sizeof(real*));
+      for(int i = 0; i < length2; i++)
+      {
+         array->val[i] = array->val_serialized + length1 * i;
+      }
       num_allocations++;
    }
    else
    {
       array->val = NULL;
+      array->val_serialized = NULL;
    }
 }
 
@@ -123,6 +130,8 @@ void free_real_array(RealArray *array)
 void free_real_2D_array(Real2DArray *array)
 {
    free(array->val);
+   array->val = NULL;
+   free(array->val_serialized);
    array->val = NULL;
    array->len1 = 0;
    array->len2 = 0;

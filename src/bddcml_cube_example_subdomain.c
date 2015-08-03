@@ -66,9 +66,9 @@ void prepare_subdomain_data(int isub, // global subdomain index
             mesh->node_global_map.val[indns] = indng;
 
             // compute coordinates. In C interface, first all x, then all y, then all z.
-            mesh->coords.val[indns          ] = ig * hsize;
-            mesh->coords.val[indns +   lxyz1] = jg * hsize;
-            mesh->coords.val[indns + 2*lxyz1] = kg * hsize;
+            mesh->coords.val[0][indns] = ig * hsize;
+            mesh->coords.val[1][indns] = jg * hsize;
+            mesh->coords.val[2][indns] = kg * hsize;
 
             // for Poisson problem, there is only one dof per node,
             femsp->node_num_dofs.val[indns] = 1;
