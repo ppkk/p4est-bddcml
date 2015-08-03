@@ -266,3 +266,68 @@ p4est_gloidx_t node_loc_to_glob(p4est_lnodes_t * lnodes, p4est_locidx_t loc_idx)
       return lnodes->nonlocal_nodes[loc_idx - lnodes->owned_count];
 }
 
+void generate_reference_matrices(real stiffness_dd[P4EST_CHILDREN][P4EST_CHILDREN], real mass_dd[P4EST_CHILDREN][P4EST_CHILDREN])
+{
+   /* Compute entries of reference mass and stiffness matrices in 2D.
+   * In this example we can proceed without numerical integration. */
+   for (int l = 0; l < 2; ++l) {
+      for (int k = 0; k < 2; ++k) {
+         for (int j = 0; j < 2; ++j) {
+            for (int i = 0; i < 2; ++i) {
+#ifndef P4_TO_P8
+               mass_dd[2 * j + i][2 * l + k] = m_1d[i][k] * m_1d[j][l];
+               stiffness_dd[2 * j + i][2 * l + k] =
+                     s_1d[i][k] * m_1d[j][l] + m_1d[i][k] * s_1d[j][l];
+#else
+               for (int n = 0; n < 2; ++n) {
+                  for (int m = 0; m < 2; ++m) {
+                     mass_dd[4 * i + 2 * n + m][4 * l + 2 * k + j] =
+                           m_1d[m][j] * m_1d[n][k] * m_1d[i][l];
+                     stiffness_dd[4 * i + 2 * n + m][4 * l + 2 * k + j] =
+                           s_1d[m][j] * m_1d[n][k] * m_1d[i][l] +
+                           m_1d[m][j] * s_1d[n][k] * m_1d[i][l] +
+                           m_1d[m][j] * m_1d[n][k] * s_1d[i][l];
+                  }
+               }
+#endif
+            }
+         }
+      }
+   }
+
+   for(int row = 0; row < P4EST_CHILDREN; row++)
+   {
+      for(int col = 0; col < P4EST_CHILDREN; col++)
+      {
+         PPP printf("%6.4lf, ", stiffness_dd[row][col]);
+      }
+      PPP printf("\n");
+   }
+}
+
+
+
+int refine_uniform (p4est_t * p4est, p4est_topidx_t which_tree,
+                p4est_quadrant_t * quadrant)
+{
+   return 1;
+}
+
+int refine_point (p4est_t * p4est, p4est_topidx_t which_tree,
+           p4est_quadrant_t * quadrant)
+{
+   /* Compute the integer coordinate extent of a quadrant of length 2^(-3). */
+   const p4est_qcoord_t eighth = P4EST_QUADRANT_LEN (3);
+
+   /* Compute the length of the current quadrant in integer coordinates. */
+   const p4est_qcoord_t length = P4EST_QUADRANT_LEN (quadrant->level);
+
+   /* Refine if the quadrant intersects the block in question. */
+   return ((quadrant->x + length > 5 * eighth && quadrant->x < 6 * eighth) &&
+           (quadrant->y + length > 2 * eighth && quadrant->y < 3 * eighth) &&
+        #ifdef P4_TO_P8
+           (quadrant->z + length > 6 * eighth && quadrant->z < 7 * eighth) &&
+        #endif
+           1);
+}
+

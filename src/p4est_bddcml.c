@@ -140,8 +140,10 @@ void prepare_subdomain_fem_space(BddcmlMesh *mesh, BddcmlFemSpace *femsp)
       femsp->node_num_dofs.val[node] = 1;
       femsp->dofs_global_map.val[node] = mesh->node_global_map.val[node];
       if((real_equal(mesh->coords.val[0][node], 0.0)) || (real_equal(mesh->coords.val[0][node], 1.0))
-            || (real_equal(mesh->coords.val[0][node], 0.0)) || (real_equal(mesh->coords.val[0][node], 1.0))
-            || (real_equal(mesh->coords.val[0][node], 0.0)) || (real_equal(mesh->coords.val[0][node], 1.0))
+            || (real_equal(mesh->coords.val[1][node], 0.0)) || (real_equal(mesh->coords.val[1][node], 1.0))
+#ifdef P4_TO_P8
+            || (real_equal(mesh->coords.val[2][node], 0.0)) || (real_equal(mesh->coords.val[2][node], 1.0))
+#endif
             )
       {
          femsp->fixs_code.val[node] = 1;
@@ -150,6 +152,7 @@ void prepare_subdomain_fem_space(BddcmlMesh *mesh, BddcmlFemSpace *femsp)
       else
       {
          femsp->fixs_code.val[node] = 0;
+         femsp->fixs_values.val[node] = 0.0;
       }
 
    }
@@ -161,11 +164,6 @@ void assemble_matrix(p4est_t * p4est, SparseMatrix *matrix)
 }
 
 
-static int refine_uniform (p4est_t * p4est, p4est_topidx_t which_tree,
-                p4est_quadrant_t * quadrant)
-{
-   return 1;
-}
 
 
 int main (int argc, char **argv)
@@ -201,9 +199,10 @@ int main (int argc, char **argv)
    int startlevel = 0;
    p4est_t *p4est = p4est_new (mpicomm, conn, 0, NULL, NULL);
 
-   int endlevel = 3;
+   int endlevel = 5;
    for (int level = startlevel; level < endlevel; ++level) {
       p4est_refine (p4est, 0, refine_uniform, NULL);
+      //p4est_refine (p4est, 0, refine_fn, NULL);
       p4est_partition (p4est, 0, NULL);
    }
    if (startlevel < endlevel) {
@@ -229,7 +228,7 @@ int main (int argc, char **argv)
    BddcmlDimensions subdomain_dims, global_dims;
    BddcmlMesh mesh;
 
-   int print_rank_l = 2;
+   int print_rank_l = 0;
 
    // todo: using MPI Bcast in the following, should be possible to do without
    prepare_dimmensions(p4est, lnodes, &subdomain_dims, &global_dims, mpicomm);
@@ -244,14 +243,6 @@ int main (int argc, char **argv)
 
    plot_solution(p4est, lnodes, NULL, NULL);
 
-   /* Destroy the p4est and the connectivity structure. */
-   p4est_lnodes_destroy (lnodes);
-   p4est_destroy(p4est);
-   p4est_connectivity_destroy(conn);
-
-   /* Verify that allocations internal to p4est and sc do not leak memory.
-   * This should be called if sc_init () has been called earlier. */
-   sc_finalize ();
 
    //*************************************************************************************
    //*************************************************************************************
@@ -296,16 +287,159 @@ int main (int argc, char **argv)
    mpiret = MPI_Barrier(mpicomm);
    PPP printf("Initializing BDDCML done.\n");
 
-   PPP printf("Loading data ...\n");
+   RealArray rhss;
+   allocate_real_array(subdomain_dims.n_dofs, &rhss);
+   zero_real_array(&rhss);
 
+   int is_rhs_complete = 1;
+
+   RealArray sols;
+   allocate_real_array(subdomain_dims.n_dofs, &sols);
+   zero_real_array(&sols);
+
+
+   real mass_dd[P4EST_CHILDREN][P4EST_CHILDREN];
+   real stiffness_dd[P4EST_CHILDREN][P4EST_CHILDREN];
+   generate_reference_matrices(stiffness_dd, mass_dd);
+
+   SparseMatrix matrix;
+   int ndof_per_element = P4EST_CHILDREN;
+   // how much space the upper triangle of the element matrix occupies
+   int lelm = ndof_per_element * (ndof_per_element + 1) / 2;
+   // space for all upper triangles of element matrics
+   allocate_sparse_matrix(subdomain_dims.n_elems*lelm, SPD, &matrix);
+   zero_matrix(&matrix);
+
+   // copy the upper triangle of the element matrix to the sparse triplet
+   int element_offset = 0;
+   for(int ie = 0; ie < subdomain_dims.n_elems; ie++) {
+      int num_nodes_of_elem = mesh.num_nodes_of_elem.val[ie];
+      int node1 = mesh.elem_node_indices.val[element_offset];
+      int node2 = mesh.elem_node_indices.val[element_offset+1];
+      real elem_size = fmax(fabs(mesh.coords.val[0][node1] - mesh.coords.val[0][node2]),
+                            fabs(mesh.coords.val[1][node1] - mesh.coords.val[1][node2]));
+#ifdef P4_TO_P8
+      elem_size = fmax(elem_size,
+                       fabs(mesh.coords[2][node1] - mesh.coords[2][node2]));
+#endif
+      real elem_volume = pow(elem_size, global_dims.n_problem_dims);
+
+      double reference_scaled =
+#ifndef P4_TO_P8
+            1.;
+#else
+            elem_size;
+#endif
+      for(int j = 0; j < ndof_per_element; j++) {
+         int jdof = mesh.elem_node_indices.val[element_offset + j];
+         for(int i = 0; i <= j; i++) {
+            int idof = mesh.elem_node_indices.val[element_offset + i];
+
+            add_matrix_entry(&matrix, idof, jdof, reference_scaled * stiffness_dd[j][i]);
+         }
+
+         // TODO: integrate properly
+         if(femsp.fixs_code.val[jdof] == 0)
+         {
+            rhss.val[jdof] += /*1./(real)P4EST_CHILDREN * */elem_volume;
+         }
+      }
+      element_offset += num_nodes_of_elem;
+   }
+
+   // user constraints - not really used here
+   Real2DArray user_constraints;
+   allocate_real_2D_array(0, 0, &user_constraints);
+
+   // data for elements - not really used here
+   Real2DArray element_data;
+   allocate_real_2D_array(0, 0, &element_data);
+
+   // data for dofs - not really used here
+   RealArray dof_data;
+   allocate_real_array(0, &dof_data);
+
+
+   PPP printf("Loading data ...\n");
+   PPP printf("%d, %d\n", mesh.elem_node_indices.len, mesh.num_nodes_of_elem.len);
+
+   int subdomain_idx = mpi_rank;
    bddcml_upload_subdomain_data(&global_dims, &subdomain_dims,
-                                     mpi_rank, &mesh, &femsp,
+                                     subdomain_idx, &mesh, &femsp,
                                      &rhss, is_rhs_complete, &sols, &matrix,
                                      &user_constraints, &element_data,
                                      &dof_data, &preconditioner_params);
 
-   mpiret = MPI_Barrier(mpicomm);
    PPP printf("Loading data done.\n");
+
+
+   mpiret = MPI_Barrier(mpicomm);
+
+   PPP printf("Preconditioner set-up ...\n");
+
+   // PRECONDITIONER SETUP
+   mpiret = MPI_Barrier(mpicomm);
+   // TODO: call time_start
+   bddcml_setup_preconditioner(matrix.type, &preconditioner_params);
+
+   mpiret = MPI_Barrier(mpicomm);
+   // TODO: call time_end(t_pc_setup)
+
+   PPP printf("Preconditioner set-up done.\n");
+
+
+
+   PPP printf("Calling Krylov method ...\n");
+
+   mpiret = MPI_Barrier(mpicomm);
+   // TODO: call time_start
+   // call with setting of iterative properties
+
+   BddcmlConvergenceInfo convergence_info;
+
+   real normRn_sol, normRn2, normRn2_loc, normRn2_sub;
+   real normL2_sol, normL2_loc, normL2_sub;
+   real normLinf_sol, normLinf_loc;
+
+   bddcml_solve(&krylov_params, &convergence_info, mpicomm);
+   mpiret = MPI_Barrier(mpicomm);
+
+   // TODO: call time_end(t_krylov)
+
+   PPP printf("Krylov method done.\n");
+
+   PPP printf(" Output of PCG: ==============\n");
+   PPP printf(" Number of iterations: %d\n", convergence_info.num_iter);
+   PPP printf(" Convergence reason:   %d\n", convergence_info.converged_reason);
+   if ( convergence_info.condition_number >= 0. ) {
+      PPP printf(" Condition number: %lf\n", convergence_info.condition_number);
+   }
+   PPP printf(" =============================\n");
+
+
+   bddcml_download_local_solution(subdomain_idx, &sols);
+
+
+   plot_solution(p4est, lnodes, sols.val, NULL); //uexact_eval);
+
+
+   free_mesh(&mesh);
+   free_fem_space(&femsp);
+
+   free_real_array(&rhss);
+   free_real_array(&sols);
+   free_sparse_matrix(&matrix);
+
+   assert(get_num_allocations() == 0);
+
+   /* Destroy the p4est and the connectivity structure. */
+   p4est_lnodes_destroy (lnodes);
+   p4est_destroy(p4est);
+   p4est_connectivity_destroy(conn);
+
+   /* Verify that allocations internal to p4est and sc do not leak memory.
+   * This should be called if sc_init () has been called earlier. */
+   sc_finalize ();
 
 
    /* This is standard MPI programs.  Without --enable-mpi, this is a dummy. */

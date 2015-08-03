@@ -91,9 +91,8 @@
    real t_total, t_load, t_pc_setup, t_krylov;
 
 // small variables - indices, etc.
-   int ia, element_offset, num_nodes_of_elem, idof, jdof, lelm;
+   int element_offset, num_nodes_of_elem, idof, jdof, lelm;
    int ie, i, isub, j;
-   int is_rhs_complete;
    char aux[32];
    char command[256];
    int idx;
@@ -246,7 +245,7 @@ int main(int argc, char **argv)
             rhss.val[idx] = 1. * el_vol;
          }
       }
-      is_rhs_complete = 1;
+      int is_rhs_complete = 1;
 
       // create local initial solution
       allocate_real_array(subdomain_dims.n_dofs, &sols);
@@ -265,7 +264,6 @@ int main(int argc, char **argv)
       zero_matrix(&matrix);
 
       // copy the upper triangle of the element matrix to the sparse triplet
-      ia = 0;
       element_offset = 0;
       for(ie = 0; ie < subdomain_dims.n_elems; ie++) {
          num_nodes_of_elem = mesh.num_nodes_of_elem.val[ie];

@@ -4,6 +4,19 @@
 #include <assert.h>
 #include <math.h>
 #include <mpi.h>
+
+#ifndef P4_TO_P8
+#include <p4est_bits.h>
+#include <p4est_ghost.h>
+#include <p4est_lnodes.h>
+#include <p4est_vtk.h>
+#else
+#include <p8est_bits.h>
+#include <p8est_ghost.h>
+#include <p8est_lnodes.h>
+#include <p8est_vtk.h>
+#endif
+
 #include "bddcml_interface_c.h"
 #include "bddcml_structs.h"
 
@@ -94,7 +107,7 @@ void init_dimmensions(BddcmlDimensions* dimmensions, int mesh_dim)
 void init_mesh(BddcmlDimensions* subdomain_dims, BddcmlMesh* mesh)
 {
    mesh->subdomain_dims = subdomain_dims;
-   allocate_idx_array(subdomain_dims->n_elems * 8, &mesh->elem_node_indices);
+   allocate_idx_array(subdomain_dims->n_elems * P4EST_CHILDREN, &mesh->elem_node_indices);
    allocate_idx_array(subdomain_dims->n_elems, &mesh->num_nodes_of_elem);
    allocate_idx_array(subdomain_dims->n_elems, &mesh->elem_global_map);
    allocate_idx_array(subdomain_dims->n_nodes, &mesh->node_global_map);
@@ -115,6 +128,7 @@ void print_bddcml_mesh(BddcmlMesh *mesh, int which_rank)
    print_rank = which_rank;
    PPP printf("\n*************** BEGIN BDDCML MESH ************************\n");
    PPP printf("elems: %d, nodes: %d\n", mesh->subdomain_dims->n_elems, mesh->subdomain_dims->n_nodes);
+   PPP printf("linet: %d, lnnet: %d\n", mesh->elem_node_indices.len, mesh->num_nodes_of_elem.len);
    for(int elem = 0; elem < mesh->elem_global_map.len; elem++)
    {
       PPP printf("elem %d -> ", mesh->elem_global_map.val[elem]);

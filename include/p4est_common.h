@@ -51,4 +51,28 @@ void print_p4est_mesh (p4est_t * p4est, p4est_lnodes_t * lnodes, int which_rank)
 
 p4est_gloidx_t node_loc_to_glob(p4est_lnodes_t * lnodes, p4est_locidx_t loc_idx);
 
+/* 1D mass matrix on the reference element [0, 1]. */
+static const double m_1d[2][2] = {
+   {1 / 3., 1 / 6.},
+   {1 / 6., 1 / 3.},
+};
+/* 1D stiffness matrix on the reference element [0, 1]. */
+static const double s_1d[2][2] = {
+   {1., -1.},
+   {-1., 1.},
+};
+
+void generate_reference_matrices(real stiffness_dd[P4EST_CHILDREN][P4EST_CHILDREN], real mass_dd[P4EST_CHILDREN][P4EST_CHILDREN]);
+
+int refine_uniform (p4est_t * p4est, p4est_topidx_t which_tree, p4est_quadrant_t * quadrant);
+
+/** Callback function to decide on refinement.
+ *
+ * This function is called for every processor-local quadrant in order; its
+ * return value is understood as a boolean refinement flag.  We refine around a
+ * h = 1/8 block with left front lower corner (5/8, 2/8, 6/8).
+ */
+int refine_point (p4est_t * p4est, p4est_topidx_t which_tree, p4est_quadrant_t * quadrant);
+
+
 #endif // P4EST_COMMON_H

@@ -51,31 +51,6 @@
 #include "p4est_common.h"
 
 
-/** Callback function to decide on refinement.
- *
- * This function is called for every processor-local quadrant in order; its
- * return value is understood as a boolean refinement flag.  We refine around a
- * h = 1/8 block with left front lower corner (5/8, 2/8, 6/8).
- */
-static int
-refine_fn (p4est_t * p4est, p4est_topidx_t which_tree,
-           p4est_quadrant_t * quadrant)
-{
-   /* Compute the integer coordinate extent of a quadrant of length 2^(-3). */
-   const p4est_qcoord_t eighth = P4EST_QUADRANT_LEN (3);
-
-   /* Compute the length of the current quadrant in integer coordinates. */
-   const p4est_qcoord_t length = P4EST_QUADRANT_LEN (quadrant->level);
-
-   /* Refine if the quadrant intersects the block in question. */
-   return ((quadrant->x + length > 5 * eighth && quadrant->x < 6 * eighth) &&
-           (quadrant->y + length > 2 * eighth && quadrant->y < 3 * eighth) &&
-        #ifdef P4_TO_P8
-           (quadrant->z + length > 6 * eighth && quadrant->z < 7 * eighth) &&
-        #endif
-           1);
-}
-
 /** Right hand side function for the 2D Poisson problem.
  *
  * This is the negative Laplace operator acting on the function \a uexact.
@@ -653,16 +628,6 @@ solve_by_cg (p4est_t * p4est, p4est_lnodes_t * lnodes, const int8_t * bc,
 static void
 solve_poisson (p4est_t * p4est)
 {
-   /* 1D mass matrix on the reference element [0, 1]. */
-   static const double m_1d[2][2] = {
-      {1 / 3., 1 / 6.},
-      {1 / 6., 1 / 3.},
-   };
-   /* 1D stiffness matrix on the reference element [0, 1]. */
-   static const double s_1d[2][2] = {
-      {1., -1.},
-      {-1., 1.},
-   };
    int                 i, j, k, l;
 #ifdef P4_TO_P8
    int                 m, n;
@@ -686,32 +651,7 @@ solve_poisson (p4est_t * p4est)
    p4est_ghost_destroy (ghost);
    ghost = NULL;
 
-   /* Compute entries of reference mass and stiffness matrices in 2D.
-   * In this example we can proceed without numerical integration. */
-   for (l = 0; l < 2; ++l) {
-      for (k = 0; k < 2; ++k) {
-         for (j = 0; j < 2; ++j) {
-            for (i = 0; i < 2; ++i) {
-#ifndef P4_TO_P8
-               mass_dd[2 * j + i][2 * l + k] = m_1d[i][k] * m_1d[j][l];
-               stiffness_dd[2 * j + i][2 * l + k] =
-                     s_1d[i][k] * m_1d[j][l] + m_1d[i][k] * s_1d[j][l];
-#else
-               for (n = 0; n < 2; ++n) {
-                  for (m = 0; m < 2; ++m) {
-                     mass_dd[4 * i + 2 * n + m][4 * l + 2 * k + j] =
-                           m_1d[m][j] * m_1d[n][k] * m_1d[i][l];
-                     stiffness_dd[4 * i + 2 * n + m][4 * l + 2 * k + j] =
-                           s_1d[m][j] * m_1d[n][k] * m_1d[i][l] +
-                           m_1d[m][j] * s_1d[n][k] * m_1d[i][l] +
-                           m_1d[m][j] * m_1d[n][k] * s_1d[i][l];
-                  }
-               }
-#endif
-            }
-         }
-      }
-   }
+   generate_reference_matrices(stiffness_dd, mass_dd);
 
    /* Assign independent nodes for hanging nodes. */
    corner_to_hanging[0] = &zero;
@@ -830,9 +770,9 @@ main (int argc, char **argv)
 
    /* Refine the forest iteratively, load balancing at each iteration.
    * This is important when starting with an unrefined forest */
-   endlevel = 3;
+   endlevel = 5;
    for (level = startlevel; level < endlevel; ++level) {
-      p4est_refine (p4est, 0, refine_fn, NULL);
+      p4est_refine (p4est, 0, refine_uniform, NULL);
       /* Refinement has lead to up to 8x more elements; redistribute them. */
       p4est_partition (p4est, 0, NULL);
    }
