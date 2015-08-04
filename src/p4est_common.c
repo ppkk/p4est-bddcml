@@ -297,14 +297,14 @@ void generate_reference_matrices(real stiffness_dd[P4EST_CHILDREN][P4EST_CHILDRE
       }
    }
 
-   for(int row = 0; row < P4EST_CHILDREN; row++)
-   {
-      for(int col = 0; col < P4EST_CHILDREN; col++)
-      {
-         PPP printf("%6.4lf, ", stiffness_dd[row][col]);
-      }
-      PPP printf("\n");
-   }
+//   for(int row = 0; row < P4EST_CHILDREN; row++)
+//   {
+//      for(int col = 0; col < P4EST_CHILDREN; col++)
+//      {
+//         PPP printf("%6.4lf, ", stiffness_dd[row][col]);
+//      }
+//      PPP printf("\n");
+//   }
 }
 
 
@@ -356,14 +356,12 @@ int independent_nodes(p4est_lnodes_t *lnodes, p4est_locidx_t quadrant, int lnode
    }
 }
 
-int refine_uniform (p4est_t * p4est, p4est_topidx_t which_tree,
-                p4est_quadrant_t * quadrant)
+int refine_uniform (p4est_t * p4est, p4est_topidx_t which_tree, p4est_quadrant_t * quadrant)
 {
    return 1;
 }
 
-int refine_point (p4est_t * p4est, p4est_topidx_t which_tree,
-           p4est_quadrant_t * quadrant)
+int refine_square (p4est_t * p4est, p4est_topidx_t which_tree, p4est_quadrant_t * quadrant)
 {
    /* Compute the integer coordinate extent of a quadrant of length 2^(-3). */
    const p4est_qcoord_t eighth = P4EST_QUADRANT_LEN (3);
@@ -376,6 +374,38 @@ int refine_point (p4est_t * p4est, p4est_topidx_t which_tree,
            (quadrant->y + length > 2 * eighth && quadrant->y < 3 * eighth) &&
         #ifdef P4_TO_P8
            (quadrant->z + length > 6 * eighth && quadrant->z < 7 * eighth) &&
+        #endif
+           1);
+}
+int refine_center (p4est_t * p4est, p4est_topidx_t which_tree, p4est_quadrant_t * quadrant)
+{
+//   printf("morton %d, %d, level %d; num %d\n", quadrant->x, quadrant->y, quadrant->level, 1<<29);
+
+   return ((quadrant->x == 1 << 29) &&
+           (quadrant->y == 1 << 29) &&
+        #ifdef P4_TO_P8
+           (quadrant->z == 0) &&
+        #endif
+           1);
+}
+
+int refine_points (p4est_t * p4est, p4est_topidx_t which_tree, p4est_quadrant_t * quadrant)
+{
+   //printf("morton %d, %d, level %d; num %d, %d\n", quadrant->x, quadrant->y, quadrant->level, 1<<29, (1<<27) + (1<<28));
+
+   return ((quadrant->x == 1 << 28) &&
+           (quadrant->y == (1 << 29) + (1 << 28)) &&
+        #ifdef P4_TO_P8
+           (quadrant->z == 0) &&
+        #endif
+           1);
+}
+
+int refine_circle (p4est_t * p4est, p4est_topidx_t which_tree, p4est_quadrant_t * quadrant)
+{
+   return ((quadrant->x == quadrant->y) &&
+        #ifdef P4_TO_P8
+           (quadrant->x == quadrant->z) &&
         #endif
            1);
 }

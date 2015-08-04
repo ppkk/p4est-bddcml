@@ -270,7 +270,9 @@ int main(int argc, char **argv)
          num_nodes_of_elem = mesh.num_nodes_of_elem.val[ie];
          for(j = 0; j < NDOF_PER_ELEMENT; j++) {
             jdof = mesh.elem_node_indices.val[element_offset + j];
-            for(i = 0; i <= j; i++) {
+            // this has been changed, we send all entries to the function, and it discards those where idof > jdof
+            // it is done because of the hanging nodes
+            for(i = 0; i < NDOF_PER_ELEMENT /*<= j*/; i++) {
                idof = mesh.elem_node_indices.val[element_offset + i];
 
                add_matrix_entry(&matrix, idof, jdof, element_matrix[j * NDOF_PER_ELEMENT + i]);

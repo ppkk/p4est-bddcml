@@ -76,7 +76,10 @@ int refine_uniform (p4est_t * p4est, p4est_topidx_t which_tree, p4est_quadrant_t
  * return value is understood as a boolean refinement flag.  We refine around a
  * h = 1/8 block with left front lower corner (5/8, 2/8, 6/8).
  */
-int refine_point (p4est_t * p4est, p4est_topidx_t which_tree, p4est_quadrant_t * quadrant);
+int refine_square (p4est_t * p4est, p4est_topidx_t which_tree, p4est_quadrant_t * quadrant);
+int refine_center (p4est_t * p4est, p4est_topidx_t which_tree, p4est_quadrant_t * quadrant);
+int refine_circle (p4est_t * p4est, p4est_topidx_t which_tree, p4est_quadrant_t * quadrant);
+int refine_points (p4est_t * p4est, p4est_topidx_t which_tree, p4est_quadrant_t * quadrant);
 
 
 #endif // P4EST_COMMON_H

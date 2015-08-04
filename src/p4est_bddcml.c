@@ -162,8 +162,87 @@ void prepare_subdomain_fem_space(BddcmlMesh *mesh, BddcmlFemSpace *femsp)
    }
 }
 
-void assemble_matrix(p4est_t * p4est, SparseMatrix *matrix)
+void assemble_matrix_rhs(p4est_lnodes_t *lnodes, BddcmlMesh *mesh, double *element_volumes, BddcmlFemSpace *femsp,
+                         SparseMatrix *matrix, RealArray *rhss)
 {
+   real mass_dd[P4EST_CHILDREN][P4EST_CHILDREN];
+   real stiffness_dd[P4EST_CHILDREN][P4EST_CHILDREN];
+   generate_reference_matrices(stiffness_dd, mass_dd);
+
+   int element_offset = 0;
+   for(int ie = 0; ie < mesh->subdomain_dims->n_elems; ie++) {
+      int num_nodes_of_elem = mesh->num_nodes_of_elem.val[ie];
+      int ndof_per_element = num_nodes_of_elem;
+      assert(ndof_per_element == P4EST_CHILDREN);
+
+      // TODO: elem_size and elem_volume is correct only when the mesh is obtained by refinements
+      // from a UNIT SQUARE/CUBE
+      // TODO: ONLY FROM ****UNIT****
+      real elem_volume = element_volumes[ie];
+      //real elem_volume = pow(elem_size, global_dims.n_problem_dims);
+
+      double reference_scaled =
+#ifndef P4_TO_P8
+            1.;
+#else
+            elem_size;
+#endif
+      for(int j = 0; j < ndof_per_element; j++) {
+
+         //todo: dofs should be taken from femsp!
+         int jdof = mesh->elem_node_indices.val[element_offset + j];
+         assert(femsp->node_num_dofs.val[jdof] == 1);
+
+         p4est_locidx_t j_nodes[2];
+         real *j_coeffs;
+         int j_nindep = independent_nodes(lnodes, ie, j, j_nodes, &j_coeffs);
+         if(j_nindep == 1)
+         {
+            assert(jdof == j_nodes[0]);
+         }
+         for(int j_indep_nodes_idx = 0; j_indep_nodes_idx < j_nindep; j_indep_nodes_idx++)
+         {
+            int j_indep_node = j_nodes[j_indep_nodes_idx];
+            double j_coeff = j_coeffs[j_indep_nodes_idx];
+
+            for(int i = 0; i < ndof_per_element /*<= j*/; i++) {
+               int idof = mesh->elem_node_indices.val[element_offset + i];
+
+               p4est_locidx_t i_nodes[2];
+               real *i_coeffs;
+               int i_nindep = independent_nodes(lnodes, ie, i, i_nodes, &i_coeffs);
+               if(i_nindep == 1)
+               {
+                  assert(idof == i_nodes[0]);
+               }
+               for(int i_indep_nodes_idx = 0; i_indep_nodes_idx < i_nindep; i_indep_nodes_idx++)
+               {
+                  int i_indep_node = i_nodes[i_indep_nodes_idx];
+                  double i_coeff = i_coeffs[i_indep_nodes_idx];
+
+                  double matrix_value = i_coeff * j_coeff * reference_scaled * stiffness_dd[j][i];
+                  add_matrix_entry(matrix, i_indep_node, j_indep_node, matrix_value);
+//                  printf("adding entry loc (%d, %d), nodes, (%d, %d), coefs (%3.2lf, %3.2lf), locstiff %lf, value %lf\n",
+//                         j, i, j_indep_node, i_indep_node, i_coeff, j_coeff, stiffness_dd[j][i], matrix_value);
+               }
+            }
+
+            // TODO: integrate properly
+            // TODO: elem_volume is correct only when the mesh is obtained by refinements
+            // from a UNIT SQUARE/CUBE
+            // TODO: ONLY FROM ****UNIT****
+
+
+            //if(femsp.fixs_code.val[jdof] == 0)
+            {
+               double rhs_value = j_coeff * 1./(real)P4EST_CHILDREN * elem_volume * 1;
+               rhss->val[j_indep_node] += rhs_value;
+            }
+
+         }
+      }
+      element_offset += num_nodes_of_elem;
+   }
 
 }
 
@@ -172,6 +251,8 @@ void assemble_matrix(p4est_t * p4est, SparseMatrix *matrix)
 
 int main (int argc, char **argv)
 {
+   init_corner_to_hanging();
+
    int                 mpiret;
    sc_MPI_Comm         mpicomm;
    p4est_connectivity_t *conn;
@@ -197,29 +278,51 @@ int main (int argc, char **argv)
    conn = p8est_connectivity_new_unitcube ();
 #endif
 
-   init_corner_to_hanging();
 
-   /* Create a forest that is not refined; it consists of the root octant.
-   * The p4est_new_ext function can take a startlevel for a load-balanced
-   * initial uniform refinement.  Here we refine adaptively instead. */
-   int startlevel = 0;
+   BddcmlLevelInfo level_info;
+   // Number of elements in an edge of a subdomain and number of subdomains in an edge of the unit cube
+   if(argc == 1 + 1) {
+      level_info.nlevels = atoi(argv[1]);
+   }
+   else {
+      if ( mpi_rank == 0 ) {
+         printf(" Usage: mpirun -np X ./p4est_bddcml NLEVELS");
+      }
+      exit(0);
+   }
+
+   // number of subdomains == mpi_size
+   init_levels(mpi_size, &level_info);
+
+   BddcmlGeneralParams general_params;
+   set_implicit_general_params(&general_params);
+   //general_params.just_direct_solve_int = 1;
+
+   BddcmlKrylovParams krylov_params;
+   set_implicit_krylov_params(&krylov_params);
+
+   BddcmlPreconditionerParams preconditioner_params;
+   set_implicit_preconditioner_params(&preconditioner_params);
+
    p4est_t *p4est = p4est_new (mpicomm, conn, 0, NULL, NULL);
 
-   int endlevel = 7;
-   for (int level = startlevel; level < endlevel; ++level) {
-      //p4est_refine (p4est, 0, refine_uniform, NULL);
-      p4est_refine (p4est, 0, refine_point, NULL);
-      p4est_partition (p4est, 0, NULL);
-   }
-   if (startlevel < endlevel) {
-      p4est_balance (p4est, P4EST_CONNECT_FULL, NULL);
+   for (int level = 0; level < 4; ++level) {
+      p4est_refine (p4est, 0, refine_uniform, NULL);
       p4est_partition (p4est, 0, NULL);
    }
 
+   for (int level = 0; level < 5; ++level) {
+      p4est_refine (p4est, 0, refine_circle, NULL);
+      p4est_partition (p4est, 0, NULL);
+   }
 
-//   SparseMatrix matrix;
-//   assemble_matrix(p4est, &matrix);
+   for (int level = 0; level < 10; ++level) {
+      p4est_refine (p4est, 0, refine_points, NULL);
+      p4est_partition (p4est, 0, NULL);
+   }
 
+   p4est_balance (p4est, P4EST_CONNECT_FULL, NULL);
+   p4est_partition (p4est, 0, NULL);
 
    /* Create the ghost layer to learn about parallel neighbors. */
    p4est_ghost_t *ghost = p4est_ghost_new (p4est, P4EST_CONNECT_FULL);
@@ -239,52 +342,20 @@ int main (int argc, char **argv)
    // todo: using MPI Bcast in the following, should be possible to do without
    prepare_dimmensions(p4est, lnodes, &subdomain_dims, &global_dims, mpicomm);
 
-   print_p4est_mesh(p4est, lnodes, print_rank_l);
+//   print_p4est_mesh(p4est, lnodes, print_rank_l);
 
    // TODO: elem_volume is correct only when the mesh is obtained by refinements
    // from a UNIT SQUARE/CUBE
    real *element_volumes = (real*) malloc(subdomain_dims.n_elems * sizeof(real));
 
    prepare_subdomain_mesh(p4est, lnodes, &subdomain_dims, &mesh, element_volumes);
-   print_bddcml_mesh(&mesh, print_rank_l);
+//   print_bddcml_mesh(&mesh, print_rank_l);
 
    BddcmlFemSpace femsp;
    prepare_subdomain_fem_space(&mesh, &femsp);
-   print_bddcml_fem_space(&femsp, &mesh, print_rank_l);
+//   print_bddcml_fem_space(&femsp, &mesh, print_rank_l);
 
-   plot_solution(p4est, lnodes, NULL, NULL);
-
-
-   //*************************************************************************************
-   //*************************************************************************************
-   //    BDDCML part of the example
-   //*************************************************************************************
-   //*************************************************************************************
-
-   BddcmlLevelInfo level_info;
-   // Number of elements in an edge of a subdomain and number of subdomains in an edge of the unit cube
-   if(argc == 1 + 1) {
-      level_info.nlevels = atoi(argv[1]);
-   }
-   else {
-      if ( mpi_rank == 0 ) {
-         printf(" Usage: mpirun -np X ./p4est_bddcml NLEVELS");
-      }
-      exit(0);
-   }
-
-   // number of subdomains == mpi_size
-   init_levels(mpi_size, &level_info);
-
-   BddcmlGeneralParams general_params;
-   set_implicit_general_params(&general_params);
-   general_params.just_direct_solve_int = 1;
-
-   BddcmlKrylovParams krylov_params;
-   set_implicit_krylov_params(&krylov_params);
-
-   BddcmlPreconditionerParams preconditioner_params;
-   set_implicit_preconditioner_params(&preconditioner_params);
+//   plot_solution(p4est, lnodes, NULL, NULL);
 
    print_rank = print_rank_l;
    print_basic_properties(&global_dims, mpi_size, &level_info, &krylov_params);
@@ -309,11 +380,6 @@ int main (int argc, char **argv)
    allocate_real_array(subdomain_dims.n_dofs, &sols);
    zero_real_array(&sols);
 
-
-   real mass_dd[P4EST_CHILDREN][P4EST_CHILDREN];
-   real stiffness_dd[P4EST_CHILDREN][P4EST_CHILDREN];
-   generate_reference_matrices(stiffness_dd, mass_dd);
-
    SparseMatrix matrix;
    int ndof_per_element = P4EST_CHILDREN;
    // how much space the upper triangle of the element matrix occupies
@@ -326,75 +392,7 @@ int main (int argc, char **argv)
    allocate_sparse_matrix(extra_space_for_hanging_nodes * subdomain_dims.n_elems*lelm, SPD, &matrix);
    zero_matrix(&matrix);
 
-   // copy the upper triangle of the element matrix to the sparse triplet
-   int element_offset = 0;
-   for(int ie = 0; ie < subdomain_dims.n_elems; ie++) {
-      int num_nodes_of_elem = mesh.num_nodes_of_elem.val[ie];
-
-      // TODO: elem_size and elem_volume is correct only when the mesh is obtained by refinements
-      // from a UNIT SQUARE/CUBE
-      // TODO: ONLY FROM ****UNIT****
-      real elem_volume = element_volumes[ie];
-      printf("volume %lf\n", 1/elem_volume);
-      //real elem_volume = pow(elem_size, global_dims.n_problem_dims);
-
-      double reference_scaled =
-#ifndef P4_TO_P8
-            1.;
-#else
-            elem_size;
-#endif
-      for(int j = 0; j < ndof_per_element; j++) {
-         int jdof = mesh.elem_node_indices.val[element_offset + j];
-
-         p4est_locidx_t j_nodes[2];
-         real *j_coeffs;
-         int j_nindep = independent_nodes(lnodes, ie, j, j_nodes, &j_coeffs);
-         if(j_nindep == 1)
-         {
-            assert(jdof == j_nodes[0]);
-         }
-         for(int j_indep_nodes_idx = 0; j_indep_nodes_idx < j_nindep; j_indep_nodes_idx++)
-         {
-            int j_indep_node = j_nodes[j_indep_nodes_idx];
-            double j_coeff = j_coeffs[j_indep_nodes_idx];
-
-            for(int i = 0; i <= j; i++) {
-               int idof = mesh.elem_node_indices.val[element_offset + i];
-
-               p4est_locidx_t i_nodes[2];
-               real *i_coeffs;
-               int i_nindep = independent_nodes(lnodes, ie, i, i_nodes, &i_coeffs);
-               if(i_nindep == 1)
-               {
-                  assert(idof == i_nodes[0]);
-               }
-               for(int i_indep_nodes_idx = 0; i_indep_nodes_idx < i_nindep; i_indep_nodes_idx++)
-               {
-                  int i_indep_node = i_nodes[i_indep_nodes_idx];
-                  double i_coeff = i_coeffs[i_indep_nodes_idx];
-
-                  double matrix_value = i_coeff * j_coeff * reference_scaled * stiffness_dd[j][i];
-                  add_matrix_entry(&matrix, i_indep_node, j_indep_node, matrix_value);
-               }
-            }
-
-            // TODO: integrate properly
-            // TODO: elem_volume is correct only when the mesh is obtained by refinements
-            // from a UNIT SQUARE/CUBE
-            // TODO: ONLY FROM ****UNIT****
-
-
-            //if(femsp.fixs_code.val[jdof] == 0)
-            {
-               double rhs_value = j_coeff * 1./(real)P4EST_CHILDREN * elem_volume * 1;
-               rhss.val[j_indep_node] += rhs_value;
-            }
-
-         }
-      }
-      element_offset += num_nodes_of_elem;
-   }
+   assemble_matrix_rhs(lnodes, &mesh, element_volumes, &femsp, &matrix, &rhss);
 
    // user constraints - not really used here
    Real2DArray user_constraints;
