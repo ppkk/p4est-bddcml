@@ -246,8 +246,13 @@ void assemble_matrix_rhs(p4est_lnodes_t *lnodes, BddcmlMesh *mesh, double *eleme
 
 }
 
-
-
+void refine_and_partition(p4est_t* p4est, int num, p4est_refine_t fn)
+{
+   for (int level = 0; level < num; ++level) {
+      p4est_refine (p4est, 0, fn, NULL);
+      p4est_partition (p4est, 0, NULL);
+   }
+}
 
 int main (int argc, char **argv)
 {
@@ -306,20 +311,9 @@ int main (int argc, char **argv)
 
    p4est_t *p4est = p4est_new (mpicomm, conn, 0, NULL, NULL);
 
-   for (int level = 0; level < 4; ++level) {
-      p4est_refine (p4est, 0, refine_uniform, NULL);
-      p4est_partition (p4est, 0, NULL);
-   }
-
-   for (int level = 0; level < 5; ++level) {
-      p4est_refine (p4est, 0, refine_circle, NULL);
-      p4est_partition (p4est, 0, NULL);
-   }
-
-   for (int level = 0; level < 10; ++level) {
-      p4est_refine (p4est, 0, refine_points, NULL);
-      p4est_partition (p4est, 0, NULL);
-   }
+   refine_and_partition(p4est, 4, refine_uniform);
+   refine_and_partition(p4est, 5, refine_diagonal);
+   refine_and_partition(p4est, 8, refine_points);
 
    p4est_balance (p4est, P4EST_CONNECT_FULL, NULL);
    p4est_partition (p4est, 0, NULL);
@@ -374,7 +368,7 @@ int main (int argc, char **argv)
    allocate_real_array(subdomain_dims.n_dofs, &rhss);
    zero_real_array(&rhss);
 
-   int is_rhs_complete = 1;
+   int is_rhs_complete = 0;
 
    RealArray sols;
    allocate_real_array(subdomain_dims.n_dofs, &sols);

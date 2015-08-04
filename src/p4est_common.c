@@ -401,7 +401,7 @@ int refine_points (p4est_t * p4est, p4est_topidx_t which_tree, p4est_quadrant_t 
            1);
 }
 
-int refine_circle (p4est_t * p4est, p4est_topidx_t which_tree, p4est_quadrant_t * quadrant)
+int refine_diagonal (p4est_t * p4est, p4est_topidx_t which_tree, p4est_quadrant_t * quadrant)
 {
    return ((quadrant->x == quadrant->y) &&
         #ifdef P4_TO_P8
