@@ -13,6 +13,8 @@
 #include "helpers.h"
 #include "p4est_common.h"
 
+const int   *corner_to_hanging[P4EST_CHILDREN];
+
 /** Compute values at hanging nodes by interpolation.
  * A face hanging node in 3D depends on the four corner nodes of the face,
  * edge hanging nodes or face hanging nodes in 2D depend on two nodes.
@@ -306,6 +308,53 @@ void generate_reference_matrices(real stiffness_dd[P4EST_CHILDREN][P4EST_CHILDRE
 }
 
 
+void init_corner_to_hanging()
+{
+   corner_to_hanging[0] = &zero;
+#ifdef P4_TO_P8
+   corner_to_hanging[1] = p8est_edge_corners[0];
+   corner_to_hanging[2] = p8est_edge_corners[4];
+   corner_to_hanging[3] = p8est_face_corners[4];
+   corner_to_hanging[4] = p8est_edge_corners[8];
+#endif
+   corner_to_hanging[ones - 2] = p4est_face_corners[2];
+   corner_to_hanging[ones - 1] = p4est_face_corners[0];
+   corner_to_hanging[ones] = &ones;
+}
+
+real coeffs_one[1] = {1};
+real coeffs_halves[2] = {0.5, 0.5};
+int independent_nodes(p4est_lnodes_t *lnodes, p4est_locidx_t quadrant, int lnode, p4est_locidx_t *nodes, real** coeffs)
+{
+   int anyhang, hanging_corner[P4EST_CHILDREN];
+
+#ifdef P4_TO_P8
+   assert(0);
+#endif
+
+   /* Figure out the hanging corners on this element, if any. */
+   anyhang = lnodes_decode2 (lnodes->face_code[quadrant], hanging_corner);
+
+   if ((!anyhang) ||  (hanging_corner[lnode] == -1))
+   {
+      *coeffs = coeffs_one;
+      nodes[0] = lnodes->element_nodes[P4EST_CHILDREN * quadrant + lnode];
+      return 1;
+   }
+   else
+   {
+      int c = hanging_corner[lnode];      /* Child id of quadrant. */
+      int ncontrib = corner_num_hanging[lnode ^ c];
+      const int *contrib_corner = corner_to_hanging[lnode ^ c];
+
+      for (int j = 0; j < ncontrib; ++j) {
+         int h = contrib_corner[j] ^ c;  /* Inverse transform of node number. */
+         nodes[j] = lnodes->element_nodes[P4EST_CHILDREN * quadrant + h];
+      }
+      *coeffs = coeffs_halves;
+      return 2;
+   }
+}
 
 int refine_uniform (p4est_t * p4est, p4est_topidx_t which_tree,
                 p4est_quadrant_t * quadrant)

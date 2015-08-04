@@ -272,7 +272,7 @@ void bddcml_upload_subdomain_data(BddcmlDimensions *global_dims, BddcmlDimension
                                   matrix->i,
                                   matrix->j,
                                   matrix->val,
-                                  &matrix->len,
+                                  &matrix->nnz,
                                   &matrix->is_assembled,
                                   user_constraints->val_serialized,
                                   &user_constraints->len1,

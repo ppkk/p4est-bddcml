@@ -260,6 +260,7 @@ int main(int argc, char **argv)
       // how much space the upper triangle of the element matrix occupies
       lelm = NDOF_PER_ELEMENT * (NDOF_PER_ELEMENT + 1) / 2;
       // space for all upper triangles of element matrics
+
       allocate_sparse_matrix(subdomain_dims.n_elems*lelm, SPD, &matrix);
       zero_matrix(&matrix);
 

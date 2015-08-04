@@ -36,7 +36,7 @@ static const int    zero = 0;           /**< Constant zero. */
 static const int    ones = P4EST_CHILDREN - 1;  /**< One bit per dimension. */
 
 /** For each node i of the reference quadrant, corner_num_hanging[i] many. */
-static const int   *corner_to_hanging[P4EST_CHILDREN];
+extern const int   *corner_to_hanging[P4EST_CHILDREN];
 
 
 void interpolate_hanging_nodes (p4est_lnodes_code_t face_code,
@@ -63,6 +63,10 @@ static const double s_1d[2][2] = {
 };
 
 void generate_reference_matrices(real stiffness_dd[P4EST_CHILDREN][P4EST_CHILDREN], real mass_dd[P4EST_CHILDREN][P4EST_CHILDREN]);
+
+void init_corner_to_hanging();
+
+int independent_nodes(p4est_lnodes_t *lnodes, p4est_locidx_t quadrant, int lnode, p4est_locidx_t *nodes, real** coeffs);
 
 int refine_uniform (p4est_t * p4est, p4est_topidx_t which_tree, p4est_quadrant_t * quadrant);
 

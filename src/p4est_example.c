@@ -654,16 +654,7 @@ solve_poisson (p4est_t * p4est)
    generate_reference_matrices(stiffness_dd, mass_dd);
 
    /* Assign independent nodes for hanging nodes. */
-   corner_to_hanging[0] = &zero;
-#ifdef P4_TO_P8
-   corner_to_hanging[1] = p8est_edge_corners[0];
-   corner_to_hanging[2] = p8est_edge_corners[4];
-   corner_to_hanging[3] = p8est_face_corners[4];
-   corner_to_hanging[4] = p8est_edge_corners[8];
-#endif
-   corner_to_hanging[ones - 2] = p4est_face_corners[2];
-   corner_to_hanging[ones - 1] = p4est_face_corners[0];
-   corner_to_hanging[ones] = &ones;
+   init_corner_to_hanging();
 
    /* Test mass matrix multiplication by computing the area of the domain. */
    rhs_fe = allocate_vector (lnodes);

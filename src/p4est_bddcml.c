@@ -46,7 +46,7 @@ void prepare_dimmensions(p4est_t *p4est, p4est_lnodes_t *lnodes,
    global_dims->n_elems = p4est->global_num_quadrants;
 }
 
-void prepare_subdomain_mesh(p4est_t *p4est, p4est_lnodes_t *lnodes, BddcmlDimensions *subdomain_dims, BddcmlMesh *mesh)
+void prepare_subdomain_mesh(p4est_t *p4est, p4est_lnodes_t *lnodes, BddcmlDimensions *subdomain_dims, BddcmlMesh *mesh, real* volumes)
 {
    double              vxyz[3];  /* We embed the 2D vertices into 3D space. */
    p4est_quadrant_t   sp, node;
@@ -61,6 +61,7 @@ void prepare_subdomain_mesh(p4est_t *p4est, p4est_lnodes_t *lnodes, BddcmlDimens
    p4est_locidx_t quad_idx = 0;
    p4est_quadrant_t *quad;
 
+
    for_all_quads(p4est, quad_idx, quad)
    {
       mesh->elem_global_map.val[quad_idx] = (int)p4est->global_first_quadrant[p4est->mpirank] + quad_idx;
@@ -74,6 +75,7 @@ void prepare_subdomain_mesh(p4est_t *p4est, p4est_lnodes_t *lnodes, BddcmlDimens
          mesh->elem_node_indices.val[P4EST_CHILDREN * quad_idx + lnode] = node_idx;
       }
 
+      volumes[quad_idx] = pow(0.5, quad->level * mesh->subdomain_dims->n_problem_dims);
 
       /* Figure out the hanging corners on this element, if any. */
       int hanging_corner[P4EST_CHILDREN];
@@ -89,6 +91,8 @@ void prepare_subdomain_mesh(p4est_t *p4est, p4est_lnodes_t *lnodes, BddcmlDimens
          parent = &sp;
          p4est_quadrant_parent (quad, parent);
       }
+
+
       for (int lnode = 0; lnode < P4EST_CHILDREN; ++lnode) {
          p4est_locidx_t node_idx = lnodes->element_nodes[P4EST_CHILDREN * quad_idx + lnode];
          P4EST_ASSERT (node_idx >= 0 && node_idx < subdomain_dims->n_nodes);
@@ -193,16 +197,18 @@ int main (int argc, char **argv)
    conn = p8est_connectivity_new_unitcube ();
 #endif
 
+   init_corner_to_hanging();
+
    /* Create a forest that is not refined; it consists of the root octant.
    * The p4est_new_ext function can take a startlevel for a load-balanced
    * initial uniform refinement.  Here we refine adaptively instead. */
    int startlevel = 0;
    p4est_t *p4est = p4est_new (mpicomm, conn, 0, NULL, NULL);
 
-   int endlevel = 5;
+   int endlevel = 7;
    for (int level = startlevel; level < endlevel; ++level) {
-      p4est_refine (p4est, 0, refine_uniform, NULL);
-      //p4est_refine (p4est, 0, refine_fn, NULL);
+      //p4est_refine (p4est, 0, refine_uniform, NULL);
+      p4est_refine (p4est, 0, refine_point, NULL);
       p4est_partition (p4est, 0, NULL);
    }
    if (startlevel < endlevel) {
@@ -234,7 +240,12 @@ int main (int argc, char **argv)
    prepare_dimmensions(p4est, lnodes, &subdomain_dims, &global_dims, mpicomm);
 
    print_p4est_mesh(p4est, lnodes, print_rank_l);
-   prepare_subdomain_mesh(p4est, lnodes, &subdomain_dims, &mesh);
+
+   // TODO: elem_volume is correct only when the mesh is obtained by refinements
+   // from a UNIT SQUARE/CUBE
+   real *element_volumes = (real*) malloc(subdomain_dims.n_elems * sizeof(real));
+
+   prepare_subdomain_mesh(p4est, lnodes, &subdomain_dims, &mesh, element_volumes);
    print_bddcml_mesh(&mesh, print_rank_l);
 
    BddcmlFemSpace femsp;
@@ -267,6 +278,7 @@ int main (int argc, char **argv)
 
    BddcmlGeneralParams general_params;
    set_implicit_general_params(&general_params);
+   general_params.just_direct_solve_int = 1;
 
    BddcmlKrylovParams krylov_params;
    set_implicit_krylov_params(&krylov_params);
@@ -306,23 +318,25 @@ int main (int argc, char **argv)
    int ndof_per_element = P4EST_CHILDREN;
    // how much space the upper triangle of the element matrix occupies
    int lelm = ndof_per_element * (ndof_per_element + 1) / 2;
+
+   // todo: do it properly
+   const int extra_space_for_hanging_nodes = 2;
+
    // space for all upper triangles of element matrics
-   allocate_sparse_matrix(subdomain_dims.n_elems*lelm, SPD, &matrix);
+   allocate_sparse_matrix(extra_space_for_hanging_nodes * subdomain_dims.n_elems*lelm, SPD, &matrix);
    zero_matrix(&matrix);
 
    // copy the upper triangle of the element matrix to the sparse triplet
    int element_offset = 0;
    for(int ie = 0; ie < subdomain_dims.n_elems; ie++) {
       int num_nodes_of_elem = mesh.num_nodes_of_elem.val[ie];
-      int node1 = mesh.elem_node_indices.val[element_offset];
-      int node2 = mesh.elem_node_indices.val[element_offset+1];
-      real elem_size = fmax(fabs(mesh.coords.val[0][node1] - mesh.coords.val[0][node2]),
-                            fabs(mesh.coords.val[1][node1] - mesh.coords.val[1][node2]));
-#ifdef P4_TO_P8
-      elem_size = fmax(elem_size,
-                       fabs(mesh.coords[2][node1] - mesh.coords[2][node2]));
-#endif
-      real elem_volume = pow(elem_size, global_dims.n_problem_dims);
+
+      // TODO: elem_size and elem_volume is correct only when the mesh is obtained by refinements
+      // from a UNIT SQUARE/CUBE
+      // TODO: ONLY FROM ****UNIT****
+      real elem_volume = element_volumes[ie];
+      printf("volume %lf\n", 1/elem_volume);
+      //real elem_volume = pow(elem_size, global_dims.n_problem_dims);
 
       double reference_scaled =
 #ifndef P4_TO_P8
@@ -332,16 +346,51 @@ int main (int argc, char **argv)
 #endif
       for(int j = 0; j < ndof_per_element; j++) {
          int jdof = mesh.elem_node_indices.val[element_offset + j];
-         for(int i = 0; i <= j; i++) {
-            int idof = mesh.elem_node_indices.val[element_offset + i];
 
-            add_matrix_entry(&matrix, idof, jdof, reference_scaled * stiffness_dd[j][i]);
-         }
-
-         // TODO: integrate properly
-         if(femsp.fixs_code.val[jdof] == 0)
+         p4est_locidx_t j_nodes[2];
+         real *j_coeffs;
+         int j_nindep = independent_nodes(lnodes, ie, j, j_nodes, &j_coeffs);
+         if(j_nindep == 1)
          {
-            rhss.val[jdof] += /*1./(real)P4EST_CHILDREN * */elem_volume;
+            assert(jdof == j_nodes[0]);
+         }
+         for(int j_indep_nodes_idx = 0; j_indep_nodes_idx < j_nindep; j_indep_nodes_idx++)
+         {
+            int j_indep_node = j_nodes[j_indep_nodes_idx];
+            double j_coeff = j_coeffs[j_indep_nodes_idx];
+
+            for(int i = 0; i <= j; i++) {
+               int idof = mesh.elem_node_indices.val[element_offset + i];
+
+               p4est_locidx_t i_nodes[2];
+               real *i_coeffs;
+               int i_nindep = independent_nodes(lnodes, ie, i, i_nodes, &i_coeffs);
+               if(i_nindep == 1)
+               {
+                  assert(idof == i_nodes[0]);
+               }
+               for(int i_indep_nodes_idx = 0; i_indep_nodes_idx < i_nindep; i_indep_nodes_idx++)
+               {
+                  int i_indep_node = i_nodes[i_indep_nodes_idx];
+                  double i_coeff = i_coeffs[i_indep_nodes_idx];
+
+                  double matrix_value = i_coeff * j_coeff * reference_scaled * stiffness_dd[j][i];
+                  add_matrix_entry(&matrix, i_indep_node, j_indep_node, matrix_value);
+               }
+            }
+
+            // TODO: integrate properly
+            // TODO: elem_volume is correct only when the mesh is obtained by refinements
+            // from a UNIT SQUARE/CUBE
+            // TODO: ONLY FROM ****UNIT****
+
+
+            //if(femsp.fixs_code.val[jdof] == 0)
+            {
+               double rhs_value = j_coeff * 1./(real)P4EST_CHILDREN * elem_volume * 1;
+               rhss.val[j_indep_node] += rhs_value;
+            }
+
          }
       }
       element_offset += num_nodes_of_elem;
@@ -429,6 +478,8 @@ int main (int argc, char **argv)
    free_real_array(&rhss);
    free_real_array(&sols);
    free_sparse_matrix(&matrix);
+
+   free(element_volumes);
 
    assert(get_num_allocations() == 0);
 
