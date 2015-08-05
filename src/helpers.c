@@ -37,6 +37,9 @@ void add_matrix_entry(SparseMatrix *matrix, int i, int j, real value)
    {
       if(i > j)
       {
+//         int help = i;
+//         i = j;
+//         j = help;
          return;
       }
    }

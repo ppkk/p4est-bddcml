@@ -10,6 +10,8 @@
 #include <p8est_vtk.h>
 #endif
 
+#include <string.h>
+#include <stdlib.h>
 #include <stdbool.h>
 #include <assert.h>
 
@@ -162,6 +164,59 @@ void prepare_subdomain_fem_space(BddcmlMesh *mesh, BddcmlFemSpace *femsp)
    }
 }
 
+void print_complete_matrix_rhs(BddcmlFemSpace *femsp, BddcmlDimensions *global_dims, SparseMatrix *matrix, RealArray *rhss, MPI_Comm mpicomm)
+{
+   real* compl_rhs = (real*) malloc(global_dims->n_dofs * sizeof(real));
+   memset(compl_rhs, 0, global_dims->n_dofs * sizeof(real));
+
+   real* compl_mat = (real*) malloc(global_dims->n_dofs * global_dims->n_dofs * sizeof(real));
+   memset(compl_mat, 0, global_dims->n_dofs * global_dims->n_dofs * sizeof(real));
+
+   for(int loc_dof = 0; loc_dof < femsp->subdomain_dims->n_dofs; loc_dof++)
+   {
+      int glob_dof = femsp->dofs_global_map.val[loc_dof];
+      compl_rhs[glob_dof] = rhss->val[loc_dof];
+   }
+
+   for(int idx = 0; idx < matrix->nnz; idx++)
+   {
+      int glob_dof_j = femsp->dofs_global_map.val[matrix->j[idx]];
+      int glob_dof_i = femsp->dofs_global_map.val[matrix->i[idx]];
+      compl_mat[global_dims->n_dofs * glob_dof_j + glob_dof_i] += matrix->val[idx];
+
+      // adding also symmetric counterpart
+      compl_mat[global_dims->n_dofs * glob_dof_i + glob_dof_j] += matrix->val[idx];
+   }
+
+   if(mpi_rank == 0)
+   {
+      MPI_Reduce(MPI_IN_PLACE, compl_rhs, global_dims->n_dofs, MPI_DOUBLE, MPI_SUM, 0, mpicomm);
+      MPI_Reduce(MPI_IN_PLACE, compl_mat, global_dims->n_dofs * global_dims->n_dofs, MPI_DOUBLE, MPI_SUM, 0, mpicomm);
+   }
+   else
+   {
+      MPI_Reduce(compl_rhs, compl_rhs, global_dims->n_dofs, MPI_DOUBLE, MPI_SUM, 0, mpicomm);
+      MPI_Reduce(compl_mat, compl_mat, global_dims->n_dofs * global_dims->n_dofs, MPI_DOUBLE, MPI_SUM, 0, mpicomm);
+   }
+
+   if(mpi_rank == 0)
+   {
+      FILE *f = fopen("discr.txt", "w");
+      for(int dof_j = 0; dof_j < global_dims->n_dofs; dof_j++)
+      {
+         fprintf(f, "dof %d, rhs: %g\n", dof_j, compl_rhs[dof_j]);
+         for(int dof_i = 0; dof_i < global_dims->n_dofs; dof_i++)
+         {
+            fprintf(f, "%g\n", compl_mat[dof_j*global_dims->n_dofs + dof_i]);
+         }
+      }
+      fclose(f);
+   }
+
+   free(compl_rhs);
+   free(compl_mat);
+}
+
 void assemble_matrix_rhs(p4est_lnodes_t *lnodes, BddcmlMesh *mesh, double *element_volumes, BddcmlFemSpace *femsp,
                          SparseMatrix *matrix, RealArray *rhss)
 {
@@ -311,9 +366,10 @@ int main (int argc, char **argv)
 
    p4est_t *p4est = p4est_new (mpicomm, conn, 0, NULL, NULL);
 
-   refine_and_partition(p4est, 4, refine_uniform);
-   refine_and_partition(p4est, 5, refine_diagonal);
-   refine_and_partition(p4est, 8, refine_points);
+
+   refine_and_partition(p4est, 5, refine_uniform);
+   refine_and_partition(p4est, 7, refine_diagonal);
+   refine_and_partition(p4est, 9, refine_points);
 
    p4est_balance (p4est, P4EST_CONNECT_FULL, NULL);
    p4est_partition (p4est, 0, NULL);
@@ -331,7 +387,7 @@ int main (int argc, char **argv)
    BddcmlDimensions subdomain_dims, global_dims;
    BddcmlMesh mesh;
 
-   int print_rank_l = 0;
+   int print_rank_l = 1;
 
    // todo: using MPI Bcast in the following, should be possible to do without
    prepare_dimmensions(p4est, lnodes, &subdomain_dims, &global_dims, mpicomm);
@@ -343,13 +399,13 @@ int main (int argc, char **argv)
    real *element_volumes = (real*) malloc(subdomain_dims.n_elems * sizeof(real));
 
    prepare_subdomain_mesh(p4est, lnodes, &subdomain_dims, &mesh, element_volumes);
-//   print_bddcml_mesh(&mesh, print_rank_l);
+   //print_bddcml_mesh(&mesh, print_rank_l);
 
    BddcmlFemSpace femsp;
    prepare_subdomain_fem_space(&mesh, &femsp);
-//   print_bddcml_fem_space(&femsp, &mesh, print_rank_l);
+   //print_bddcml_fem_space(&femsp, &mesh, print_rank_l);
 
-//   plot_solution(p4est, lnodes, NULL, NULL);
+   plot_solution(p4est, lnodes, NULL, NULL);
 
    print_rank = print_rank_l;
    print_basic_properties(&global_dims, mpi_size, &level_info, &krylov_params);
@@ -387,6 +443,7 @@ int main (int argc, char **argv)
    zero_matrix(&matrix);
 
    assemble_matrix_rhs(lnodes, &mesh, element_volumes, &femsp, &matrix, &rhss);
+   //print_complete_matrix_rhs(&femsp, &global_dims, &matrix, &rhss, mpicomm);
 
    // user constraints - not really used here
    Real2DArray user_constraints;
