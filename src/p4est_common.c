@@ -356,6 +356,36 @@ int independent_nodes(p4est_lnodes_t *lnodes, p4est_locidx_t quadrant, int lnode
    }
 }
 
+void get_quad_coords(p4est_quadrant_t * quadrant, double* coords, double *length)
+{
+   int quad_coords[3];
+   quad_coords[0] = quadrant->x;
+   quad_coords[1] = quadrant->y;
+   int ndims = 2;
+#ifdef P4_TO_P8
+   quad_coords[2] = quadrant->z;
+   ndims = 3;
+#endif
+
+   for(int dim = 0; dim < ndims; dim++)
+   {
+      int mask = 1 << P4EST_QMAXLEVEL;
+      double add = 0.5;
+      coords[dim] = 0.;
+      while(mask > 0)
+      {
+         if(quad_coords[dim] & mask)
+         {
+            coords[dim] += add;
+         }
+         add /= 2.;
+         mask >>= 1;
+      }
+   }
+
+   *length = pow(0.5, quadrant->level);
+}
+
 int refine_uniform (p4est_t * p4est, p4est_topidx_t which_tree, p4est_quadrant_t * quadrant)
 {
    return 1;
@@ -364,25 +394,26 @@ int refine_uniform (p4est_t * p4est, p4est_topidx_t which_tree, p4est_quadrant_t
 int refine_square (p4est_t * p4est, p4est_topidx_t which_tree, p4est_quadrant_t * quadrant)
 {
    /* Compute the integer coordinate extent of a quadrant of length 2^(-3). */
-   const p4est_qcoord_t eighth = P4EST_QUADRANT_LEN (3);
+   const p4est_qcoord_t one_over_64 = P4EST_QUADRANT_LEN (6);
 
    /* Compute the length of the current quadrant in integer coordinates. */
    const p4est_qcoord_t length = P4EST_QUADRANT_LEN (quadrant->level);
 
    /* Refine if the quadrant intersects the block in question. */
-   return ((quadrant->x + length > 5 * eighth && quadrant->x < 6 * eighth) &&
-           (quadrant->y + length > 2 * eighth && quadrant->y < 3 * eighth) &&
-        #ifdef P4_TO_P8
-           (quadrant->z + length > 6 * eighth && quadrant->z < 7 * eighth) &&
-        #endif
+   return ((quadrant->x + length > 17 * one_over_64 && quadrant->x < 18 * one_over_64) &&
+           (quadrant->y + length > 17 * one_over_64 && quadrant->y < 18 * one_over_64) &&
+ #ifdef P4_TO_P8
+           (quadrant->z + length > 6 * one_over_32 && quadrant->z < 7 * one_over_32) &&
+ #endif
            1);
 }
+
 int refine_center (p4est_t * p4est, p4est_topidx_t which_tree, p4est_quadrant_t * quadrant)
 {
 //   printf("morton %d, %d, level %d; num %d\n", quadrant->x, quadrant->y, quadrant->level, 1<<29);
 
-   return ((quadrant->x == 1 << 29) &&
-           (quadrant->y == 1 << 29) &&
+   return ((quadrant->x == 1 << P4EST_QMAXLEVEL) &&
+           (quadrant->y == 1 << P4EST_QMAXLEVEL) &&
         #ifdef P4_TO_P8
            (quadrant->z == 0) &&
         #endif
@@ -392,11 +423,11 @@ int refine_center (p4est_t * p4est, p4est_topidx_t which_tree, p4est_quadrant_t 
 int refine_points (p4est_t * p4est, p4est_topidx_t which_tree, p4est_quadrant_t * quadrant)
 {
    //printf("morton %d, %d, level %d; num %d, %d\n", quadrant->x, quadrant->y, quadrant->level, 1<<29, (1<<27) + (1<<28));
-
-   return ((quadrant->x == 1 << 28) &&
-           (quadrant->y == (1 << 29) + (1 << 28)) &&
+   return ((quadrant->x == 1 << (P4EST_QMAXLEVEL-1)) &&
+           (quadrant->y == 1 << (P4EST_QMAXLEVEL-1)) &&
+          // (quadrant->y == (1 << P4EST_QMAXLEVEL) + (1 << (P4EST_QMAXLEVEL-1))) &&
         #ifdef P4_TO_P8
-           (quadrant->z == 0) &&
+           (quadrant->z == 1 << (P4EST_QMAXLEVEL-1)) &&
         #endif
            1);
 }
@@ -408,5 +439,42 @@ int refine_diagonal (p4est_t * p4est, p4est_topidx_t which_tree, p4est_quadrant_
            (quadrant->x == quadrant->z) &&
         #endif
            1);
+}
+
+int refine_circle (p4est_t * p4est, p4est_topidx_t which_tree, p4est_quadrant_t * quadrant)
+{
+   double coords[3], work_coords[3], length;
+   get_quad_coords(quadrant, coords, &length);
+
+   int ndims = 2;
+#ifdef P4_TO_P8
+   ndims = 3;
+#endif
+
+   int num_inside = 0;
+   int dim[3];
+   work_coords[2] = 0.0;
+
+   for(dim[0] = 0; dim[0] < 2; dim[0]++)
+   {
+      for(dim[1] = 0; dim[1] < 2; dim[1]++)
+      {
+         for(int i = 0; i < ndims; i++)
+         {
+            work_coords[i] = coords[i] + dim[i] * length;
+         }
+
+         double dist = sqrt(work_coords[0]*work_coords[0] + work_coords[1]*work_coords[1] + work_coords[2]*work_coords[2]);
+
+         if(dist < 0.85)
+            num_inside++;
+      }
+   }
+
+   if((num_inside == 0) || (num_inside == 4))
+      return 0;
+   else
+      return 1;
+
 }
 

@@ -367,9 +367,11 @@ int main (int argc, char **argv)
    p4est_t *p4est = p4est_new (mpicomm, conn, 0, NULL, NULL);
 
 
-   refine_and_partition(p4est, 5, refine_uniform);
-   refine_and_partition(p4est, 7, refine_diagonal);
-   refine_and_partition(p4est, 9, refine_points);
+   refine_and_partition(p4est, 2, refine_uniform);
+   refine_and_partition(p4est, 5, refine_circle);
+   refine_and_partition(p4est, 8, refine_square);
+   refine_and_partition(p4est, 0, refine_points);
+   refine_and_partition(p4est, 0, refine_diagonal);
 
    p4est_balance (p4est, P4EST_CONNECT_FULL, NULL);
    p4est_partition (p4est, 0, NULL);
@@ -436,7 +438,7 @@ int main (int argc, char **argv)
    int lelm = ndof_per_element * (ndof_per_element + 1) / 2;
 
    // todo: do it properly
-   const int extra_space_for_hanging_nodes = 2;
+   const int extra_space_for_hanging_nodes = 4;
 
    // space for all upper triangles of element matrics
    allocate_sparse_matrix(extra_space_for_hanging_nodes * subdomain_dims.n_elems*lelm, SPD, &matrix);

@@ -80,6 +80,7 @@ int refine_square (p4est_t * p4est, p4est_topidx_t which_tree, p4est_quadrant_t 
 int refine_center (p4est_t * p4est, p4est_topidx_t which_tree, p4est_quadrant_t * quadrant);
 int refine_diagonal (p4est_t * p4est, p4est_topidx_t which_tree, p4est_quadrant_t * quadrant);
 int refine_points (p4est_t * p4est, p4est_topidx_t which_tree, p4est_quadrant_t * quadrant);
+int refine_circle (p4est_t * p4est, p4est_topidx_t which_tree, p4est_quadrant_t * quadrant);
 
 
 #endif // P4EST_COMMON_H
