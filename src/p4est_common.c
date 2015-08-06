@@ -10,6 +10,9 @@
 #include <p8est_vtk.h>
 #endif
 
+#include <assert.h>
+
+#include "definitions.h"
 #include "helpers.h"
 #include "p4est_common.h"
 
@@ -168,6 +171,7 @@ void plot_solution(p4est_t * p4est, p4est_lnodes_t * lnodes, double* u_sol, doub
    }
    else
    {
+
       p4est_vtk_write_all (p4est, NULL, 0.99999, 1, 1, 1, 0, 0, 0, "output");
    }
 
@@ -322,22 +326,20 @@ void init_corner_to_hanging()
    corner_to_hanging[ones] = &ones;
 }
 
-real coeffs_one[1] = {1};
-real coeffs_halves[2] = {0.5, 0.5};
-int independent_nodes(p4est_lnodes_t *lnodes, p4est_locidx_t quadrant, int lnode, p4est_locidx_t *nodes, real** coeffs)
+static const real coeffs_regular[1] = {1};
+static const real coeffs_hang_edge[2] = {0.5, 0.5};
+static const real coeffs_hang_face[4] = {0.25, 0.25, 0.25, 0.25};
+
+int independent_nodes(p4est_lnodes_t *lnodes, p4est_locidx_t quadrant, int lnode, p4est_locidx_t *nodes, real* coeffs)
 {
    int anyhang, hanging_corner[P4EST_CHILDREN];
-
-#ifdef P4_TO_P8
-   assert(0);
-#endif
 
    /* Figure out the hanging corners on this element, if any. */
    anyhang = lnodes_decode2 (lnodes->face_code[quadrant], hanging_corner);
 
    if ((!anyhang) ||  (hanging_corner[lnode] == -1))
    {
-      *coeffs = coeffs_one;
+      *coeffs = 1.;
       nodes[0] = lnodes->element_nodes[P4EST_CHILDREN * quadrant + lnode];
       return 1;
    }
@@ -351,8 +353,14 @@ int independent_nodes(p4est_lnodes_t *lnodes, p4est_locidx_t quadrant, int lnode
          int h = contrib_corner[j] ^ c;  /* Inverse transform of node number. */
          nodes[j] = lnodes->element_nodes[P4EST_CHILDREN * quadrant + h];
       }
-      *coeffs = coeffs_halves;
-      return 2;
+      if(ncontrib == 2)
+         *coeffs = 0.5;
+      else if(ncontrib == 4)
+         *coeffs = 0.25;
+      else
+         assert(0);
+
+      return ncontrib;
    }
 }
 
@@ -403,7 +411,7 @@ int refine_square (p4est_t * p4est, p4est_topidx_t which_tree, p4est_quadrant_t 
    return ((quadrant->x + length > 17 * one_over_64 && quadrant->x < 18 * one_over_64) &&
            (quadrant->y + length > 17 * one_over_64 && quadrant->y < 18 * one_over_64) &&
  #ifdef P4_TO_P8
-           (quadrant->z + length > 6 * one_over_32 && quadrant->z < 7 * one_over_32) &&
+           (quadrant->z + length > 17 * one_over_64 && quadrant->z < 18 * one_over_64) &&
  #endif
            1);
 }
@@ -459,22 +467,37 @@ int refine_circle (p4est_t * p4est, p4est_topidx_t which_tree, p4est_quadrant_t 
    {
       for(dim[1] = 0; dim[1] < 2; dim[1]++)
       {
-         for(int i = 0; i < ndims; i++)
+#ifdef P4_TO_P8
+         for(dim[2] = 0; dim[2] < 2; dim[2]++)
          {
-            work_coords[i] = coords[i] + dim[i] * length;
+#endif
+            for(int i = 0; i < ndims; i++)
+            {
+               work_coords[i] = coords[i] + dim[i] * length;
+            }
+
+            double dist = sqrt(work_coords[0]*work_coords[0] + work_coords[1]*work_coords[1] + work_coords[2]*work_coords[2]);
+
+            if(dist < 0.85)
+               num_inside++;
+#ifdef P4_TO_P8
          }
-
-         double dist = sqrt(work_coords[0]*work_coords[0] + work_coords[1]*work_coords[1] + work_coords[2]*work_coords[2]);
-
-         if(dist < 0.85)
-            num_inside++;
+#endif
       }
    }
 
-   if((num_inside == 0) || (num_inside == 4))
+   if((num_inside == 0) || (num_inside == P4EST_CHILDREN))
       return 0;
    else
       return 1;
 
+}
+
+void refine_and_partition(p4est_t* p4est, int num, p4est_refine_t fn)
+{
+   for (int level = 0; level < num; ++level) {
+      p4est_refine (p4est, 0, fn, NULL);
+      p4est_partition (p4est, 0, NULL);
+   }
 }
 

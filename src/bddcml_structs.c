@@ -5,18 +5,6 @@
 #include <math.h>
 #include <mpi.h>
 
-#ifndef P4_TO_P8
-#include <p4est_bits.h>
-#include <p4est_ghost.h>
-#include <p4est_lnodes.h>
-#include <p4est_vtk.h>
-#else
-#include <p8est_bits.h>
-#include <p8est_ghost.h>
-#include <p8est_lnodes.h>
-#include <p8est_vtk.h>
-#endif
-
 #include "bddcml_interface_c.h"
 #include "bddcml_structs.h"
 
@@ -106,8 +94,16 @@ void init_dimmensions(BddcmlDimensions* dimmensions, int mesh_dim)
 
 void init_mesh(BddcmlDimensions* subdomain_dims, BddcmlMesh* mesh)
 {
+   int nnodes_per_elem;
+   if(subdomain_dims->n_mesh_dims == 2)
+      nnodes_per_elem = 4;
+   else if(subdomain_dims->n_mesh_dims == 3)
+      nnodes_per_elem = 8;
+   else
+      assert(0);
+
    mesh->subdomain_dims = subdomain_dims;
-   allocate_idx_array(subdomain_dims->n_elems * P4EST_CHILDREN, &mesh->elem_node_indices);
+   allocate_idx_array(subdomain_dims->n_elems * nnodes_per_elem, &mesh->elem_node_indices);
    allocate_idx_array(subdomain_dims->n_elems, &mesh->num_nodes_of_elem);
    allocate_idx_array(subdomain_dims->n_elems, &mesh->elem_global_map);
    allocate_idx_array(subdomain_dims->n_nodes, &mesh->node_global_map);

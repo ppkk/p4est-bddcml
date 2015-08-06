@@ -66,7 +66,7 @@ void generate_reference_matrices(real stiffness_dd[P4EST_CHILDREN][P4EST_CHILDRE
 
 void init_corner_to_hanging();
 
-int independent_nodes(p4est_lnodes_t *lnodes, p4est_locidx_t quadrant, int lnode, p4est_locidx_t *nodes, real** coeffs);
+int independent_nodes(p4est_lnodes_t *lnodes, p4est_locidx_t quadrant, int lnode, p4est_locidx_t *nodes, real *coeffs);
 
 int refine_uniform (p4est_t * p4est, p4est_topidx_t which_tree, p4est_quadrant_t * quadrant);
 
@@ -82,5 +82,6 @@ int refine_diagonal (p4est_t * p4est, p4est_topidx_t which_tree, p4est_quadrant_
 int refine_points (p4est_t * p4est, p4est_topidx_t which_tree, p4est_quadrant_t * quadrant);
 int refine_circle (p4est_t * p4est, p4est_topidx_t which_tree, p4est_quadrant_t * quadrant);
 
+void refine_and_partition(p4est_t* p4est, int num, p4est_refine_t fn);
 
 #endif // P4EST_COMMON_H

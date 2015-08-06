@@ -167,9 +167,15 @@ void prepare_subdomain_fem_space(BddcmlMesh *mesh, BddcmlFemSpace *femsp)
 void print_complete_matrix_rhs(BddcmlFemSpace *femsp, BddcmlDimensions *global_dims, SparseMatrix *matrix, RealArray *rhss, MPI_Comm mpicomm)
 {
    real* compl_rhs = (real*) malloc(global_dims->n_dofs * sizeof(real));
-   memset(compl_rhs, 0, global_dims->n_dofs * sizeof(real));
-
    real* compl_mat = (real*) malloc(global_dims->n_dofs * global_dims->n_dofs * sizeof(real));
+
+   if(!compl_rhs || !compl_mat)
+   {
+      printf("Unable to allocate dense matrix. Exiting print_complete_matrix_rhs....\n");
+      return;
+   }
+
+   memset(compl_rhs, 0, global_dims->n_dofs * sizeof(real));
    memset(compl_mat, 0, global_dims->n_dofs * global_dims->n_dofs * sizeof(real));
 
    for(int loc_dof = 0; loc_dof < femsp->subdomain_dims->n_dofs; loc_dof++)
@@ -185,7 +191,8 @@ void print_complete_matrix_rhs(BddcmlFemSpace *femsp, BddcmlDimensions *global_d
       compl_mat[global_dims->n_dofs * glob_dof_j + glob_dof_i] += matrix->val[idx];
 
       // adding also symmetric counterpart
-      compl_mat[global_dims->n_dofs * glob_dof_i + glob_dof_j] += matrix->val[idx];
+      if(matrix->type != GENERAL)
+         compl_mat[global_dims->n_dofs * glob_dof_i + glob_dof_j] += matrix->val[idx];
    }
 
    if(mpi_rank == 0)
@@ -220,6 +227,7 @@ void print_complete_matrix_rhs(BddcmlFemSpace *femsp, BddcmlDimensions *global_d
 void assemble_matrix_rhs(p4est_lnodes_t *lnodes, BddcmlMesh *mesh, double *element_volumes, BddcmlFemSpace *femsp,
                          SparseMatrix *matrix, RealArray *rhss)
 {
+   real i_coeffs, j_coeffs;
    real mass_dd[P4EST_CHILDREN][P4EST_CHILDREN];
    real stiffness_dd[P4EST_CHILDREN][P4EST_CHILDREN];
    generate_reference_matrices(stiffness_dd, mass_dd);
@@ -234,7 +242,7 @@ void assemble_matrix_rhs(p4est_lnodes_t *lnodes, BddcmlMesh *mesh, double *eleme
       // from a UNIT SQUARE/CUBE
       // TODO: ONLY FROM ****UNIT****
       real elem_volume = element_volumes[ie];
-      //real elem_volume = pow(elem_size, global_dims.n_problem_dims);
+      real elem_size = pow(elem_volume, 1./(double)mesh->subdomain_dims->n_problem_dims);
 
       double reference_scaled =
 #ifndef P4_TO_P8
@@ -248,8 +256,7 @@ void assemble_matrix_rhs(p4est_lnodes_t *lnodes, BddcmlMesh *mesh, double *eleme
          int jdof = mesh->elem_node_indices.val[element_offset + j];
          assert(femsp->node_num_dofs.val[jdof] == 1);
 
-         p4est_locidx_t j_nodes[2];
-         real *j_coeffs;
+         p4est_locidx_t j_nodes[4];
          int j_nindep = independent_nodes(lnodes, ie, j, j_nodes, &j_coeffs);
          if(j_nindep == 1)
          {
@@ -258,27 +265,25 @@ void assemble_matrix_rhs(p4est_lnodes_t *lnodes, BddcmlMesh *mesh, double *eleme
          for(int j_indep_nodes_idx = 0; j_indep_nodes_idx < j_nindep; j_indep_nodes_idx++)
          {
             int j_indep_node = j_nodes[j_indep_nodes_idx];
-            double j_coeff = j_coeffs[j_indep_nodes_idx];
 
             for(int i = 0; i < ndof_per_element /*<= j*/; i++) {
                int idof = mesh->elem_node_indices.val[element_offset + i];
 
-               p4est_locidx_t i_nodes[2];
-               real *i_coeffs;
+               p4est_locidx_t i_nodes[4];
                int i_nindep = independent_nodes(lnodes, ie, i, i_nodes, &i_coeffs);
-               if(i_nindep == 1)
+
+                  if(i_nindep == 1)
                {
                   assert(idof == i_nodes[0]);
                }
                for(int i_indep_nodes_idx = 0; i_indep_nodes_idx < i_nindep; i_indep_nodes_idx++)
                {
                   int i_indep_node = i_nodes[i_indep_nodes_idx];
-                  double i_coeff = i_coeffs[i_indep_nodes_idx];
 
-                  double matrix_value = i_coeff * j_coeff * reference_scaled * stiffness_dd[j][i];
+                  double matrix_value = i_coeffs * j_coeffs * reference_scaled * stiffness_dd[j][i];
                   add_matrix_entry(matrix, i_indep_node, j_indep_node, matrix_value);
-//                  printf("adding entry loc (%d, %d), nodes, (%d, %d), coefs (%3.2lf, %3.2lf), locstiff %lf, value %lf\n",
-//                         j, i, j_indep_node, i_indep_node, i_coeff, j_coeff, stiffness_dd[j][i], matrix_value);
+//                  printf("adding entry loc (%d, %d), nodes, (%d, %d), coefs (%3.2lf, %3.2lf), number indep (%d, %d), locstiff %lf, value %lf\n",
+//                         j, i, j_indep_node, i_indep_node, j_coeffs, i_coeffs, j_nindep, i_nindep, stiffness_dd[j][i], matrix_value);
                }
             }
 
@@ -290,7 +295,7 @@ void assemble_matrix_rhs(p4est_lnodes_t *lnodes, BddcmlMesh *mesh, double *eleme
 
             //if(femsp.fixs_code.val[jdof] == 0)
             {
-               double rhs_value = j_coeff * 1./(real)P4EST_CHILDREN * elem_volume * 1;
+               double rhs_value = j_coeffs * 1./(real)P4EST_CHILDREN * elem_volume * 1;
                rhss->val[j_indep_node] += rhs_value;
             }
 
@@ -299,14 +304,6 @@ void assemble_matrix_rhs(p4est_lnodes_t *lnodes, BddcmlMesh *mesh, double *eleme
       element_offset += num_nodes_of_elem;
    }
 
-}
-
-void refine_and_partition(p4est_t* p4est, int num, p4est_refine_t fn)
-{
-   for (int level = 0; level < num; ++level) {
-      p4est_refine (p4est, 0, fn, NULL);
-      p4est_partition (p4est, 0, NULL);
-   }
 }
 
 int main (int argc, char **argv)
@@ -338,7 +335,6 @@ int main (int argc, char **argv)
    conn = p8est_connectivity_new_unitcube ();
 #endif
 
-
    BddcmlLevelInfo level_info;
    // Number of elements in an edge of a subdomain and number of subdomains in an edge of the unit cube
    if(argc == 1 + 1) {
@@ -366,10 +362,9 @@ int main (int argc, char **argv)
 
    p4est_t *p4est = p4est_new (mpicomm, conn, 0, NULL, NULL);
 
-
-   refine_and_partition(p4est, 2, refine_uniform);
+   refine_and_partition(p4est, 3, refine_uniform);
    refine_and_partition(p4est, 5, refine_circle);
-   refine_and_partition(p4est, 8, refine_square);
+   refine_and_partition(p4est, 0 , refine_square);
    refine_and_partition(p4est, 0, refine_points);
    refine_and_partition(p4est, 0, refine_diagonal);
 
@@ -389,7 +384,7 @@ int main (int argc, char **argv)
    BddcmlDimensions subdomain_dims, global_dims;
    BddcmlMesh mesh;
 
-   int print_rank_l = 1;
+   int print_rank_l = 0;
 
    // todo: using MPI Bcast in the following, should be possible to do without
    prepare_dimmensions(p4est, lnodes, &subdomain_dims, &global_dims, mpicomm);
@@ -437,11 +432,10 @@ int main (int argc, char **argv)
    // how much space the upper triangle of the element matrix occupies
    int lelm = ndof_per_element * (ndof_per_element + 1) / 2;
 
+   MatrixType matrix_type = SPD;
    // todo: do it properly
-   const int extra_space_for_hanging_nodes = 4;
-
-   // space for all upper triangles of element matrics
-   allocate_sparse_matrix(extra_space_for_hanging_nodes * subdomain_dims.n_elems*lelm, SPD, &matrix);
+   const int extra_space_for_hanging_nodes = 4 * (matrix_type == GENERAL ? 2 : 1);
+   allocate_sparse_matrix(extra_space_for_hanging_nodes * subdomain_dims.n_elems*lelm, matrix_type, &matrix);
    zero_matrix(&matrix);
 
    assemble_matrix_rhs(lnodes, &mesh, element_volumes, &femsp, &matrix, &rhss);

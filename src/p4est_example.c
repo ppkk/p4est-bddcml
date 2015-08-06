@@ -688,7 +688,7 @@ solve_poisson (p4est_t * p4est)
    err = sqrt (err2);
    P4EST_GLOBAL_PRODUCTIONF ("||u_fe - u_exact||_L2 = %g\n", err);
 
-   print_p4est_mesh(p4est, lnodes, 1);
+//   print_p4est_mesh(p4est, lnodes, 1);
 
    /* Free finite element vectors */
    P4EST_FREE (diff_mass);
@@ -759,24 +759,19 @@ main (int argc, char **argv)
    startlevel = 0;
    p4est = p4est_new (mpicomm, conn, 0, NULL, NULL);
 
-   /* Refine the forest iteratively, load balancing at each iteration.
-   * This is important when starting with an unrefined forest */
-   endlevel = 5;
-   for (level = startlevel; level < endlevel; ++level) {
-      p4est_refine (p4est, 0, refine_uniform, NULL);
-      /* Refinement has lead to up to 8x more elements; redistribute them. */
-      p4est_partition (p4est, 0, NULL);
-   }
-   if (startlevel < endlevel) {
-      /* For finite elements this corner balance is not strictly required.
-     * We call balance only once since it's more expensive than both
-     * coarsen/refine and partition. */
-      p4est_balance (p4est, P4EST_CONNECT_FULL, NULL);
-      /* We repartition with coarsening in mind to allow for
-     * partition-independent a-posteriori adaptation (not covered in step4). */
-      //   p4est_partition (p4est, 1, NULL);
-      p4est_partition (p4est, 0, NULL);
-   }
+//   p4est_refine (p4est, 0, refine_uniform, NULL);
+//   p4est_partition (p4est, 0, NULL);
+//   p4est_refine (p4est, 0, refine_uniform, NULL);
+//   p4est_partition (p4est, 0, NULL);
+
+   refine_and_partition(p4est, 2, refine_uniform);
+   refine_and_partition(p4est, 2, refine_circle);
+   refine_and_partition(p4est, 0, refine_square);
+   refine_and_partition(p4est, 0, refine_points);
+   refine_and_partition(p4est, 0, refine_diagonal);
+
+   p4est_balance (p4est, P4EST_CONNECT_FULL, NULL);
+   p4est_partition (p4est, 0, NULL);
 
    /* Execute the numerical mathematics part of the example. */
    solve_poisson (p4est);
