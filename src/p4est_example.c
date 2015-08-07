@@ -759,19 +759,11 @@ main (int argc, char **argv)
    startlevel = 0;
    p4est = p4est_new (mpicomm, conn, 0, NULL, NULL);
 
-//   p4est_refine (p4est, 0, refine_uniform, NULL);
-//   p4est_partition (p4est, 0, NULL);
-//   p4est_refine (p4est, 0, refine_uniform, NULL);
-//   p4est_partition (p4est, 0, NULL);
-
    refine_and_partition(p4est, 2, refine_uniform);
    refine_and_partition(p4est, 2, refine_circle);
    refine_and_partition(p4est, 0, refine_square);
    refine_and_partition(p4est, 0, refine_point);
    refine_and_partition(p4est, 0, refine_diagonal);
-
-   p4est_balance (p4est, P4EST_CONNECT_FULL, NULL);
-   p4est_partition (p4est, 0, NULL);
 
    /* Execute the numerical mathematics part of the example. */
    solve_poisson (p4est);

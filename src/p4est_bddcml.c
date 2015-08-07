@@ -293,11 +293,8 @@ void assemble_matrix_rhs(p4est_lnodes_t *lnodes, BddcmlMesh *mesh, double *eleme
             // TODO: ONLY FROM ****UNIT****
 
 
-            //if(femsp.fixs_code.val[jdof] == 0)
-            {
-               double rhs_value = j_coeffs * 1./(real)P4EST_CHILDREN * elem_volume * 1;
-               rhss->val[j_indep_node] += rhs_value;
-            }
+            double rhs_value = j_coeffs * 1./(real)P4EST_CHILDREN * elem_volume * 1;
+            rhss->val[j_indep_node] += rhs_value;
 
          }
       }
@@ -329,6 +326,9 @@ int main (int argc, char **argv)
          ("This is the p4est %dD demo example/steps/%s_step4\n",
           P4EST_DIM, P4EST_STRING);
 
+   // WARNING: integration is based on the fact, that the domain is unit square or cube!
+   // WARNING: if the domain is changed, so has to be the integration!
+   // TODO: do it properly
 #ifndef P4_TO_P8
    conn = p4est_connectivity_new_unitsquare ();
 #else
@@ -342,7 +342,7 @@ int main (int argc, char **argv)
    }
    else {
       if ( mpi_rank == 0 ) {
-         printf(" Usage: mpirun -np X ./p4est_bddcml NLEVELS");
+         printf(" Usage: mpirun -np X ./p4est_bddcml NLEVELS\n");
       }
       exit(0);
    }
@@ -452,7 +452,6 @@ int main (int argc, char **argv)
 
 
    PPP printf("Loading data ...\n");
-   PPP printf("%d, %d\n", mesh.elem_node_indices.len, mesh.num_nodes_of_elem.len);
 
    int subdomain_idx = mpi_rank;
    bddcml_upload_subdomain_data(&global_dims, &subdomain_dims,
