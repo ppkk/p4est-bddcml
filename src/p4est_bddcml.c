@@ -362,14 +362,11 @@ int main (int argc, char **argv)
 
    p4est_t *p4est = p4est_new (mpicomm, conn, 0, NULL, NULL);
 
-   refine_and_partition(p4est, 3, refine_uniform);
-   refine_and_partition(p4est, 5, refine_circle);
-   refine_and_partition(p4est, 0 , refine_square);
-   refine_and_partition(p4est, 0, refine_points);
+   refine_and_partition(p4est, 2, refine_uniform);
+   refine_and_partition(p4est, 3, refine_circle);
+   refine_and_partition(p4est, 3, refine_square);
+   refine_and_partition(p4est, 0, refine_point);
    refine_and_partition(p4est, 0, refine_diagonal);
-
-   p4est_balance (p4est, P4EST_CONNECT_FULL, NULL);
-   p4est_partition (p4est, 0, NULL);
 
    /* Create the ghost layer to learn about parallel neighbors. */
    p4est_ghost_t *ghost = p4est_ghost_new (p4est, P4EST_CONNECT_FULL);

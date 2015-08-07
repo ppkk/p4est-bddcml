@@ -428,7 +428,7 @@ int refine_center (p4est_t * p4est, p4est_topidx_t which_tree, p4est_quadrant_t 
            1);
 }
 
-int refine_points (p4est_t * p4est, p4est_topidx_t which_tree, p4est_quadrant_t * quadrant)
+int refine_point (p4est_t * p4est, p4est_topidx_t which_tree, p4est_quadrant_t * quadrant)
 {
    //printf("morton %d, %d, level %d; num %d, %d\n", quadrant->x, quadrant->y, quadrant->level, 1<<29, (1<<27) + (1<<28));
    return ((quadrant->x == 1 << (P4EST_QMAXLEVEL-1)) &&
@@ -495,9 +495,39 @@ int refine_circle (p4est_t * p4est, p4est_topidx_t which_tree, p4est_quadrant_t 
 
 void refine_and_partition(p4est_t* p4est, int num, p4est_refine_t fn)
 {
+   if(num == 0)
+      return;
+
+   int nelems_before = p4est->global_num_quadrants;
    for (int level = 0; level < num; ++level) {
       p4est_refine (p4est, 0, fn, NULL);
       p4est_partition (p4est, 0, NULL);
    }
+
+   p4est_balance (p4est, P4EST_CONNECT_FULL, NULL);
+   p4est_partition (p4est, 0, NULL);
+
+   if(mpi_rank == 0)
+   {
+      const char *name;
+      if(fn == refine_uniform)
+         name = "UNIFORM";
+      else if (fn == refine_circle)
+         name = "CIRCLE";
+      else if (fn == refine_square)
+         name = "SQUARE";
+      else if (fn == refine_point)
+         name = "POINT";
+      else if (fn == refine_diagonal)
+         name = "DIAGONAL";
+      else
+         name = "OTHER";
+
+      int added = p4est->global_num_quadrants - nelems_before;
+      printf("+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++\n");
+      printf("Mesh refinement %s, %d levels, added %d elements (%3.2lf %%), now %ld elements\n",
+             name, num, added, 100*(double)added/p4est->global_num_quadrants, p4est->global_num_quadrants);
+      printf("+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++\n");
+  }
 }
 
