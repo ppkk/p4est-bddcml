@@ -56,7 +56,7 @@ typedef struct Real2DArray
 }
 Real2DArray;
 
-void allocate_sparse_matrix(int length, int type, SparseMatrix* matrix);
+void allocate_sparse_matrix(int length, MatrixType type, SparseMatrix* matrix);
 void free_sparse_matrix(SparseMatrix* matrix);
 void zero_matrix(SparseMatrix* matrix);
 

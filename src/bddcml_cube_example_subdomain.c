@@ -23,7 +23,6 @@ void prepare_subdomain_data(int isub, // global subdomain index
    int indinets;
    int nne;
    int n1, n2, n3, n4, n5, n6, n7, n8;
-   int idx;
 
    // number of elements on one edge of the cube
    num_el_per_cube_edge = num_el_per_sub_edge * num_sub_per_cube_edge;
@@ -48,9 +47,6 @@ void prepare_subdomain_data(int isub, // global subdomain index
    // number nodes and degrees of freedom
    num_nodes_per_sub_edge  = num_el_per_sub_edge + 1;
    num_nodes_per_cube_edge = num_el_per_cube_edge + 1;
-
-   // local number of nodes
-   int lxyz1 = num_nodes_per_sub_edge * num_nodes_per_sub_edge * num_nodes_per_sub_edge;
 
    indns = 0;
    for(k = 0; k < num_nodes_per_sub_edge; k++) {

@@ -5,7 +5,10 @@
 #include <math.h>
 #include <mpi.h>
 
+extern "C"{
 #include "bddcml_interface_c.h"
+}
+
 #include "bddcml_structs.h"
 
 void set_implicit_general_params(BddcmlGeneralParams *params)

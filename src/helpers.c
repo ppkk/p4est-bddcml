@@ -10,7 +10,7 @@ int mpi_size;
 
 static int num_allocations = 0;
 
-void allocate_sparse_matrix(int length, int type, SparseMatrix *matrix)
+void allocate_sparse_matrix(int length, MatrixType type, SparseMatrix *matrix)
 {
    matrix->len = length;
    matrix->type = type;

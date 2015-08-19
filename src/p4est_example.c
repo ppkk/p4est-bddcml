@@ -628,10 +628,6 @@ solve_by_cg (p4est_t * p4est, p4est_lnodes_t * lnodes, const int8_t * bc,
 static void
 solve_poisson (p4est_t * p4est)
 {
-   int                 i, j, k, l;
-#ifdef P4_TO_P8
-   int                 m, n;
-#endif
    double              mass_dd[P4EST_CHILDREN][P4EST_CHILDREN];
    double              stiffness_dd[P4EST_CHILDREN][P4EST_CHILDREN];
    double             *rhs_eval, *uexact_eval, *lump;
@@ -677,7 +673,7 @@ solve_poisson (p4est_t * p4est)
    vector_copy (p4est, lnodes, u_fe, u_diff);
    vector_axpy (p4est, lnodes, -1., uexact_eval, u_diff);
 
-   plot_solution(p4est, lnodes, u_fe, uexact_eval);
+   plot_solution(p4est, lnodes, u_fe, uexact_eval, NULL);
 
    /* Compute the L2 difference with the exact vector.
    * We know that this is over-optimistic: Quadrature will be sharper.
@@ -716,7 +712,6 @@ int
 main (int argc, char **argv)
 {
    int                 mpiret;
-   int                 startlevel, endlevel, level;
    sc_MPI_Comm         mpicomm;
    p4est_t            *p4est;
    p4est_connectivity_t *conn;
@@ -756,7 +751,6 @@ main (int argc, char **argv)
    /* Create a forest that is not refined; it consists of the root octant.
    * The p4est_new_ext function can take a startlevel for a load-balanced
    * initial uniform refinement.  Here we refine adaptively instead. */
-   startlevel = 0;
    p4est = p4est_new (mpicomm, conn, 0, NULL, NULL);
 
    refine_and_partition(p4est, 2, refine_uniform);

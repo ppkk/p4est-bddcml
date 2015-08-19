@@ -1,6 +1,8 @@
 #ifndef P4EST_COMMON_H
 #define P4EST_COMMON_H
 
+#include <stdbool.h>
+
 #ifndef P4_TO_P8
 #include <p4est_bits.h>
 #include <p4est_ghost.h>
@@ -45,7 +47,7 @@ void interpolate_hanging_nodes (p4est_lnodes_code_t face_code,
 int lnodes_decode2 (p4est_lnodes_code_t face_code,
                 int hanging_corner[P4EST_CHILDREN]);
 
-void plot_solution(p4est_t * p4est, p4est_lnodes_t * lnodes, double* u_sol, double* u_exact);
+void plot_solution(p4est_t * p4est, p4est_lnodes_t * lnodes, double* u_sol, double* u_exact, int *partition);
 
 void print_p4est_mesh (p4est_t * p4est, p4est_lnodes_t * lnodes, int which_rank);
 
