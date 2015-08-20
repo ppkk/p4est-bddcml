@@ -65,7 +65,6 @@ void prepare_subdomain_mesh(p4est_t *p4est, p4est_lnodes_t *lnodes, BddcmlDimens
    p4est_locidx_t quad_idx = 0;
    p4est_quadrant_t *quad;
 
-
    for_all_quads(p4est, quad_idx, quad)
    {
       // element local to global mapping -- obtained by adding the offset from p4est
@@ -245,8 +244,6 @@ void assemble_matrix_rhs(p4est_lnodes_t *lnodes, BddcmlMesh *mesh, double *eleme
       // from a UNIT SQUARE/CUBE
       // TODO: ONLY FROM ****UNIT****
       real elem_volume = element_volumes[elem_idx];
-
-
 
       double reference_scaled =
 #ifndef P4_TO_P8
