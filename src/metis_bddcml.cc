@@ -668,10 +668,9 @@ int main (int argc, char **argv)
 
    p4est_t *p4est = p4est_new (mpicomm_p4est, conn, 0, NULL, NULL);
 
-   // pro metis: 3, 6, 8, np=10
-   refine_and_partition(p4est, 3, refine_uniform);
-   refine_and_partition(p4est, 6, refine_circle);
-   refine_and_partition(p4est, 8, refine_square);
+   refine_and_partition(p4est, 2, refine_uniform);
+   refine_and_partition(p4est, 4, refine_circle);
+   refine_and_partition(p4est, 4, refine_square);
    refine_and_partition(p4est, 0, refine_point);
    refine_and_partition(p4est, 0, refine_diagonal);
 
