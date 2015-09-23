@@ -112,8 +112,8 @@ int main(int argc, char **argv)
    BddcmlLevelInfo level_info;
 
    BddcmlDimensions global_dims, subdomain_dims;
-   init_dimmensions(&global_dims, 3);
-   init_dimmensions(&subdomain_dims, 3);
+   init_dimmensions(&global_dims, 3, LAPLACE);
+   init_dimmensions(&subdomain_dims, 3, LAPLACE);
 
    BddcmlMesh mesh;
    BddcmlFemSpace femsp;
@@ -177,7 +177,7 @@ int main(int argc, char **argv)
    // total number of nodes
    global_dims.n_nodes  = pow(num_el_per_cube_edge + 1, global_dims.n_problem_dims);
    // total number of degrees of freedom - equal to number of nodes for scalar problem
-   global_dims.n_dofs  = global_dims.n_nodes;
+   global_dims.n_dofs  = global_dims.n_nodes * global_dims.n_node_dofs;
 
    init_levels(nsub, &level_info);
 
@@ -225,7 +225,7 @@ int main(int argc, char **argv)
       // create mesh for subdomain
       subdomain_dims.n_elems   = pow(num_el_per_sub_edge, global_dims.n_problem_dims);
       subdomain_dims.n_nodes    = pow(num_el_per_sub_edge+1, global_dims.n_problem_dims);
-      subdomain_dims.n_dofs    = subdomain_dims.n_nodes;
+      subdomain_dims.n_dofs    = subdomain_dims.n_nodes * subdomain_dims.n_node_dofs;
 
       init_mesh(&subdomain_dims, &mesh);
       init_fem_space(&subdomain_dims, &femsp);
@@ -376,7 +376,7 @@ int main(int argc, char **argv)
    for(isub = sub2proc[myid]; isub < sub2proc[myid+1]; isub++) {
       // download local solution
       subdomain_dims.n_nodes    = pow(num_el_per_sub_edge+1, global_dims.n_problem_dims);
-      subdomain_dims.n_dofs    = subdomain_dims.n_nodes;
+      subdomain_dims.n_dofs    = subdomain_dims.n_nodes * subdomain_dims.n_node_dofs;
 
       allocate_real_array(subdomain_dims.n_dofs, &sols);
 
@@ -405,7 +405,7 @@ int main(int argc, char **argv)
       // re-create mesh for subdomain
       subdomain_dims.n_elems   = pow(num_el_per_sub_edge, global_dims.n_problem_dims);
       subdomain_dims.n_nodes    = pow(num_el_per_sub_edge+1, global_dims.n_problem_dims);
-      subdomain_dims.n_dofs    = subdomain_dims.n_nodes;
+      subdomain_dims.n_dofs    = subdomain_dims.n_nodes * subdomain_dims.n_node_dofs;
       
       init_mesh(&subdomain_dims, &mesh);
       init_fem_space(&subdomain_dims, &femsp);

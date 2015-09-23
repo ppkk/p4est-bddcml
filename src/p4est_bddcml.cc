@@ -21,6 +21,7 @@
 #include "p4est_bddcml_interaction.h"
 
 const int degree = 1;
+const PhysicsType physicsType = LAPLACE;
 
 int main (int argc, char **argv)
 {
@@ -77,9 +78,9 @@ int main (int argc, char **argv)
 
    p4est_t *p4est = p4est_new (mpicomm, conn, 0, NULL, NULL);
 
-   refine_and_partition(p4est, 3, refine_uniform);
-   refine_and_partition(p4est, 6, refine_circle);
-   refine_and_partition(p4est, 8, refine_square);
+   refine_and_partition(p4est, 1, refine_uniform);
+   refine_and_partition(p4est, 3, refine_circle);
+   refine_and_partition(p4est, 4, refine_square);
    refine_and_partition(p4est, 0, refine_point);
    refine_and_partition(p4est, 0, refine_diagonal);
 
@@ -99,15 +100,14 @@ int main (int argc, char **argv)
    int print_rank_l = 3;
 
    // todo: using MPI Bcast in the following, should be possible to do without
-   prepare_dimmensions(p4est, lnodes, &subdomain_dims, &global_dims, mpicomm);
+   prepare_dimmensions(p4est, lnodes, physicsType, &subdomain_dims, &global_dims, mpicomm);
 
    //print_p4est_mesh(p4est, lnodes, print_rank_l);
 
    // TODO: elem_volume is correct only when the mesh is obtained by refinements
    // from a UNIT SQUARE/CUBE
-   real *element_volumes = (real*) malloc(subdomain_dims.n_elems * sizeof(real));
 
-   prepare_subdomain_mesh(p4est, lnodes, &subdomain_dims, &mesh, element_volumes);
+   prepare_subdomain_mesh(p4est, lnodes, &subdomain_dims, &mesh);
    //print_bddcml_mesh(&mesh, print_rank_l);
 
    BddcmlFemSpace femsp;
@@ -150,7 +150,7 @@ int main (int argc, char **argv)
    allocate_sparse_matrix(extra_space_for_hanging_nodes * subdomain_dims.n_elems*lelm, matrix_type, &matrix);
    zero_matrix(&matrix);
 
-   assemble_matrix_rhs(lnodes, &mesh, element_volumes, &femsp, &matrix, &rhss);
+   assemble_matrix_rhs(lnodes, &mesh, &femsp, &matrix, &rhss);
    //print_complete_matrix_rhs(&femsp, &global_dims, &matrix, &rhss, mpicomm);
 
    // user constraints - not really used here
@@ -234,8 +234,6 @@ int main (int argc, char **argv)
    free_real_array(&rhss);
    free_real_array(&sols);
    free_sparse_matrix(&matrix);
-
-   free(element_volumes);
 
    assert(get_num_allocations() == 0);
 

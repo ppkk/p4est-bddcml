@@ -77,7 +77,7 @@ void init_levels(int n_subdomains_first_level, BddcmlLevelInfo *level_info)
 
 }
 
-void init_dimmensions(BddcmlDimensions* dimmensions, int mesh_dim)
+void init_dimmensions(BddcmlDimensions* dimmensions, int mesh_dim, PhysicsType physicsType)
 {
    dimmensions->n_problem_dims = mesh_dim;
    dimmensions->n_mesh_dims = mesh_dim;
@@ -89,6 +89,13 @@ void init_dimmensions(BddcmlDimensions* dimmensions, int mesh_dim)
       dimmensions->n_elem_nodes = 4;
    else if(mesh_dim == 3)
       dimmensions->n_elem_nodes = 8;
+   else
+      assert(0);
+
+   if(physicsType == LAPLACE)
+      dimmensions->n_node_dofs = 1;
+   else if(physicsType == LINEAR_ELASTICITY)
+      dimmensions->n_node_dofs = 3;
    else
       assert(0);
 }
@@ -110,6 +117,7 @@ void init_mesh(BddcmlDimensions* subdomain_dims, BddcmlMesh* mesh)
    allocate_idx_array(subdomain_dims->n_elems, &mesh->num_nodes_of_elem);
    allocate_idx_array(subdomain_dims->n_elems, &mesh->elem_global_map);
    allocate_idx_array(subdomain_dims->n_nodes, &mesh->node_global_map);
+   allocate_real_array(subdomain_dims->n_nodes, &mesh->element_lengths);
    allocate_real_2D_array(subdomain_dims->n_nodes, subdomain_dims->n_problem_dims, &mesh->coords);
 }
 
@@ -119,6 +127,7 @@ void free_mesh(BddcmlMesh* mesh)
    free_idx_array(&mesh->num_nodes_of_elem);
    free_idx_array(&mesh->elem_global_map);
    free_idx_array(&mesh->node_global_map);
+   free_real_array(&mesh->element_lengths);
    free_real_2D_array(&mesh->coords);
 }
 
@@ -155,8 +164,8 @@ void init_fem_space(BddcmlDimensions* dims, BddcmlFemSpace* femsp)
    femsp->subdomain_dims = dims;
    allocate_idx_array(dims->n_nodes, &femsp->node_num_dofs);
    allocate_idx_array(dims->n_dofs, &femsp->dofs_global_map);
-   allocate_idx_array(dims->n_nodes, &femsp->fixs_code);
-   allocate_real_array(dims->n_nodes, &femsp->fixs_values);
+   allocate_idx_array(dims->n_dofs, &femsp->fixs_code);
+   allocate_real_array(dims->n_dofs, &femsp->fixs_values);
 }
 
 void free_fem_space(BddcmlFemSpace* femsp)

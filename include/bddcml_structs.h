@@ -144,7 +144,11 @@ typedef struct BddcmlDimensions
    // topological dimension of elements elements, would be lower for shells or beams
    int n_mesh_dims;
 
+   // number of nodes per element (4 or 8)
    int n_elem_nodes;
+
+   // number of dofs per node (1 for Laplace, 3 for elasticity)
+   int n_node_dofs;
 
 } BddcmlDimensions;
 
@@ -164,6 +168,8 @@ typedef struct BddcmlMesh
 
    IdxArray elem_global_map;
    IdxArray node_global_map;
+
+   RealArray element_lengths;
 }
 BddcmlMesh;
 
@@ -189,7 +195,7 @@ void set_implicit_general_params(BddcmlGeneralParams *params);
 void set_implicit_krylov_params(BddcmlKrylovParams *params);
 void set_implicit_preconditioner_params(BddcmlPreconditionerParams *params);
 void init_levels(int n_subdomains_first_level, BddcmlLevelInfo *level_info);
-void init_dimmensions(BddcmlDimensions* dimmensions, int mesh_dim);
+void init_dimmensions(BddcmlDimensions* dimmensions, int mesh_dim, PhysicsType physicsType);
 
 void init_mesh(BddcmlDimensions* subdomain_dims, BddcmlMesh* mesh);
 void free_mesh(BddcmlMesh* mesh);

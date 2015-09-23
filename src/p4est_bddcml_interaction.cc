@@ -22,19 +22,19 @@
 
 
 
-void prepare_dimmensions(p4est_t *p4est, p4est_lnodes_t *lnodes,
+void prepare_dimmensions(p4est_t *p4est, p4est_lnodes_t *lnodes, PhysicsType physicsType,
                          BddcmlDimensions *subdomain_dims, BddcmlDimensions *global_dims,
                          sc_MPI_Comm mpicomm)
 {
 #ifndef P4_TO_P8
-   init_dimmensions(subdomain_dims, 2);
-   init_dimmensions(global_dims, 2);
+   init_dimmensions(subdomain_dims, 2, physicsType);
+   init_dimmensions(global_dims, 2, physicsType);
 #else
-   init_dimmensions(subdomain_dims, 3);
-   init_dimmensions(global_dims, 3);
+   init_dimmensions(subdomain_dims, 3, physicsType);
+   init_dimmensions(global_dims, 3, physicsType);
 #endif
    subdomain_dims->n_nodes = lnodes->num_local_nodes;
-   subdomain_dims->n_dofs  = lnodes->num_local_nodes;
+   subdomain_dims->n_dofs  = lnodes->num_local_nodes * subdomain_dims->n_node_dofs;
    subdomain_dims->n_elems = lnodes->num_local_elements;
    printf("proc %d, elems %d, nodes %d\n", mpi_rank, subdomain_dims->n_elems, subdomain_dims->n_nodes);
 
@@ -46,11 +46,11 @@ void prepare_dimmensions(p4est_t *p4est, p4est_lnodes_t *lnodes,
    sc_MPI_Bcast(&global_num_nodes, 1, MPI_INT, mpi_size - 1, mpicomm);
 
    global_dims->n_nodes = global_num_nodes;
-   global_dims->n_dofs = global_num_nodes;
+   global_dims->n_dofs = global_num_nodes * global_dims->n_node_dofs;
    global_dims->n_elems = p4est->global_num_quadrants;
 }
 
-void prepare_subdomain_mesh(p4est_t *p4est, p4est_lnodes_t *lnodes, BddcmlDimensions *subdomain_dims, BddcmlMesh *mesh, real* volumes)
+void prepare_subdomain_mesh(p4est_t *p4est, p4est_lnodes_t *lnodes, BddcmlDimensions *subdomain_dims, BddcmlMesh *mesh)
 {
    double              vxyz[3];  /* We embed the 2D vertices into 3D space. */
    p4est_quadrant_t   sp, node;
@@ -79,7 +79,7 @@ void prepare_subdomain_mesh(p4est_t *p4est, p4est_lnodes_t *lnodes, BddcmlDimens
          mesh->elem_node_indices.val[P4EST_CHILDREN * quad_idx + lnode] = node_idx;
       }
 
-      volumes[quad_idx] = pow(0.5, quad->level * mesh->subdomain_dims->n_problem_dims);
+      mesh->element_lengths.val[quad_idx] = pow(0.5, quad->level);
 
       /* Figure out the hanging corners on this element, if any. */
       int hanging_corner[P4EST_CHILDREN];
@@ -142,25 +142,36 @@ bool real_equal(real a, real b)
 void prepare_subdomain_fem_space(BddcmlMesh *mesh, BddcmlFemSpace *femsp)
 {
    init_fem_space(mesh->subdomain_dims, femsp);
-   mesh->subdomain_dims->n_dofs = mesh->subdomain_dims->n_nodes;
-   for(int node = 0; node < mesh->subdomain_dims->n_dofs; node++)
-   {
-      femsp->node_num_dofs.val[node] = 1;
-      femsp->dofs_global_map.val[node] = mesh->node_global_map.val[node];
-      if((real_equal(mesh->coords.val[0][node], 0.0)) || (real_equal(mesh->coords.val[0][node], 1.0))
+   int num_dofs_per_node = mesh->subdomain_dims->n_node_dofs;
+   for(int node = 0; node < mesh->subdomain_dims->n_nodes; node++)
+   {      
+      bool is_on_boundary = ((real_equal(mesh->coords.val[0][node], 0.0)) || (real_equal(mesh->coords.val[0][node], 1.0))
             || (real_equal(mesh->coords.val[1][node], 0.0)) || (real_equal(mesh->coords.val[1][node], 1.0))
 #ifdef P4_TO_P8
             || (real_equal(mesh->coords.val[2][node], 0.0)) || (real_equal(mesh->coords.val[2][node], 1.0))
 #endif
-            )
+            );
+
+      femsp->node_num_dofs.val[node] = num_dofs_per_node;
+
+      for(int local_dof_idx = 0; local_dof_idx < num_dofs_per_node; local_dof_idx++)
       {
-         femsp->fixs_code.val[node] = 1;
-         femsp->fixs_values.val[node] = 0.0;
-      }
-      else
-      {
-         femsp->fixs_code.val[node] = 0;
-         femsp->fixs_values.val[node] = 0.0;
+         int subdomain_dof = num_dofs_per_node * node + local_dof_idx;
+         int global_dof = num_dofs_per_node * mesh->node_global_map.val[node] + local_dof_idx;
+
+         femsp->dofs_global_map.val[subdomain_dof] = global_dof;
+
+         if(is_on_boundary)
+         {
+            femsp->fixs_code.val[subdomain_dof] = 1;
+            femsp->fixs_values.val[subdomain_dof] = 0.0;
+         }
+         else
+         {
+            femsp->fixs_code.val[subdomain_dof] = 0;
+            femsp->fixs_values.val[subdomain_dof] = 0.0;
+         }
+
       }
 
    }
@@ -226,7 +237,7 @@ void print_complete_matrix_rhs(BddcmlFemSpace *femsp, BddcmlDimensions *global_d
    free(compl_mat);
 }
 
-void assemble_matrix_rhs(p4est_lnodes_t *lnodes, BddcmlMesh *mesh, double *element_volumes, BddcmlFemSpace *femsp,
+void assemble_matrix_rhs(p4est_lnodes_t *lnodes, BddcmlMesh *mesh, BddcmlFemSpace *femsp,
                          SparseMatrix *matrix, RealArray *rhss)
 {
    real i_coeffs, j_coeffs;
@@ -243,13 +254,14 @@ void assemble_matrix_rhs(p4est_lnodes_t *lnodes, BddcmlMesh *mesh, double *eleme
       // TODO: elem_size and elem_volume is correct only when the mesh is obtained by refinements
       // from a UNIT SQUARE/CUBE
       // TODO: ONLY FROM ****UNIT****
-      real elem_volume = element_volumes[elem_idx];
+      real elem_length = mesh->element_lengths.val[elem_idx];
+      real elem_volume = pow(elem_length, mesh->subdomain_dims->n_problem_dims);
 
       double reference_scaled =
 #ifndef P4_TO_P8
             1.;
 #else
-            pow(elem_volume, 1./(double)mesh->subdomain_dims->n_problem_dims);
+            elem_length;
 #endif
       for(int j = 0; j < ndof_per_element; j++) {
 
@@ -273,7 +285,7 @@ void assemble_matrix_rhs(p4est_lnodes_t *lnodes, BddcmlMesh *mesh, double *eleme
                p4est_locidx_t i_nodes[4];
                int i_nindep = independent_nodes(lnodes, elem_idx, i, i_nodes, &i_coeffs);
 
-                  if(i_nindep == 1)
+               if(i_nindep == 1)
                {
                   assert(idof == i_nodes[0]);
                }

@@ -2,6 +2,7 @@
 #define P4EST_COMMON_H
 
 #include <stdbool.h>
+#include <vector>
 
 #ifndef P4_TO_P8
 #include <p4est_bits.h>
@@ -65,6 +66,7 @@ static const double s_1d[2][2] = {
 };
 
 void generate_reference_matrices(real stiffness_dd[P4EST_CHILDREN][P4EST_CHILDREN], real mass_dd[P4EST_CHILDREN][P4EST_CHILDREN]);
+void prepare_transformed_values(int dimmension, std::vector<double> element_lengths);
 
 void init_corner_to_hanging();
 

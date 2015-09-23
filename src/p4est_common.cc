@@ -13,9 +13,13 @@
 #include <stdbool.h>
 #include <assert.h>
 
+#include <vector>
+
 #include "definitions.h"
 #include "helpers.h"
 #include "p4est_common.h"
+
+using namespace std;
 
 const int   *corner_to_hanging[P4EST_CHILDREN];
 
@@ -321,6 +325,129 @@ void generate_reference_matrices(real stiffness_dd[P4EST_CHILDREN][P4EST_CHILDRE
 //   }
 }
 
+struct Quadrature
+{
+   vector<double> weights;
+   vector<vector<double> > coords;
+
+   Quadrature(int dimmension)
+   {
+      if(dimmension == 1)
+      {
+         weights = {5./9., 8./9., 5./9.};
+         coords = {vector<double>({-sqrt(3./5.)}), vector<double>({0.}), vector<double>({sqrt(3./5.)})};
+      }
+      else if(dimmension == 2)
+      {
+         Quadrature q1(1);
+         product(q1, q1);
+      }
+      else if(dimmension == 3)
+      {
+         Quadrature q1(1), q2(2);
+         product(q1, q2);
+      }
+      else
+         assert(0);
+   }
+
+   void product(Quadrature quad1, Quadrature quad2)
+   {
+      for(unsigned int i1 = 0; i1 < quad1.weights.size(); i1++)
+      {
+         for(unsigned int i2 = 0; i2 < quad2.weights.size(); i2++)
+         {
+            weights.push_back(quad1.weights[i1] * quad2.weights[i2]);
+            vector<double>product_coords;
+            product_coords.insert(product_coords.end(), quad1.coords[i1].begin(), quad1.coords[i1].end());
+            product_coords.insert(product_coords.end(), quad2.coords[i2].begin(), quad2.coords[i2].end());
+            coords.push_back(product_coords);
+         }
+      }
+   }
+
+   void print()
+   {
+      assert(weights.size() == coords.size());
+      double sum = 0.0;
+      for(unsigned int i = 0; i < weights.size(); i++)
+      {
+         cout << "(";
+         for(unsigned int j = 0; j < coords[i].size(); j++)
+         {
+            cout << coords[i][j] << ", ";
+         }
+         cout << "), " << weights[i] << endl;
+         sum += weights[i];
+      }
+      cout << "sum of weights " << sum << endl;
+   }
+
+};
+
+void ref_value_1D(int loc_id_1d, double x, double elem_len, double& value, double& der)
+{
+   if(loc_id_1d == 0)
+   {
+      value = (1-x)/2.;
+      der = -1/elem_len;
+   }
+   else if(loc_id_1d == 1)
+   {
+      value = (1+x)/2.;
+      der = 1/elem_len;
+   }
+   else
+      assert(0);
+}
+
+void prepare_transformed_values(int dimmension, vector<double> element_lengths)
+{
+   // quadrature rule is not yet transformed to the physical element
+   Quadrature q(dimmension);
+   q.print();
+
+//   vector<vector<double> > values_1D;
+//   vector<vector<double> > gradients_1D;
+
+//   for()
+
+   vector<vector<double> > values(P4EST_CHILDREN);
+   vector<vector<vector<double> > > gradients(P4EST_CHILDREN);
+
+   for(int node = 0; node < P4EST_CHILDREN; node++)
+   {
+      int x_id_1D = node % 2;
+      int y_id_1D = (node % 4) / 2;
+      int z_id_1D = node / 4;
+
+      for(unsigned int q_idx = 0; q_idx < q.weights.size(); q_idx++)
+      {
+         double value_x, der_x, value_y, der_y, value_z, der_z;
+         ref_value_1D(x_id_1D, q.coords[q_idx][0], element_lengths[0], value_x, der_x);
+         ref_value_1D(y_id_1D, q.coords[q_idx][1], element_lengths[1], value_y, der_y);
+
+#ifdef P4_TO_P8
+         ref_value_1D(z_id_1D, q.coords[q_idx][2], element_lengths[2], value_z, der_z);
+#endif
+
+         double value = value_x * value_y;
+         double grad_1 = der_x * value_y;
+         double grad_2 = value_x * der_y;
+
+#ifdef P4_TO_P8
+         value *= value_z;
+         grad_1 *= value_z;
+         grad_2 *= value_z;
+         double grad_3 = value_x * value_y * der_z;
+         gradients[node].push_back(vector<double>({grad_1, grad_2, grad_3}));
+#else
+         gradients[node].push_back(vector<double>({grad_1, grad_2}));
+#endif
+         values[node].push_back(value);
+      }
+   }
+}
 
 void init_corner_to_hanging()
 {

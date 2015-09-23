@@ -17,6 +17,12 @@ typedef enum MatrixType{
 }
 MatrixType;
 
+typedef enum PhysicsType{
+   LAPLACE = 0,
+   LINEAR_ELASTICITY = 1
+}
+PhysicsType;
+
 // matrix in coordinate format - triplets (i,j,a_ij)
 typedef struct SparseMatrix
 {

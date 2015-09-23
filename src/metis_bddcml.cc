@@ -25,6 +25,7 @@
 #include "p4est_bddcml_interaction.h"
 
 const int degree = 1;
+const PhysicsType physicsType = LAPLACE;
 
 // this is the main difference of the metis example
 // p4est is global - not distributed.
@@ -290,22 +291,22 @@ void create_graph(p4est_t *p4est, p4est_lnodes_t *lnodes, idx_t nparts, mptype_e
    free(graph_adjncy);
 }
 
-void prepare_subdomain_data(p4est_t *p4est, p4est_lnodes_t *lnodes, int *metis_part, BddcmlDimensions *subdomain_dims,
-                       BddcmlDimensions *global_dims, BddcmlMesh* mesh, real** element_volumes, sc_MPI_Comm mpicomm)
+void prepare_subdomain_data(p4est_t *p4est, p4est_lnodes_t *lnodes, PhysicsType physicsType, int *metis_part, BddcmlDimensions *subdomain_dims,
+                       BddcmlDimensions *global_dims, BddcmlMesh* mesh, sc_MPI_Comm mpicomm)
 {
    double              vxyz[3];  /* We embed the 2D vertices into 3D space. */
    p4est_quadrant_t   sp, node;
 
    // here the local p4est is the global mesh...
 #ifndef P4_TO_P8
-   init_dimmensions(subdomain_dims, 2);
-   init_dimmensions(global_dims, 2);
+   init_dimmensions(subdomain_dims, 2, physicsType);
+   init_dimmensions(global_dims, 2, physicsType);
 #else
-   init_dimmensions(subdomain_dims, 3);
-   init_dimmensions(global_dims, 3);
+   init_dimmensions(subdomain_dims, 3, physicsType);
+   init_dimmensions(global_dims, 3, physicsType);
 #endif
    global_dims->n_nodes = lnodes->num_local_nodes;
-   global_dims->n_dofs = lnodes->num_local_nodes;
+   global_dims->n_dofs = lnodes->num_local_nodes * global_dims->n_node_dofs;
    global_dims->n_elems = lnodes->num_local_elements;
 
 
@@ -336,8 +337,6 @@ void prepare_subdomain_data(p4est_t *p4est, p4est_lnodes_t *lnodes, int *metis_p
    // I do not have the right dimmensions yet
    free_real_2D_array(&mesh->coords);
 
-    *element_volumes = (real*) malloc(subdomain_dims->n_elems * sizeof(real));
-
    nodes_glob_to_loc = (int*) malloc(global_dims->n_nodes * sizeof(int));
    for(int i = 0; i < global_dims->n_nodes; i++)
       nodes_glob_to_loc[i] = -1;
@@ -366,7 +365,7 @@ void prepare_subdomain_data(p4est_t *p4est, p4est_lnodes_t *lnodes, int *metis_p
          mesh->elem_node_indices.val[P4EST_CHILDREN * loc_quad_idx + lnode] = loc_node_idx;
       }
 
-      (*element_volumes)[loc_quad_idx] = pow(0.5, quad->level * mesh->subdomain_dims->n_problem_dims);
+      mesh->element_lengths.val[loc_quad_idx] = pow(0.5, quad->level);
 
    }}} //for all quads
 
@@ -437,7 +436,7 @@ void prepare_subdomain_data(p4est_t *p4est, p4est_lnodes_t *lnodes, int *metis_p
 
 // a variant of the same function from general use
 // the difference is, that the indices in p4est are GLOBAL here and have to be tramsformed to local
-void assemble_matrix_rhs_metis(p4est_lnodes_t *lnodes, BddcmlMesh *mesh, double *element_volumes, BddcmlFemSpace *femsp,
+void assemble_matrix_rhs_metis(p4est_lnodes_t *lnodes, BddcmlMesh *mesh, BddcmlFemSpace *femsp,
                             SparseMatrix *matrix, RealArray *rhss)
 {
    real i_coeffs, j_coeffs;
@@ -455,13 +454,14 @@ void assemble_matrix_rhs_metis(p4est_lnodes_t *lnodes, BddcmlMesh *mesh, double 
       // TODO: elem_size and elem_volume is correct only when the mesh is obtained by refinements
       // from a UNIT SQUARE/CUBE
       // TODO: ONLY FROM ****UNIT****
-      real elem_volume = element_volumes[loc_elem_idx];
+      real elem_length = mesh->element_lengths.val[loc_elem_idx];
+      real elem_volume = pow(elem_length, mesh->subdomain_dims->n_problem_dims);
 
       double reference_scaled =
       #ifndef P4_TO_P8
             1.;
 #else
-            pow(elem_volume, 1./(double)mesh->subdomain_dims->n_problem_dims);
+            elem_length;
 #endif
       for(int j = 0; j < ndof_per_element; j++) {
 
@@ -668,9 +668,9 @@ int main (int argc, char **argv)
 
    p4est_t *p4est = p4est_new (mpicomm_p4est, conn, 0, NULL, NULL);
 
-   refine_and_partition(p4est, 2, refine_uniform);
-   refine_and_partition(p4est, 4, refine_circle);
-   refine_and_partition(p4est, 4, refine_square);
+   refine_and_partition(p4est, 3, refine_uniform);
+   refine_and_partition(p4est, 6, refine_circle);
+   refine_and_partition(p4est, 8, refine_square);
    refine_and_partition(p4est, 0, refine_point);
    refine_and_partition(p4est, 0, refine_diagonal);
 
@@ -698,12 +698,8 @@ int main (int argc, char **argv)
 
    int print_rank_l = 0;
 
-   // TODO: elem_volume is correct only when the mesh is obtained by refinements
-   // from a UNIT SQUARE/CUBE
-   real *element_volumes = NULL;
-
    // todo: using MPI Bcast in the following, should be possible to do without
-   prepare_subdomain_data(p4est, lnodes, metis_part, &subdomain_dims, &global_dims, &mesh, &element_volumes, mpicomm_bddcml);
+   prepare_subdomain_data(p4est, lnodes, physicsType, metis_part, &subdomain_dims, &global_dims, &mesh, mpicomm_bddcml);
 
    //print_p4est_mesh(p4est, lnodes, print_rank_l);
    //print_bddcml_mesh(&mesh, print_rank_l);
@@ -749,7 +745,7 @@ int main (int argc, char **argv)
    allocate_sparse_matrix(extra_space_for_hanging_nodes * subdomain_dims.n_elems*lelm, matrix_type, &matrix);
    zero_matrix(&matrix);
 
-   assemble_matrix_rhs_metis(lnodes, &mesh, element_volumes, &femsp, &matrix, &rhss);
+   assemble_matrix_rhs_metis(lnodes, &mesh, &femsp, &matrix, &rhss);
    //print_complete_matrix_rhs(&femsp, &global_dims, &matrix, &rhss, mpicomm);
 
    // user constraints - not really used here
@@ -893,8 +889,6 @@ int main (int argc, char **argv)
    free_real_array(&rhss);
    free_real_array(&sols);
    free_sparse_matrix(&matrix);
-
-   free(element_volumes);
 
    free(metis_part);
    metis_part = NULL;
