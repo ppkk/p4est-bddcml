@@ -20,7 +20,7 @@
 #include "p4est_common.h"
 #include "p4est_bddcml_interaction.h"
 
-
+using namespace std;
 
 void prepare_dimmensions(p4est_t *p4est, p4est_lnodes_t *lnodes, PhysicsType physicsType,
                          BddcmlDimensions *subdomain_dims, BddcmlDimensions *global_dims,
@@ -237,13 +237,19 @@ void print_complete_matrix_rhs(BddcmlFemSpace *femsp, BddcmlDimensions *global_d
    free(compl_mat);
 }
 
+vector<double> rhs(vector<double>)
+{
+   return {1};
+}
+
 void assemble_matrix_rhs(p4est_lnodes_t *lnodes, BddcmlMesh *mesh, BddcmlFemSpace *femsp,
                          SparseMatrix *matrix, RealArray *rhss)
 {
    real i_coeffs, j_coeffs;
 //   real mass_ref[P4EST_CHILDREN][P4EST_CHILDREN];
 //   real dudv_ref[P4EST_CHILDREN][P4EST_CHILDREN];
-   real dudv_phys_elem[P4EST_CHILDREN][P4EST_CHILDREN];
+   real element_matrix[P4EST_CHILDREN][P4EST_CHILDREN];
+   real element_rhs[P4EST_CHILDREN];
    //generate_reference_matrices(dudv_ref, mass_ref);
 
    int element_offset = 0;
@@ -266,40 +272,35 @@ void assemble_matrix_rhs(p4est_lnodes_t *lnodes, BddcmlMesh *mesh, BddcmlFemSpac
 //#endif
 
       //scale_reference_matrix(dudv_ref, reference_scaled, dudv_phys_elem);
-      generate_scaled_matrix_new(elem_length, dudv_phys_elem);
+      generate_scaled_matrix_new(elem_length, element_matrix, element_rhs, rhs);
 
+      for(int i = 0; i < ndof_per_element /*<= j*/; i++) {
+         int idof = mesh->elem_node_indices.val[element_offset + i];
 
-      for(int j = 0; j < ndof_per_element; j++) {
+         p4est_locidx_t i_nodes[4];
+         int i_nindep = independent_nodes(lnodes, elem_idx, i, i_nodes, &i_coeffs);
 
-         //todo: dofs should be taken from femsp!
-         int jdof = mesh->elem_node_indices.val[element_offset + j];
-         assert(femsp->node_num_dofs.val[jdof] == 1);
+         assert((i_nindep != 1) || (idof == i_nodes[0]));
 
-         p4est_locidx_t j_nodes[4];
-         int j_nindep = independent_nodes(lnodes, elem_idx, j, j_nodes, &j_coeffs);
-         if(j_nindep == 1)
+         for(int i_indep_nodes_idx = 0; i_indep_nodes_idx < i_nindep; i_indep_nodes_idx++)
          {
-            assert(jdof == j_nodes[0]);
-         }
-         for(int j_indep_nodes_idx = 0; j_indep_nodes_idx < j_nindep; j_indep_nodes_idx++)
-         {
-            int j_indep_node = j_nodes[j_indep_nodes_idx];
+            int i_indep_node = i_nodes[i_indep_nodes_idx];
 
-            for(int i = 0; i < ndof_per_element /*<= j*/; i++) {
-               int idof = mesh->elem_node_indices.val[element_offset + i];
+            for(int j = 0; j < ndof_per_element; j++) {
+               //todo: dofs should be taken from femsp!
+               int jdof = mesh->elem_node_indices.val[element_offset + j];
+               assert(femsp->node_num_dofs.val[jdof] == 1);
 
-               p4est_locidx_t i_nodes[4];
-               int i_nindep = independent_nodes(lnodes, elem_idx, i, i_nodes, &i_coeffs);
+               p4est_locidx_t j_nodes[4];
+               int j_nindep = independent_nodes(lnodes, elem_idx, j, j_nodes, &j_coeffs);
 
-               if(i_nindep == 1)
+               assert((j_nindep != 1) || (jdof == j_nodes[0]));
+
+               for(int j_indep_nodes_idx = 0; j_indep_nodes_idx < j_nindep; j_indep_nodes_idx++)
                {
-                  assert(idof == i_nodes[0]);
-               }
-               for(int i_indep_nodes_idx = 0; i_indep_nodes_idx < i_nindep; i_indep_nodes_idx++)
-               {
-                  int i_indep_node = i_nodes[i_indep_nodes_idx];
+                  int j_indep_node = j_nodes[j_indep_nodes_idx];
 
-                  double matrix_value = i_coeffs * j_coeffs * dudv_phys_elem[j][i];
+                  double matrix_value = i_coeffs * j_coeffs * element_matrix[j][i];
                   add_matrix_entry(matrix, i_indep_node, j_indep_node, matrix_value);
 //                  printf("adding entry loc (%d, %d), nodes, (%d, %d), coefs (%3.2lf, %3.2lf), number indep (%d, %d), locstiff %lf, value %lf\n",
 //                         j, i, j_indep_node, i_indep_node, j_coeffs, i_coeffs, j_nindep, i_nindep, stiffness_dd[j][i], matrix_value);
@@ -312,8 +313,9 @@ void assemble_matrix_rhs(p4est_lnodes_t *lnodes, BddcmlMesh *mesh, BddcmlFemSpac
             // TODO: ONLY FROM ****UNIT****
 
 
-            double rhs_value = j_coeffs * 1./(real)P4EST_CHILDREN * elem_volume * 1;
-            rhss->val[j_indep_node] += rhs_value;
+            //double rhs_value = i_coeffs * 1./(real)P4EST_CHILDREN * elem_volume * 1;
+            double rhs_value = i_coeffs * element_rhs[i];
+            rhss->val[i_indep_node] += rhs_value;
 
          }
       }

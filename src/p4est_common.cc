@@ -450,7 +450,7 @@ void prepare_transformed_values(Quadrature q, double element_length,
    }
 }
 
-void generate_scaled_matrix_new(double element_size, real stiffness[P4EST_CHILDREN][P4EST_CHILDREN])
+void generate_scaled_matrix_new(double element_size, real stiffness[P4EST_CHILDREN][P4EST_CHILDREN], real rhs[P4EST_CHILDREN], vector<double> (*rhs_ptr)(vector<double>))
 {
    int dimmension = 2;
    // quadrature rule is not yet transformed to the physical element
@@ -464,14 +464,20 @@ void generate_scaled_matrix_new(double element_size, real stiffness[P4EST_CHILDR
    std::cout << values[0][0] << std::endl;
 
    for(int i = 0; i < P4EST_CHILDREN; i++)
+   {
+      rhs[i] = 0.0;
       for(int j = 0; j < P4EST_CHILDREN; j++)
          stiffness[i][j] = 0.0;
+   }
 
-   for(int i = 0; i < P4EST_CHILDREN; i++)
+   for(unsigned int q_idx = 0; q_idx < q.weights.size(); q_idx++)
    {
-      for(int j = 0; j < P4EST_CHILDREN; j++)
+      for(int i = 0; i < P4EST_CHILDREN; i++)
       {
-         for(unsigned int q_idx = 0; q_idx < q.weights.size(); q_idx++)
+
+         rhs[i] += q.weights[q_idx] * values[i][q_idx] * rhs_ptr(q.coords[q_idx])[0];
+
+         for(int j = 0; j < P4EST_CHILDREN; j++)
          {
             for(int idx_dim = 0; idx_dim < dimmension; idx_dim++)
             {

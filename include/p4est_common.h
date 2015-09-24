@@ -68,7 +68,8 @@ static const double s_1d[2][2] = {
 void generate_reference_matrices(real stiffness_dd[P4EST_CHILDREN][P4EST_CHILDREN], real mass_dd[P4EST_CHILDREN][P4EST_CHILDREN]);
 void scale_reference_matrix(real ref_mat[P4EST_CHILDREN][P4EST_CHILDREN], real coefficient, real phys_elem_mat[P4EST_CHILDREN][P4EST_CHILDREN]);
 //void prepare_transformed_values(int dimmension, std::vector<double> element_lengths);
-void generate_scaled_matrix_new(double element_size, real stiffness[P4EST_CHILDREN][P4EST_CHILDREN]);
+void generate_scaled_matrix_new(double element_size, real stiffness[P4EST_CHILDREN][P4EST_CHILDREN], real rhs[P4EST_CHILDREN],
+                                std::vector<double> (*rhs_ptr)(std::vector<double>));
 
 void init_corner_to_hanging();
 
