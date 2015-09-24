@@ -204,7 +204,7 @@ void print_complete_matrix_rhs(BddcmlFemSpace *femsp, BddcmlDimensions *global_d
       compl_mat[global_dims->n_dofs * glob_dof_j + glob_dof_i] += matrix->val[idx];
 
       // adding also symmetric counterpart
-      if(matrix->type != GENERAL)
+      if(matrix->type != MatrixType::GENERAL)
          compl_mat[global_dims->n_dofs * glob_dof_i + glob_dof_j] += matrix->val[idx];
    }
 
@@ -241,9 +241,10 @@ void assemble_matrix_rhs(p4est_lnodes_t *lnodes, BddcmlMesh *mesh, BddcmlFemSpac
                          SparseMatrix *matrix, RealArray *rhss)
 {
    real i_coeffs, j_coeffs;
-   real mass_dd[P4EST_CHILDREN][P4EST_CHILDREN];
-   real stiffness_dd[P4EST_CHILDREN][P4EST_CHILDREN];
-   generate_reference_matrices(stiffness_dd, mass_dd);
+//   real mass_ref[P4EST_CHILDREN][P4EST_CHILDREN];
+//   real dudv_ref[P4EST_CHILDREN][P4EST_CHILDREN];
+   real dudv_phys_elem[P4EST_CHILDREN][P4EST_CHILDREN];
+   //generate_reference_matrices(dudv_ref, mass_ref);
 
    int element_offset = 0;
    for(int elem_idx = 0; elem_idx < mesh->subdomain_dims->n_elems; elem_idx++) {
@@ -257,12 +258,17 @@ void assemble_matrix_rhs(p4est_lnodes_t *lnodes, BddcmlMesh *mesh, BddcmlFemSpac
       real elem_length = mesh->element_lengths.val[elem_idx];
       real elem_volume = pow(elem_length, mesh->subdomain_dims->n_problem_dims);
 
-      double reference_scaled =
-#ifndef P4_TO_P8
-            1.;
-#else
-            elem_length;
-#endif
+//      double reference_scaled =
+//#ifndef P4_TO_P8
+//            1.;
+//#else
+//            elem_length;
+//#endif
+
+      //scale_reference_matrix(dudv_ref, reference_scaled, dudv_phys_elem);
+      generate_scaled_matrix_new(elem_length, dudv_phys_elem);
+
+
       for(int j = 0; j < ndof_per_element; j++) {
 
          //todo: dofs should be taken from femsp!
@@ -293,7 +299,7 @@ void assemble_matrix_rhs(p4est_lnodes_t *lnodes, BddcmlMesh *mesh, BddcmlFemSpac
                {
                   int i_indep_node = i_nodes[i_indep_nodes_idx];
 
-                  double matrix_value = i_coeffs * j_coeffs * reference_scaled * stiffness_dd[j][i];
+                  double matrix_value = i_coeffs * j_coeffs * dudv_phys_elem[j][i];
                   add_matrix_entry(matrix, i_indep_node, j_indep_node, matrix_value);
 //                  printf("adding entry loc (%d, %d), nodes, (%d, %d), coefs (%3.2lf, %3.2lf), number indep (%d, %d), locstiff %lf, value %lf\n",
 //                         j, i, j_indep_node, i_indep_node, j_coeffs, i_coeffs, j_nindep, i_nindep, stiffness_dd[j][i], matrix_value);

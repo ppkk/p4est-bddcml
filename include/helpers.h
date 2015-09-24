@@ -10,18 +10,16 @@ extern int print_rank;
 #define PPP if(mpi_rank == print_rank)
 
 
-typedef enum MatrixType{
-   GENERAL = 0,      // general (full storage)
-   SPD = 1,          //symmetric positive definite (only triangle stored)
-   SYM_GENERAL =  2  // symmetric general (only triangle stored)
-}
-MatrixType;
+enum class MatrixType{
+   GENERAL,      // general (full storage)
+   SPD,          //symmetric positive definite (only triangle stored)
+   SYM_GENERAL  // symmetric general (only triangle stored)
+};
 
-typedef enum PhysicsType{
+enum class PhysicsType{
    LAPLACE = 0,
    LINEAR_ELASTICITY = 1
-}
-PhysicsType;
+};
 
 // matrix in coordinate format - triplets (i,j,a_ij)
 typedef struct SparseMatrix

@@ -92,9 +92,9 @@ void init_dimmensions(BddcmlDimensions* dimmensions, int mesh_dim, PhysicsType p
    else
       assert(0);
 
-   if(physicsType == LAPLACE)
+   if(physicsType == PhysicsType::LAPLACE)
       dimmensions->n_node_dofs = 1;
-   else if(physicsType == LINEAR_ELASTICITY)
+   else if(physicsType == PhysicsType::LINEAR_ELASTICITY)
       dimmensions->n_node_dofs = 3;
    else
       assert(0);
@@ -117,7 +117,7 @@ void init_mesh(BddcmlDimensions* subdomain_dims, BddcmlMesh* mesh)
    allocate_idx_array(subdomain_dims->n_elems, &mesh->num_nodes_of_elem);
    allocate_idx_array(subdomain_dims->n_elems, &mesh->elem_global_map);
    allocate_idx_array(subdomain_dims->n_nodes, &mesh->node_global_map);
-   allocate_real_array(subdomain_dims->n_nodes, &mesh->element_lengths);
+   allocate_real_array(subdomain_dims->n_elems, &mesh->element_lengths);
    allocate_real_2D_array(subdomain_dims->n_nodes, subdomain_dims->n_problem_dims, &mesh->coords);
 }
 

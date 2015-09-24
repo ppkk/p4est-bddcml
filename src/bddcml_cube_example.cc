@@ -112,8 +112,8 @@ int main(int argc, char **argv)
    BddcmlLevelInfo level_info;
 
    BddcmlDimensions global_dims, subdomain_dims;
-   init_dimmensions(&global_dims, 3, LAPLACE);
-   init_dimmensions(&subdomain_dims, 3, LAPLACE);
+   init_dimmensions(&global_dims, 3, PhysicsType::LAPLACE);
+   init_dimmensions(&subdomain_dims, 3, PhysicsType::LAPLACE);
 
    BddcmlMesh mesh;
    BddcmlFemSpace femsp;
@@ -261,7 +261,7 @@ int main(int argc, char **argv)
       lelm = NDOF_PER_ELEMENT * (NDOF_PER_ELEMENT + 1) / 2;
       // space for all upper triangles of element matrics
 
-      allocate_sparse_matrix(subdomain_dims.n_elems*lelm, SPD, &matrix);
+      allocate_sparse_matrix(subdomain_dims.n_elems*lelm, MatrixType::SPD, &matrix);
       zero_matrix(&matrix);
 
       // copy the upper triangle of the element matrix to the sparse triplet

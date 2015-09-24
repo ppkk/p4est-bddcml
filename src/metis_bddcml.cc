@@ -25,7 +25,7 @@
 #include "p4est_bddcml_interaction.h"
 
 const int degree = 1;
-const PhysicsType physicsType = LAPLACE;
+const PhysicsType physicsType = PhysicsType::LAPLACE;
 
 // this is the main difference of the metis example
 // p4est is global - not distributed.
@@ -739,9 +739,9 @@ int main (int argc, char **argv)
    // how much space the upper triangle of the element matrix occupies
    int lelm = ndof_per_element * (ndof_per_element + 1) / 2;
 
-   MatrixType matrix_type = SPD;
+   MatrixType matrix_type = MatrixType::SPD;
    // todo: do it properly
-   const int extra_space_for_hanging_nodes = 4 * (matrix_type == GENERAL ? 2 : 1);
+   const int extra_space_for_hanging_nodes = 4 * (matrix_type == MatrixType::GENERAL ? 2 : 1);
    allocate_sparse_matrix(extra_space_for_hanging_nodes * subdomain_dims.n_elems*lelm, matrix_type, &matrix);
    zero_matrix(&matrix);
 

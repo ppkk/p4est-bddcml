@@ -27,6 +27,32 @@ include_directories("${P4EST_ROOT}/include")
 link_directories("${P4EST_ROOT}/local/lib")
 set(LIBS ${LIBS} sc p4est )
 
+set(SOURCES_DIM_INDEP
+src/helpers.cc
+src/bddcml_structs.cc
+src/bddcml_cube_example_subdomain.cc
+)
+
+set(SOURCES_2D
+src/p4est_common.cc
+src/p4est_bddcml_interaction.cc
+src/metis_bddcml.cc
+)
+
+set(SOURCES_3D
+src/p8est_common.cc
+src/p8est_bddcml_interaction.cc
+src/metis8_bddcml.cc
+)
+
+set(HEADERS
+include/definitions.h
+include/helpers.h
+include/p4est_bddcml_interaction.h
+include/p4est_common.h
+include/bddcml_structs.h
+include/bddcml_cube_example_subdomain.h
+)
 
 # BLOPEX objects
 include_directories("${BLOPEX_ROOT}/blopex_serial_double/multivector")
@@ -40,16 +66,29 @@ set(BLOPEX_OBJECTS ${BLOPEX_OBJECTS} "${BLOPEX_ROOT}/blopex_serial_double/multiv
 set(BLOPEX_OBJECTS ${BLOPEX_OBJECTS} "${BLOPEX_ROOT}/blopex_serial_double/pcg_multi/pcg_multi.o")
 set(BLOPEX_OBJECTS ${BLOPEX_OBJECTS} "${BLOPEX_ROOT}/blopex_serial_double/matmultivec/matmultivec.o")
 
-set(LIBS ${LIBS}  scalapack-openmpi m gfortran blas lapack blacs-openmpi blacsCinit-openmpi blacsF77init-openmpi blacs-openmpi)
+set(LIBS ${LIBS}
+scalapack-openmpi
+m
+gfortran
+blas
+lapack
+blacs-openmpi
+blacsCinit-openmpi
+blacsF77init-openmpi
+blacs-openmpi
+)
 
 include_directories("${MPI_ROOT}/include")
-set(LIBS ${LIBS}  mpi pthread mpi_f77)
+set(LIBS ${LIBS}
+mpi
+pthread mpi_f77
+)
 
 
 include_directories("include")
 
-add_library(mylib_2D src/p4est_common.cc src/helpers.cc src/bddcml_structs.cc src/bddcml_cube_example_subdomain.cc src/p4est_bddcml_interaction.cc src/metis_bddcml.cc)
-add_library(mylib_3D src/p8est_common.cc src/helpers.cc src/bddcml_structs.cc src/bddcml_cube_example_subdomain.cc src/p8est_bddcml_interaction.cc src/metis8_bddcml.cc)
+add_library(mylib_2D ${HEADERS} ${SOURCES_DIM_INDEP} ${SOURCES_2D})
+add_library(mylib_3D ${HEADERS} ${SOURCES_DIM_INDEP} ${SOURCES_3D})
 
 add_executable(p4est_example src/p4est_example.cc)
 add_executable(p8est_example src/p8est_example.cc)

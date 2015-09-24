@@ -52,8 +52,6 @@ int main (int argc, char **argv)
    refine_and_partition(p4est, 0, refine_diagonal);
 
 
-   prepare_transformed_values(4, vector<double>({2}));
-
    /* Destroy the p4est and the connectivity structure. */
    p4est_destroy (p4est);
    p4est_connectivity_destroy (conn);

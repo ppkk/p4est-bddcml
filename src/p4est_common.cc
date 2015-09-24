@@ -325,26 +325,35 @@ void generate_reference_matrices(real stiffness_dd[P4EST_CHILDREN][P4EST_CHILDRE
 //   }
 }
 
+void scale_reference_matrix(real ref_mat[P4EST_CHILDREN][P4EST_CHILDREN], real coefficient, real phys_elem_mat[P4EST_CHILDREN][P4EST_CHILDREN])
+{
+   for(int i = 0; i < P4EST_CHILDREN; i++)
+      for(int j = 0; j < P4EST_CHILDREN; j++)
+         phys_elem_mat[i][j] = ref_mat[i][j] * coefficient;
+
+}
+
 struct Quadrature
 {
    vector<double> weights;
    vector<vector<double> > coords;
 
-   Quadrature(int dimmension)
+   Quadrature(int dimmension, double element_length)
    {
+      double scale = element_length / 2.;
       if(dimmension == 1)
       {
-         weights = {5./9., 8./9., 5./9.};
+         weights = {5./9. * scale, 8./9. * scale, 5./9. * scale};
          coords = {vector<double>({-sqrt(3./5.)}), vector<double>({0.}), vector<double>({sqrt(3./5.)})};
       }
       else if(dimmension == 2)
       {
-         Quadrature q1(1);
+         Quadrature q1(1, element_length);
          product(q1, q1);
       }
       else if(dimmension == 3)
       {
-         Quadrature q1(1), q2(2);
+         Quadrature q1(1, element_length), q2(2, element_length);
          product(q1, q2);
       }
       else
@@ -401,19 +410,11 @@ void ref_value_1D(int loc_id_1d, double x, double elem_len, double& value, doubl
       assert(0);
 }
 
-void prepare_transformed_values(int dimmension, vector<double> element_lengths)
+void prepare_transformed_values(Quadrature q, double element_length,
+                                vector<vector<double> > &values, vector<vector<vector<double> > > &gradients)
 {
-   // quadrature rule is not yet transformed to the physical element
-   Quadrature q(dimmension);
-   q.print();
-
-//   vector<vector<double> > values_1D;
-//   vector<vector<double> > gradients_1D;
-
-//   for()
-
-   vector<vector<double> > values(P4EST_CHILDREN);
-   vector<vector<vector<double> > > gradients(P4EST_CHILDREN);
+   values = vector<vector<double> >(P4EST_CHILDREN);
+   gradients = vector<vector<vector<double> > >(P4EST_CHILDREN);
 
    for(int node = 0; node < P4EST_CHILDREN; node++)
    {
@@ -424,11 +425,11 @@ void prepare_transformed_values(int dimmension, vector<double> element_lengths)
       for(unsigned int q_idx = 0; q_idx < q.weights.size(); q_idx++)
       {
          double value_x, der_x, value_y, der_y, value_z, der_z;
-         ref_value_1D(x_id_1D, q.coords[q_idx][0], element_lengths[0], value_x, der_x);
-         ref_value_1D(y_id_1D, q.coords[q_idx][1], element_lengths[1], value_y, der_y);
+         ref_value_1D(x_id_1D, q.coords[q_idx][0], element_length, value_x, der_x);
+         ref_value_1D(y_id_1D, q.coords[q_idx][1], element_length, value_y, der_y);
 
 #ifdef P4_TO_P8
-         ref_value_1D(z_id_1D, q.coords[q_idx][2], element_lengths[2], value_z, der_z);
+         ref_value_1D(z_id_1D, q.coords[q_idx][2], element_length, value_z, der_z);
 #endif
 
          double value = value_x * value_y;
@@ -447,6 +448,42 @@ void prepare_transformed_values(int dimmension, vector<double> element_lengths)
          values[node].push_back(value);
       }
    }
+}
+
+void generate_scaled_matrix_new(double element_size, real stiffness[P4EST_CHILDREN][P4EST_CHILDREN])
+{
+   int dimmension = 2;
+   // quadrature rule is not yet transformed to the physical element
+   Quadrature q(dimmension, element_size);
+   q.print();
+
+   vector<vector<double> > values;
+   vector<vector<vector<double> > > gradients;
+
+   prepare_transformed_values(q, element_size, values, gradients);
+   std::cout << values[0][0] << std::endl;
+
+   for(int i = 0; i < P4EST_CHILDREN; i++)
+      for(int j = 0; j < P4EST_CHILDREN; j++)
+         stiffness[i][j] = 0.0;
+
+   for(int i = 0; i < P4EST_CHILDREN; i++)
+   {
+      for(int j = 0; j < P4EST_CHILDREN; j++)
+      {
+         for(unsigned int q_idx = 0; q_idx < q.weights.size(); q_idx++)
+         {
+            for(int idx_dim = 0; idx_dim < dimmension; idx_dim++)
+            {
+               stiffness[i][j] += q.weights[q_idx] * gradients[i][q_idx][idx_dim] * gradients[j][q_idx][idx_dim];
+            }
+         }
+      }
+   }
+
+
+
+
 }
 
 void init_corner_to_hanging()

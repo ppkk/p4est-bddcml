@@ -33,7 +33,7 @@ void zero_matrix(SparseMatrix *matrix)
 void add_matrix_entry(SparseMatrix *matrix, int i, int j, real value)
 {
    assert(matrix->nnz < matrix->len);
-   if((matrix->type == SPD) || (matrix->type == SYM_GENERAL))
+   if((matrix->type == MatrixType::SPD) || (matrix->type == MatrixType::SYM_GENERAL))
    {
       if(i > j)
       {

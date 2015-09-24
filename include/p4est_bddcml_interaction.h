@@ -1,6 +1,10 @@
 #ifndef P4EST_BDDCML_INTERACTION_H
 #define P4EST_BDDCML_INTERACTION_H
 
+#include "definitions.h"
+#include "bddcml_structs.h"
+#include "p4est_common.h"
+
 void prepare_dimmensions(p4est_t *p4est, p4est_lnodes_t *lnodes, PhysicsType physicsType,
                          BddcmlDimensions *subdomain_dims, BddcmlDimensions *global_dims,
                          sc_MPI_Comm mpicomm);
