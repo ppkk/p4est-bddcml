@@ -242,84 +242,231 @@ vector<double> rhs(vector<double>)
    return {1};
 }
 
+struct Quadrature
+{
+   vector<double> weights;
+   vector<vector<double> > coords;
+
+   Quadrature(int dimmension, double element_length)
+   {
+      double scale = element_length / 2.;
+      if(dimmension == 1)
+      {
+         weights = {5./9. * scale, 8./9. * scale, 5./9. * scale};
+         coords = {vector<double>({-sqrt(3./5.)}), vector<double>({0.}), vector<double>({sqrt(3./5.)})};
+      }
+      else if(dimmension == 2)
+      {
+         Quadrature q1(1, element_length);
+         product(q1, q1);
+      }
+      else if(dimmension == 3)
+      {
+         Quadrature q1(1, element_length), q2(2, element_length);
+         product(q1, q2);
+      }
+      else
+         assert(0);
+   }
+
+   void product(Quadrature quad1, Quadrature quad2)
+   {
+      for(unsigned int i1 = 0; i1 < quad1.weights.size(); i1++)
+      {
+         for(unsigned int i2 = 0; i2 < quad2.weights.size(); i2++)
+         {
+            weights.push_back(quad1.weights[i1] * quad2.weights[i2]);
+            vector<double>product_coords;
+            product_coords.insert(product_coords.end(), quad1.coords[i1].begin(), quad1.coords[i1].end());
+            product_coords.insert(product_coords.end(), quad2.coords[i2].begin(), quad2.coords[i2].end());
+            coords.push_back(product_coords);
+         }
+      }
+   }
+
+   void print()
+   {
+      assert(weights.size() == coords.size());
+      double sum = 0.0;
+      for(unsigned int i = 0; i < weights.size(); i++)
+      {
+         cout << "(";
+         for(unsigned int j = 0; j < coords[i].size(); j++)
+         {
+            cout << coords[i][j] << ", ";
+         }
+         cout << "), " << weights[i] << endl;
+         sum += weights[i];
+      }
+      cout << "sum of weights " << sum << endl;
+   }
+
+};
+
+void ref_value_1D(int loc_id_1d, double x, double elem_len, double& value, double& der)
+{
+   if(loc_id_1d == 0)
+   {
+      value = (1-x)/2.;
+      der = -1/elem_len;
+   }
+   else if(loc_id_1d == 1)
+   {
+      value = (1+x)/2.;
+      der = 1/elem_len;
+   }
+   else
+      assert(0);
+}
+
+void prepare_transformed_values(Quadrature q, double element_length,
+                                vector<vector<double> > &values, vector<vector<vector<double> > > &gradients)
+{
+   values = vector<vector<double> >(P4EST_CHILDREN);
+   gradients = vector<vector<vector<double> > >(P4EST_CHILDREN);
+
+   for(int node = 0; node < P4EST_CHILDREN; node++)
+   {
+      int x_id_1D = node % 2;
+      int y_id_1D = (node % 4) / 2;
+      int z_id_1D = node / 4;
+
+      for(unsigned int q_idx = 0; q_idx < q.weights.size(); q_idx++)
+      {
+         double value_x, der_x, value_y, der_y, value_z, der_z;
+         ref_value_1D(x_id_1D, q.coords[q_idx][0], element_length, value_x, der_x);
+         ref_value_1D(y_id_1D, q.coords[q_idx][1], element_length, value_y, der_y);
+
+#ifdef P4_TO_P8
+         ref_value_1D(z_id_1D, q.coords[q_idx][2], element_length, value_z, der_z);
+#endif
+
+         double value = value_x * value_y;
+         double grad_1 = der_x * value_y;
+         double grad_2 = value_x * der_y;
+
+#ifdef P4_TO_P8
+         value *= value_z;
+         grad_1 *= value_z;
+         grad_2 *= value_z;
+         double grad_3 = value_x * value_y * der_z;
+         gradients[node].push_back(vector<double>({grad_1, grad_2, grad_3}));
+#else
+         gradients[node].push_back(vector<double>({grad_1, grad_2}));
+#endif
+         values[node].push_back(value);
+      }
+   }
+}
+
+void assemble_local_laplace(double element_size, vector<vector<vector<vector<real> > > > &stiffness,
+                    vector<vector<real> > &rhs, vector<double> (*rhs_ptr)(vector<double>))
+{
+   Quadrature q(P4EST_DIM, element_size);
+
+   vector<vector<double> > values;
+   vector<vector<vector<double> > > gradients;
+
+   prepare_transformed_values(q, element_size, values, gradients);
+
+   for(int i_node = 0; i_node < P4EST_CHILDREN; i_node++)
+   {
+      rhs[i_node][0] = 0.0;
+      for(int j_node = 0; j_node < P4EST_CHILDREN; j_node++)
+         stiffness[i_node][0][j_node][0] = 0.0;
+   }
+
+   for(unsigned int q_idx = 0; q_idx < q.weights.size(); q_idx++)
+   {
+      for(int i_node = 0; i_node < P4EST_CHILDREN; i_node++)
+      {
+
+         rhs[i_node][0] += q.weights[q_idx] * values[i_node][q_idx] * rhs_ptr(q.coords[q_idx])[0];
+
+         for(int j_node = 0; j_node < P4EST_CHILDREN; j_node++)
+         {
+            for(int idx_dim = 0; idx_dim < P4EST_DIM; idx_dim++)
+            {
+               stiffness[i_node][0][j_node][0] += q.weights[q_idx] * gradients[i_node][q_idx][idx_dim] * gradients[j_node][q_idx][idx_dim];
+//               std::cout << q.weights[q_idx] * gradients[i_node][q_idx][idx_dim] * gradients[j_node][q_idx][idx_dim] << std::endl;
+            }
+         }
+      }
+   }
+
+}
+
+
 void assemble_matrix_rhs(p4est_lnodes_t *lnodes, BddcmlMesh *mesh, BddcmlFemSpace *femsp,
                          SparseMatrix *matrix, RealArray *rhss)
 {
    real i_coeffs, j_coeffs;
-//   real mass_ref[P4EST_CHILDREN][P4EST_CHILDREN];
-//   real dudv_ref[P4EST_CHILDREN][P4EST_CHILDREN];
-   real element_matrix[P4EST_CHILDREN][P4EST_CHILDREN];
-   real element_rhs[P4EST_CHILDREN];
-   //generate_reference_matrices(dudv_ref, mass_ref);
+   int n_components = mesh->subdomain_dims->n_node_dofs;
+   assert(n_components == 1);
+   vector<vector<vector<vector<real> > > > element_matrix(P4EST_CHILDREN, vector<vector<vector<real> > >(
+                                           n_components, vector<vector<real> >(
+                                           P4EST_CHILDREN, vector<real>(
+                                           n_components,0.0))));
+   vector<vector<real> > element_rhs(P4EST_CHILDREN, vector<real>(n_components, 0.0));
+   p4est_locidx_t i_indep_nodes[4], j_indep_nodes[4];
 
    int element_offset = 0;
    for(int elem_idx = 0; elem_idx < mesh->subdomain_dims->n_elems; elem_idx++) {
-      int num_nodes_of_elem = mesh->num_nodes_of_elem.val[elem_idx];
-      int ndof_per_element = num_nodes_of_elem;
-      assert(ndof_per_element == P4EST_CHILDREN);
+      assert(mesh->num_nodes_of_elem.val[elem_idx] == P4EST_CHILDREN);
 
       // TODO: elem_size and elem_volume is correct only when the mesh is obtained by refinements
       // from a UNIT SQUARE/CUBE
       // TODO: ONLY FROM ****UNIT****
-      real elem_length = mesh->element_lengths.val[elem_idx];
-      real elem_volume = pow(elem_length, mesh->subdomain_dims->n_problem_dims);
+      real element_size = mesh->element_lengths.val[elem_idx];
 
-//      double reference_scaled =
-//#ifndef P4_TO_P8
-//            1.;
-//#else
-//            elem_length;
-//#endif
+      assemble_local_laplace(element_size, element_matrix, element_rhs, &rhs);
 
-      //scale_reference_matrix(dudv_ref, reference_scaled, dudv_phys_elem);
-      generate_scaled_matrix_new(elem_length, element_matrix, element_rhs, rhs);
-
-      for(int i = 0; i < ndof_per_element /*<= j*/; i++) {
-         int idof = mesh->elem_node_indices.val[element_offset + i];
-
-         p4est_locidx_t i_nodes[4];
-         int i_nindep = independent_nodes(lnodes, elem_idx, i, i_nodes, &i_coeffs);
-
-         assert((i_nindep != 1) || (idof == i_nodes[0]));
+      for(int i_node = 0; i_node < P4EST_CHILDREN; i_node++) {
+         int idof = mesh->elem_node_indices.val[element_offset + i_node];
+         int i_nindep = independent_nodes(lnodes, elem_idx, i_node, i_indep_nodes, &i_coeffs);
+         assert((i_nindep != 1) || (idof == i_indep_nodes[0]));
 
          for(int i_indep_nodes_idx = 0; i_indep_nodes_idx < i_nindep; i_indep_nodes_idx++)
          {
-            int i_indep_node = i_nodes[i_indep_nodes_idx];
+            int i_indep_node = i_indep_nodes[i_indep_nodes_idx];
 
-            for(int j = 0; j < ndof_per_element; j++) {
-               //todo: dofs should be taken from femsp!
-               int jdof = mesh->elem_node_indices.val[element_offset + j];
-               assert(femsp->node_num_dofs.val[jdof] == 1);
+            for(int i_comp = 0; i_comp < n_components; i_comp++)
+            {
+               for(int j_node = 0; j_node < P4EST_CHILDREN; j_node++) {
+                  //todo: dofs should be taken from femsp!
+                  int jdof = mesh->elem_node_indices.val[element_offset + j_node];
+                  assert(femsp->node_num_dofs.val[jdof] == 1);
+                  int j_nindep = independent_nodes(lnodes, elem_idx, j_node, j_indep_nodes, &j_coeffs);
+                  assert((j_nindep != 1) || (jdof == j_indep_nodes[0]));
 
-               p4est_locidx_t j_nodes[4];
-               int j_nindep = independent_nodes(lnodes, elem_idx, j, j_nodes, &j_coeffs);
+                  for(int j_indep_nodes_idx = 0; j_indep_nodes_idx < j_nindep; j_indep_nodes_idx++)
+                  {
+                     int j_indep_node = j_indep_nodes[j_indep_nodes_idx];
 
-               assert((j_nindep != 1) || (jdof == j_nodes[0]));
-
-               for(int j_indep_nodes_idx = 0; j_indep_nodes_idx < j_nindep; j_indep_nodes_idx++)
-               {
-                  int j_indep_node = j_nodes[j_indep_nodes_idx];
-
-                  double matrix_value = i_coeffs * j_coeffs * element_matrix[j][i];
-                  add_matrix_entry(matrix, i_indep_node, j_indep_node, matrix_value);
-//                  printf("adding entry loc (%d, %d), nodes, (%d, %d), coefs (%3.2lf, %3.2lf), number indep (%d, %d), locstiff %lf, value %lf\n",
-//                         j, i, j_indep_node, i_indep_node, j_coeffs, i_coeffs, j_nindep, i_nindep, stiffness_dd[j][i], matrix_value);
+                     for(int j_comp = 0; j_comp < n_components; j_comp++)
+                     {
+                        double matrix_value = i_coeffs * j_coeffs * element_matrix[i_node][i_comp][j_node][j_comp];
+                        add_matrix_entry(matrix, i_indep_node, j_indep_node, matrix_value);
+//                        printf("adding entry loc (%d, %d), nodes, (%d, %d), coefs (%3.2lf, %3.2lf), number indep (%d, %d), locstiff %lf, value %lf\n",
+//                               j_node, i_node, j_indep_node, i_indep_node, j_coeffs, i_coeffs, j_nindep, i_nindep, element_matrix[i_node][i_comp][j_node][j_comp], matrix_value);
+                     }
+                  }
                }
+
+               // TODO: integrate properly
+               // TODO: elem_volume is correct only when the mesh is obtained by refinements
+               // from a UNIT SQUARE/CUBE
+               // TODO: ONLY FROM ****UNIT****
+
+
+               //double rhs_value = i_coeffs * 1./(real)P4EST_CHILDREN * elem_volume * 1;
+               double rhs_value = i_coeffs * element_rhs[i_node][i_comp];
+               rhss->val[i_indep_node] += rhs_value;
+
             }
-
-            // TODO: integrate properly
-            // TODO: elem_volume is correct only when the mesh is obtained by refinements
-            // from a UNIT SQUARE/CUBE
-            // TODO: ONLY FROM ****UNIT****
-
-
-            //double rhs_value = i_coeffs * 1./(real)P4EST_CHILDREN * elem_volume * 1;
-            double rhs_value = i_coeffs * element_rhs[i];
-            rhss->val[i_indep_node] += rhs_value;
-
          }
       }
-      element_offset += num_nodes_of_elem;
+      element_offset += P4EST_CHILDREN;
    }
 
 }
