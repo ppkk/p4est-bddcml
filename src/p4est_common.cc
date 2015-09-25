@@ -16,7 +16,7 @@
 #include <vector>
 
 #include "definitions.h"
-#include "helpers.h"
+#include "arrays.h"
 #include "p4est_common.h"
 
 using namespace std;

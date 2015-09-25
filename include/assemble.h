@@ -5,10 +5,6 @@
 #include "bddcml_structs.h"
 #include "p4est_common.h"
 
-void prepare_dimmensions(p4est_t *p4est, p4est_lnodes_t *lnodes, PhysicsType physicsType,
-                         BddcmlDimensions *subdomain_dims, BddcmlDimensions *global_dims,
-                         sc_MPI_Comm mpicomm);
-
 void prepare_subdomain_mesh(p4est_t *p4est, p4est_lnodes_t *lnodes, BddcmlDimensions *subdomain_dims, BddcmlMesh *mesh);
 
 void prepare_subdomain_fem_space(BddcmlMesh *mesh, BddcmlFemSpace *femsp);

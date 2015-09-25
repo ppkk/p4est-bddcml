@@ -19,10 +19,11 @@
 
 #include <metis.h>
 
-#include "helpers.h"
 #include "bddcml_structs.h"
+#include "mesh.h"
+#include "femspace.h"
 #include "p4est_common.h"
-#include "p4est_bddcml_interaction.h"
+#include "assemble.h"
 
 const int degree = 1;
 const PhysicsType physicsType = PhysicsType::LAPLACE;

@@ -26,6 +26,8 @@
       for (p4est_locidx_t tree_quad_idx = 0; tree_quad_idx < num_tree_quads; ++tree_quad_idx, ++quad_idx) {\
          quad = p4est_quadrant_array_index (tquadrants, tree_quad_idx);\
 
+#define end_for_all_quads }}
+
 /** List number of possible independent nodes for each hanging node. */
 static const int    corner_num_hanging[P4EST_CHILDREN] =
 #ifndef P4_TO_P8

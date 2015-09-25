@@ -2,7 +2,7 @@
 #include <string.h>
 #include <assert.h>
 #include <stdio.h>
-#include "helpers.h"
+#include "arrays.h"
 
 int print_rank = 0;
 int mpi_rank;

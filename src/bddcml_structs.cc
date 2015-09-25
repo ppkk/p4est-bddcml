@@ -10,6 +10,8 @@ extern "C"{
 }
 
 #include "bddcml_structs.h"
+#include "mesh.h"
+#include "femspace.h"
 
 void set_implicit_general_params(BddcmlGeneralParams *params)
 {
@@ -77,120 +79,7 @@ void init_levels(int n_subdomains_first_level, BddcmlLevelInfo *level_info)
 
 }
 
-void init_dimmensions(BddcmlDimensions* dimmensions, int mesh_dim, PhysicsType physicsType)
-{
-   dimmensions->n_problem_dims = mesh_dim;
-   dimmensions->n_mesh_dims = mesh_dim;
-   dimmensions->n_dofs = 0;
-   dimmensions->n_elems = 0;
-   dimmensions->n_nodes = 0;
 
-   if(mesh_dim == 2)
-      dimmensions->n_elem_nodes = 4;
-   else if(mesh_dim == 3)
-      dimmensions->n_elem_nodes = 8;
-   else
-      assert(0);
-
-   if(physicsType == PhysicsType::LAPLACE)
-      dimmensions->n_node_dofs = 1;
-   else if(physicsType == PhysicsType::LINEAR_ELASTICITY)
-      dimmensions->n_node_dofs = 3;
-   else
-      assert(0);
-}
-
-//*******************************************************************************************
-
-void init_mesh(BddcmlDimensions* subdomain_dims, BddcmlMesh* mesh)
-{
-   int nnodes_per_elem;
-   if(subdomain_dims->n_mesh_dims == 2)
-      nnodes_per_elem = 4;
-   else if(subdomain_dims->n_mesh_dims == 3)
-      nnodes_per_elem = 8;
-   else
-      assert(0);
-
-   mesh->subdomain_dims = subdomain_dims;
-   allocate_idx_array(subdomain_dims->n_elems * nnodes_per_elem, &mesh->elem_node_indices);
-   allocate_idx_array(subdomain_dims->n_elems, &mesh->num_nodes_of_elem);
-   allocate_idx_array(subdomain_dims->n_elems, &mesh->elem_global_map);
-   allocate_idx_array(subdomain_dims->n_nodes, &mesh->node_global_map);
-   allocate_real_array(subdomain_dims->n_elems, &mesh->element_lengths);
-   allocate_real_2D_array(subdomain_dims->n_nodes, subdomain_dims->n_problem_dims, &mesh->coords);
-}
-
-void free_mesh(BddcmlMesh* mesh)
-{
-   free_idx_array(&mesh->elem_node_indices);
-   free_idx_array(&mesh->num_nodes_of_elem);
-   free_idx_array(&mesh->elem_global_map);
-   free_idx_array(&mesh->node_global_map);
-   free_real_array(&mesh->element_lengths);
-   free_real_2D_array(&mesh->coords);
-}
-
-void print_bddcml_mesh(BddcmlMesh *mesh, int which_rank)
-{
-   print_rank = which_rank;
-   PPP printf("\n*************** BEGIN BDDCML MESH ************************\n");
-   PPP printf("elems: %d, nodes: %d\n", mesh->subdomain_dims->n_elems, mesh->subdomain_dims->n_nodes);
-   PPP printf("linet: %d, lnnet: %d\n", mesh->elem_node_indices.len, mesh->num_nodes_of_elem.len);
-   for(int elem = 0; elem < mesh->elem_global_map.len; elem++)
-   {
-      PPP printf("elem %d -> ", mesh->elem_global_map.val[elem]);
-      for (int lnode = 0; lnode < mesh->num_nodes_of_elem.val[elem]; lnode++)
-      {
-         int node_local_idx = mesh->elem_node_indices.val[elem*mesh->subdomain_dims->n_elem_nodes + lnode];
-         int node_global_idx = mesh->node_global_map.val[node_local_idx];
-         PPP printf("%d[%d], ", node_global_idx, node_local_idx);
-      }
-      for (int lnode = 0; lnode < mesh->num_nodes_of_elem.val[elem]; lnode++)
-      {
-         int node_local_idx = mesh->elem_node_indices.val[elem*mesh->subdomain_dims->n_elem_nodes + lnode];
-         PPP printf("(%3.2lf, %3.2lf), ", mesh->coords.val[0][node_local_idx], mesh->coords.val[1][node_local_idx]);
-      }
-      PPP printf("\n");
-   }
-   PPP printf("*************** END BDDCML MESH ************************\n\n");
-}
-
-//*******************************************************************************************
-
-
-void init_fem_space(BddcmlDimensions* dims, BddcmlFemSpace* femsp)
-{
-   femsp->subdomain_dims = dims;
-   allocate_idx_array(dims->n_nodes, &femsp->node_num_dofs);
-   allocate_idx_array(dims->n_dofs, &femsp->dofs_global_map);
-   allocate_idx_array(dims->n_dofs, &femsp->fixs_code);
-   allocate_real_array(dims->n_dofs, &femsp->fixs_values);
-}
-
-void free_fem_space(BddcmlFemSpace* femsp)
-{
-   free_idx_array(&femsp->node_num_dofs);
-   free_idx_array(&femsp->dofs_global_map);
-   free_idx_array(&femsp->fixs_code);
-   free_real_array(&femsp->fixs_values);
-}
-
-void print_bddcml_fem_space(BddcmlFemSpace *femsp, BddcmlMesh *mesh, int which_rank)
-{
-   print_rank = which_rank;
-   PPP printf("\n*************** BEGIN BDDCML FEM SPACE ************************\n");
-   PPP printf("dofs: %d\n", femsp->subdomain_dims->n_dofs);
-   assert(femsp->subdomain_dims->n_dofs == femsp->subdomain_dims->n_nodes);
-   for(int node = 0; node < femsp->subdomain_dims->n_dofs; node++)
-   {
-      assert(femsp->node_num_dofs.val[node] == 1);
-      PPP printf("node %d -> num dofs %d, gdofs: (%d ), bc code %d, bc val %6.4lf, coords (%4.3lf, %4.3lf)\n", node, femsp->node_num_dofs.val[node],
-                 femsp->dofs_global_map.val[node], femsp->fixs_code.val[node], femsp->fixs_values.val[node],
-                 mesh->coords.val[0][node], mesh->coords.val[1][node]);
-   }
-   PPP printf("*************** END BDDCML FEM SPACE ************************\n\n");
-}
 
 //*******************************************************************************************
 

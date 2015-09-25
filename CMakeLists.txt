@@ -28,28 +28,32 @@ link_directories("${P4EST_ROOT}/local/lib")
 set(LIBS ${LIBS} sc p4est )
 
 set(SOURCES_DIM_INDEP
-src/helpers.cc
+src/arrays.cc
 src/bddcml_structs.cc
-src/bddcml_cube_example_subdomain.cc
 )
 
 set(SOURCES_2D
 src/p4est_common.cc
-src/p4est_bddcml_interaction.cc
+src/mesh.cc
+src/femspace.cc
+src/assemble.cc
 )
 
 set(SOURCES_3D
-src/p8est_common.cc
-src/p8est_bddcml_interaction.cc
+3d_wrappers/p8est_common.cc
+3d_wrappers/p8est_mesh.cc
+3d_wrappers/p8est_femspace.cc
+3d_wrappers/p8est_assemble.cc
 )
 
 set(HEADERS
 include/definitions.h
-include/helpers.h
-include/p4est_bddcml_interaction.h
+include/arrays.h
+include/assemble.h
 include/p4est_common.h
 include/bddcml_structs.h
-include/bddcml_cube_example_subdomain.h
+include/mesh.h
+include/femspace.h
 )
 
 # BLOPEX objects
@@ -89,12 +93,12 @@ add_library(mylib_2D ${HEADERS} ${SOURCES_DIM_INDEP} ${SOURCES_2D})
 add_library(mylib_3D ${HEADERS} ${SOURCES_DIM_INDEP} ${SOURCES_3D})
 
 add_executable(p4est_example drivers/p4est_example.cc)
-add_executable(p8est_example drivers/p8est_example.cc)
+add_executable(p8est_example 3d_wrappers/p8est_example.cc)
 add_executable(bddcml_example drivers/bddcml_cube_example.cc)
 add_executable(p4est_bddcml drivers/p4est_bddcml)
-add_executable(p8est_bddcml drivers/p8est_bddcml.cc)
+add_executable(p8est_bddcml 3d_wrappers/p8est_bddcml.cc)
 add_executable(metis_bddcml drivers/metis_bddcml.cc)
-add_executable(metis8_bddcml drivers/metis8_bddcml.cc)
+add_executable(metis8_bddcml 3d_wrappers/metis8_bddcml.cc)
 add_executable(p4est_experiment drivers/p4est_experiment.cc)
 target_link_libraries(p4est_example ${BLOPEX_OBJECTS} mylib_2D ${LIBS} )
 target_link_libraries(p8est_example ${BLOPEX_OBJECTS} mylib_3D ${LIBS} )
