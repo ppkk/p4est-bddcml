@@ -24,35 +24,6 @@
 
 using namespace std;
 
-void prepare_dimmensions(p4est_t *p4est, p4est_lnodes_t *lnodes, PhysicsType physicsType,
-                         BddcmlDimensions *subdomain_dims, BddcmlDimensions *global_dims,
-                         sc_MPI_Comm mpicomm)
-{
-#ifndef P4_TO_P8
-   init_dimmensions(subdomain_dims, 2, physicsType);
-   init_dimmensions(global_dims, 2, physicsType);
-#else
-   init_dimmensions(subdomain_dims, 3, physicsType);
-   init_dimmensions(global_dims, 3, physicsType);
-#endif
-   subdomain_dims->n_nodes = lnodes->num_local_nodes;
-   subdomain_dims->n_dofs  = lnodes->num_local_nodes * subdomain_dims->n_node_dofs;
-   subdomain_dims->n_elems = lnodes->num_local_elements;
-   printf("proc %d, elems %d, nodes %d\n", mpi_rank, subdomain_dims->n_elems, subdomain_dims->n_nodes);
-
-   int global_num_nodes;
-   if(mpi_rank == mpi_size - 1)
-   {
-      global_num_nodes = lnodes->global_offset + lnodes->owned_count;
-   }
-   sc_MPI_Bcast(&global_num_nodes, 1, MPI_INT, mpi_size - 1, mpicomm);
-
-   global_dims->n_nodes = global_num_nodes;
-   global_dims->n_dofs = global_num_nodes * global_dims->n_node_dofs;
-   global_dims->n_elems = p4est->global_num_quadrants;
-}
-
-
 void print_complete_matrix_rhs(BddcmlFemSpace *femsp, BddcmlDimensions *global_dims, SparseMatrix *matrix, RealArray *rhss, MPI_Comm mpicomm)
 {
    real* compl_rhs = (real*) malloc(global_dims->n_dofs * sizeof(real));
@@ -111,11 +82,6 @@ void print_complete_matrix_rhs(BddcmlFemSpace *femsp, BddcmlDimensions *global_d
 
    free(compl_rhs);
    free(compl_mat);
-}
-
-vector<double> rhs(vector<double>)
-{
-   return {1};
 }
 
 struct Quadrature
@@ -236,7 +202,7 @@ void prepare_transformed_values(Quadrature q, double element_length,
 }
 
 void assemble_local_laplace(double element_size, vector<vector<vector<vector<real> > > > &stiffness,
-                    vector<vector<real> > &rhs, vector<double> (*rhs_ptr)(vector<double>))
+                    vector<vector<real> > &rhs, RhsPtr rhs_ptr)
 {
    Quadrature q(P4EST_DIM, element_size);
 
@@ -273,7 +239,7 @@ void assemble_local_laplace(double element_size, vector<vector<vector<vector<rea
 
 
 void assemble_matrix_rhs(p4est_lnodes_t *lnodes, BddcmlMesh *mesh, BddcmlFemSpace *femsp,
-                         SparseMatrix *matrix, RealArray *rhss)
+                         SparseMatrix *matrix, RealArray *rhss, RhsPtr rhs_ptr)
 {
    real i_coeffs, j_coeffs;
    int n_components = mesh->subdomain_dims->n_node_dofs;
@@ -294,7 +260,7 @@ void assemble_matrix_rhs(p4est_lnodes_t *lnodes, BddcmlMesh *mesh, BddcmlFemSpac
       // TODO: ONLY FROM ****UNIT****
       real element_size = mesh->element_lengths.val[elem_idx];
 
-      assemble_local_laplace(element_size, element_matrix, element_rhs, &rhs);
+      assemble_local_laplace(element_size, element_matrix, element_rhs, rhs_ptr);
 
       for(int i_node = 0; i_node < P4EST_CHILDREN; i_node++) {
          int idof = mesh->elem_node_indices.val[element_offset + i_node];

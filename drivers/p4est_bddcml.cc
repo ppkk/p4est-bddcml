@@ -21,8 +21,16 @@
 #include "p4est_common.h"
 #include "assemble.h"
 
+using namespace std;
+
 const int degree = 1;
 const PhysicsType physicsType = PhysicsType::LAPLACE;
+
+vector<double> rhs_fn(vector<double>)
+{
+   return {1};
+}
+
 
 int main (int argc, char **argv)
 {
@@ -52,6 +60,24 @@ int main (int argc, char **argv)
    p4est_connectivity_t *conn = p8est_connectivity_new_unitcube ();
 #endif
 
+   p4est_t *p4est = p4est_new (mpicomm, conn, 0, NULL, NULL);
+
+   refine_and_partition(p4est, 3, refine_uniform);
+   refine_and_partition(p4est, 3, refine_circle);
+   refine_and_partition(p4est, 4, refine_square);
+   refine_and_partition(p4est, 0, refine_point);
+   refine_and_partition(p4est, 0, refine_diagonal);
+
+   /* Create the ghost layer to learn about parallel neighbors. */
+   p4est_ghost_t *ghost = p4est_ghost_new (p4est, P4EST_CONNECT_FULL);
+
+   /* Create a node numbering for continuous linear finite elements. */
+   p4est_lnodes_t *lnodes = p4est_lnodes_new (p4est, ghost, degree);
+
+   /* Destroy the ghost structure -- no longer needed after node creation. */
+   p4est_ghost_destroy (ghost);
+   ghost = NULL;
+
    BddcmlLevelInfo level_info;
    // Number of elements in an edge of a subdomain and number of subdomains in an edge of the unit cube
    if(argc == 1 + 1) {
@@ -76,24 +102,6 @@ int main (int argc, char **argv)
 
    BddcmlPreconditionerParams preconditioner_params;
    set_implicit_preconditioner_params(&preconditioner_params);
-
-   p4est_t *p4est = p4est_new (mpicomm, conn, 0, NULL, NULL);
-
-   refine_and_partition(p4est, 3, refine_uniform);
-   refine_and_partition(p4est, 3, refine_circle);
-   refine_and_partition(p4est, 4, refine_square);
-   refine_and_partition(p4est, 0, refine_point);
-   refine_and_partition(p4est, 0, refine_diagonal);
-
-   /* Create the ghost layer to learn about parallel neighbors. */
-   p4est_ghost_t *ghost = p4est_ghost_new (p4est, P4EST_CONNECT_FULL);
-
-   /* Create a node numbering for continuous linear finite elements. */
-   p4est_lnodes_t *lnodes = p4est_lnodes_new (p4est, ghost, degree);
-
-   /* Destroy the ghost structure -- no longer needed after node creation. */
-   p4est_ghost_destroy (ghost);
-   ghost = NULL;
 
    BddcmlDimensions subdomain_dims, global_dims;
    BddcmlMesh mesh;
@@ -151,7 +159,7 @@ int main (int argc, char **argv)
    allocate_sparse_matrix(extra_space_for_hanging_nodes * subdomain_dims.n_elems*lelm, matrix_type, &matrix);
    zero_matrix(&matrix);
 
-   assemble_matrix_rhs(lnodes, &mesh, &femsp, &matrix, &rhss);
+   assemble_matrix_rhs(lnodes, &mesh, &femsp, &matrix, &rhss, &rhs_fn);
    //print_complete_matrix_rhs(&femsp, &global_dims, &matrix, &rhss, mpicomm);
 
    // user constraints - not really used here

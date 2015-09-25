@@ -183,3 +183,31 @@ void init_dimmensions(BddcmlDimensions* dimmensions, int mesh_dim, PhysicsType p
 }
 
 
+void prepare_dimmensions(p4est_t *p4est, p4est_lnodes_t *lnodes, PhysicsType physicsType,
+                         BddcmlDimensions *subdomain_dims, BddcmlDimensions *global_dims,
+                         sc_MPI_Comm mpicomm)
+{
+#ifndef P4_TO_P8
+   init_dimmensions(subdomain_dims, 2, physicsType);
+   init_dimmensions(global_dims, 2, physicsType);
+#else
+   init_dimmensions(subdomain_dims, 3, physicsType);
+   init_dimmensions(global_dims, 3, physicsType);
+#endif
+   subdomain_dims->n_nodes = lnodes->num_local_nodes;
+   subdomain_dims->n_dofs  = lnodes->num_local_nodes * subdomain_dims->n_node_dofs;
+   subdomain_dims->n_elems = lnodes->num_local_elements;
+   printf("proc %d, elems %d, nodes %d\n", mpi_rank, subdomain_dims->n_elems, subdomain_dims->n_nodes);
+
+   int global_num_nodes;
+   if(mpi_rank == mpi_size - 1)
+   {
+      global_num_nodes = lnodes->global_offset + lnodes->owned_count;
+   }
+   sc_MPI_Bcast(&global_num_nodes, 1, MPI_INT, mpi_size - 1, mpicomm);
+
+   global_dims->n_nodes = global_num_nodes;
+   global_dims->n_dofs = global_num_nodes * global_dims->n_node_dofs;
+   global_dims->n_elems = p4est->global_num_quadrants;
+}
+
