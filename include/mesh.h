@@ -56,5 +56,8 @@ void prepare_dimmensions(p4est_t *p4est, p4est_lnodes_t *lnodes, PhysicsType phy
                          BddcmlDimensions *subdomain_dims, BddcmlDimensions *global_dims,
                          sc_MPI_Comm mpicomm);
 
+void prepare_subdomain_mesh(p4est_t *p4est, p4est_lnodes_t *lnodes, BddcmlDimensions *subdomain_dims, BddcmlMesh *mesh);
+
+
 
 #endif // MESH_H

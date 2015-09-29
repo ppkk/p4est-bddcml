@@ -61,9 +61,10 @@ bool real_equal(real a, real b)
    return fabs(a - b) < EPS;
 }
 
-void prepare_subdomain_fem_space(BddcmlMesh *mesh, BddcmlFemSpace *femsp)
+void prepare_subdomain_fem_space(BddcmlMesh *mesh, BddcmlFemSpace *femsp, PhysicsType physicsType)
 {
    init_fem_space(mesh->subdomain_dims, femsp);
+   femsp->physicsType = physicsType;
    int num_dofs_per_node = mesh->subdomain_dims->n_node_dofs;
    for(int node = 0; node < mesh->subdomain_dims->n_nodes; node++)
    {

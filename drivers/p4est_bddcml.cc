@@ -24,13 +24,22 @@
 using namespace std;
 
 const int degree = 1;
-const PhysicsType physicsType = PhysicsType::LAPLACE;
+const PhysicsType physicsType = PhysicsType::ELASTICITY;
 
 vector<double> rhs_fn(vector<double>)
 {
-   return {1};
+   if(physicsType == PhysicsType::LAPLACE)
+      return {1};
+   else if (physicsType == PhysicsType::ELASTICITY)
+      if(P4EST_DIM == 2)
+         return {0,-1e5};
+      else
+         return {0,0,-1e5};
+   else
+      assert(0);
 }
 
+Parameters params(1e10, 0.33);
 
 int main (int argc, char **argv)
 {
@@ -62,9 +71,9 @@ int main (int argc, char **argv)
 
    p4est_t *p4est = p4est_new (mpicomm, conn, 0, NULL, NULL);
 
-   refine_and_partition(p4est, 3, refine_uniform);
-   refine_and_partition(p4est, 3, refine_circle);
-   refine_and_partition(p4est, 4, refine_square);
+   refine_and_partition(p4est, 7, refine_uniform);
+   refine_and_partition(p4est, 0, refine_circle);
+   refine_and_partition(p4est, 0, refine_square);
    refine_and_partition(p4est, 0, refine_point);
    refine_and_partition(p4est, 0, refine_diagonal);
 
@@ -120,10 +129,10 @@ int main (int argc, char **argv)
    //print_bddcml_mesh(&mesh, print_rank_l);
 
    BddcmlFemSpace femsp;
-   prepare_subdomain_fem_space(&mesh, &femsp);
+   prepare_subdomain_fem_space(&mesh, &femsp, physicsType);
    //print_bddcml_fem_space(&femsp, &mesh, print_rank_l);
 
-   plot_solution(p4est, lnodes, NULL, NULL, NULL);
+   plot_solution(p4est, lnodes, mesh.subdomain_dims->n_node_dofs, NULL, NULL, NULL);
 
    print_rank = print_rank_l;
    print_basic_properties(&global_dims, mpi_size, &level_info, &krylov_params);
@@ -149,17 +158,17 @@ int main (int argc, char **argv)
    zero_real_array(&sols);
 
    SparseMatrix matrix;
-   int ndof_per_element = P4EST_CHILDREN;
+   int ndof_per_element = P4EST_CHILDREN * femsp.subdomain_dims->n_node_dofs;
    // how much space the upper triangle of the element matrix occupies
    int lelm = ndof_per_element * (ndof_per_element + 1) / 2;
 
-   MatrixType matrix_type = MatrixType::SPD;
+   MatrixType matrix_type = MatrixType::GENERAL;
    // todo: do it properly
    const int extra_space_for_hanging_nodes = 4 * (matrix_type == MatrixType::GENERAL ? 2 : 1);
-   allocate_sparse_matrix(extra_space_for_hanging_nodes * subdomain_dims.n_elems*lelm, matrix_type, &matrix);
+   allocate_sparse_matrix(extra_space_for_hanging_nodes * subdomain_dims.n_elems * lelm, matrix_type, &matrix);
    zero_matrix(&matrix);
 
-   assemble_matrix_rhs(lnodes, &mesh, &femsp, &matrix, &rhss, &rhs_fn);
+   assemble_matrix_rhs(lnodes, &mesh, &femsp, &matrix, &rhss, &rhs_fn, params);
    //print_complete_matrix_rhs(&femsp, &global_dims, &matrix, &rhss, mpicomm);
 
    // user constraints - not really used here
@@ -201,8 +210,6 @@ int main (int argc, char **argv)
 
    PPP printf("Preconditioner set-up done.\n");
 
-
-
    PPP printf("Calling Krylov method ...\n");
 
    mpiret = MPI_Barrier(mpicomm);
@@ -233,9 +240,7 @@ int main (int argc, char **argv)
 
    bddcml_download_local_solution(subdomain_idx, &sols);
 
-
-   plot_solution(p4est, lnodes, sols.val, NULL, NULL); //uexact_eval, NULL);
-
+   plot_solution(p4est, lnodes, mesh.subdomain_dims->n_node_dofs, sols.val, NULL, NULL); //uexact_eval, NULL);
 
    free_mesh(&mesh);
    free_fem_space(&femsp);

@@ -176,8 +176,8 @@ void init_dimmensions(BddcmlDimensions* dimmensions, int mesh_dim, PhysicsType p
 
    if(physicsType == PhysicsType::LAPLACE)
       dimmensions->n_node_dofs = 1;
-   else if(physicsType == PhysicsType::LINEAR_ELASTICITY)
-      dimmensions->n_node_dofs = 3;
+   else if(physicsType == PhysicsType::ELASTICITY)
+      dimmensions->n_node_dofs = mesh_dim;
    else
       assert(0);
 }

@@ -19,7 +19,26 @@ enum class MatrixType{
 
 enum class PhysicsType{
    LAPLACE = 0,
-   LINEAR_ELASTICITY = 1
+   ELASTICITY = 1
+};
+
+struct Parameters
+{
+   real mu;
+   real lambda;
+
+//   set_params(real mu, real lambda)
+//   {
+//      this->mu = mu;
+//      this->lambda = lambda;
+//   }
+
+
+   Parameters(real young_mod, real poisson_num)
+   {
+      this->lambda = (young_mod * poisson_num) / ((1 + poisson_num) * (1 - 2 * poisson_num));
+      this->mu = young_mod / (2 * (1 + poisson_num));
+   }
 };
 
 

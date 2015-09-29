@@ -15,7 +15,6 @@
 
 #include <vector>
 
-#include "definitions.h"
 #include "arrays.h"
 #include "p4est_common.h"
 
@@ -108,60 +107,64 @@ int lnodes_decode2 (p4est_lnodes_code_t face_code,
 }
 
 
-void plot_solution(p4est_t * p4est, p4est_lnodes_t * lnodes, double* u_sol, double* u_exact, int* partition)
+void plot_solution(p4est_t * p4est, p4est_lnodes_t * lnodes, int num_comp, double* u_sol, double* u_exact, int* partition)
 {
-   p4est_topidx_t      tt;       /* Connectivity variables have this type. */
-   p4est_locidx_t      k, q, Q, node_total;  /* Process-local counters have this type. */
-   p4est_locidx_t      lni;      /* Node index relative to this processor. */
-   p4est_tree_t       *tree;     /* Pointer to one octree */
-   sc_array_t         *tquadrants;       /* Quadrant array for one tree */
-   int                 i;
-   double              loc_vertex_values_sol[P4EST_CHILDREN], loc_vertex_values_exact[P4EST_CHILDREN];
-
+   p4est_locidx_t      quad_idx, node_total = 0;  /* Process-local counters have this type. */
+   double              loc_vertex_values_sol[num_comp][P4EST_CHILDREN], loc_vertex_values_exact[P4EST_CHILDREN];
+   p4est_quadrant_t *quad;
 
    /* Write the forest to disk for visualization, one file per processor. */
-   double *u_interp_sol = NULL;
+   double *u_interp_sol[num_comp];
    double *u_interp_exact = NULL;
    double *interp_partition = NULL;
    if(u_sol)
-      u_interp_sol = P4EST_ALLOC (double, p4est->local_num_quadrants * P4EST_CHILDREN);
+      for(int comp = 0; comp < num_comp; comp++)
+         u_interp_sol[comp] = P4EST_ALLOC (double, p4est->local_num_quadrants * P4EST_CHILDREN);
    if(u_exact)
       u_interp_exact = P4EST_ALLOC (double, p4est->local_num_quadrants * P4EST_CHILDREN);
    if(partition)
       interp_partition = P4EST_ALLOC (double, p4est->local_num_quadrants * P4EST_CHILDREN);
 
-   /* Loop over local quadrants to apply the element matrices. */
-   for (tt = p4est->first_local_tree, k = 0, node_total = 0;
-        tt <= p4est->last_local_tree; ++tt) {
-      tree = p4est_tree_array_index (p4est->trees, tt);
-      tquadrants = &tree->quadrants;
-      Q = (p4est_locidx_t) tquadrants->elem_count;
-
-      for (q = 0; q < Q; ++q, ++k) {
-         for (i = 0; i < P4EST_CHILDREN; ++i) {
-            lni = lnodes->element_nodes[P4EST_CHILDREN * k + i];
-            if(u_sol)
-               loc_vertex_values_sol[i] = u_sol[lni];
-            if(u_exact)
-               loc_vertex_values_exact[i] = u_exact[lni];
-         }
-
+   for_all_quads(p4est, quad_idx, quad){
+      for (int i = 0; i < P4EST_CHILDREN; ++i) {
+         int node = lnodes->element_nodes[P4EST_CHILDREN * quad_idx + i];
          if(u_sol)
-            interpolate_hanging_nodes (lnodes->face_code[k], loc_vertex_values_sol);
+         {
+            for(int comp = 0; comp < num_comp; comp++)
+            {
+               int dof = num_comp * node + comp;
+               loc_vertex_values_sol[comp][i] = u_sol[dof];
+            }
+         }
          if(u_exact)
-            interpolate_hanging_nodes (lnodes->face_code[k], loc_vertex_values_exact);
+            loc_vertex_values_exact[i] = u_exact[node];
+      }
 
-         for (i = 0; i < P4EST_CHILDREN; ++i) {
-            if(u_sol)
-               u_interp_sol[node_total]   = loc_vertex_values_sol[i];
-            if(u_exact)
-               u_interp_exact[node_total] = loc_vertex_values_exact[i];
-            if(partition)
-               interp_partition[node_total] = partition[k];
-            ++node_total;
+      if(u_sol)
+      {
+         for(int comp = 0; comp < num_comp; comp++)
+         {
+            interpolate_hanging_nodes (lnodes->face_code[quad_idx], loc_vertex_values_sol[comp]);
          }
       }
-   }
+      if(u_exact)
+         interpolate_hanging_nodes (lnodes->face_code[quad_idx], loc_vertex_values_exact);
+
+      for (int i = 0; i < P4EST_CHILDREN; ++i) {
+         if(u_sol)
+         {
+            for(int comp = 0; comp < num_comp; comp++)
+            {
+               u_interp_sol[comp][node_total]   = loc_vertex_values_sol[comp][i];
+            }
+         }
+         if(u_exact)
+            u_interp_exact[node_total] = loc_vertex_values_exact[i];
+         if(partition)
+            interp_partition[node_total] = partition[quad_idx];
+         ++node_total;
+      }
+   }end_for_all_quads
 
    if(u_sol)
    {
@@ -172,8 +175,17 @@ void plot_solution(p4est_t * p4est, p4est_lnodes_t * lnodes, double* u_sol, doub
       }
       else
       {
-         p4est_vtk_write_all (p4est, NULL, 0.99999, 1, 1, 1, 0, 1, 0, "output",
-                              "solution", u_interp_sol);
+         if(num_comp == 1)
+            p4est_vtk_write_all (p4est, NULL, 0.99999, 1, 1, 1, 0, 1, 0, "output",
+                                 "solution", u_interp_sol[0]);
+         else if(num_comp == 2)
+            p4est_vtk_write_all (p4est, NULL, 0.99999, 1, 1, 1, 0, 2, 0, "output",
+                                 "solution_1", u_interp_sol[0], "solution_2", u_interp_sol[1]);
+         else if(num_comp == 3)
+            p4est_vtk_write_all (p4est, NULL, 0.99999, 1, 1, 1, 0, 3, 0, "output",
+                                 "solution_1", u_interp_sol[0], "solution_2", u_interp_sol[1], "solution_3", u_interp_sol[2]);
+         else
+            assert(0);
       }
    }
    else
@@ -190,7 +202,8 @@ void plot_solution(p4est_t * p4est, p4est_lnodes_t * lnodes, double* u_sol, doub
    }
 
    if(u_sol)
-      P4EST_FREE (u_interp_sol);
+      for(int comp = 0; comp < num_comp; comp++)
+         P4EST_FREE (u_interp_sol[comp]);
    if(u_exact)
       P4EST_FREE (u_interp_exact);
    if(partition)

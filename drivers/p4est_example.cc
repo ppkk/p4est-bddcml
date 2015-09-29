@@ -50,6 +50,7 @@
 #include "arrays.h"
 #include "p4est_common.h"
 
+const PhysicsType physicsType = PhysicsType::LAPLACE;
 
 /** Right hand side function for the 2D Poisson problem.
  *
@@ -673,7 +674,7 @@ solve_poisson (p4est_t * p4est)
    vector_copy (p4est, lnodes, u_fe, u_diff);
    vector_axpy (p4est, lnodes, -1., uexact_eval, u_diff);
 
-   plot_solution(p4est, lnodes, u_fe, uexact_eval, NULL);
+   plot_solution(p4est, lnodes, 1, u_fe, uexact_eval, NULL);
 
    /* Compute the L2 difference with the exact vector.
    * We know that this is over-optimistic: Quadrature will be sharper.

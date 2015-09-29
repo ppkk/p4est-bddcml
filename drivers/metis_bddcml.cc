@@ -688,11 +688,6 @@ int main (int argc, char **argv)
    idx_t *metis_part = NULL;
    metis_part = (idx_t*) malloc(lnodes->num_local_elements * sizeof(idx_t));
    create_graph(p4est, lnodes, mpi_size, METIS_PTYPE_KWAY, CONNECT_FACES, metis_part);
-   if(mpi_rank == 0)
-   {
-      plot_solution(p4est, lnodes, NULL, NULL, metis_part);
-   }
-
 
    BddcmlDimensions subdomain_dims, global_dims;
    BddcmlMesh mesh;
@@ -707,10 +702,14 @@ int main (int argc, char **argv)
 
 
    BddcmlFemSpace femsp;
-   prepare_subdomain_fem_space(&mesh, &femsp);
+   prepare_subdomain_fem_space(&mesh, &femsp, physicsType);
    //print_bddcml_fem_space(&femsp, &mesh, print_rank_l);
 
-   //plot_solution(p4est, lnodes, NULL, NULL, metis_part);
+
+   if(mpi_rank == 0)
+   {
+      plot_solution(p4est, lnodes, mesh.subdomain_dims->n_node_dofs, NULL, NULL, metis_part);
+   }
 
    print_rank = print_rank_l;
    print_basic_properties(&global_dims, mpi_size, &level_info, &krylov_params);
