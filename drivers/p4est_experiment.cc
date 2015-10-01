@@ -17,6 +17,8 @@
 
 using namespace std;
 
+int degree = 1;
+
 int main (int argc, char **argv)
 {
    int                 mpiret;
@@ -45,14 +47,27 @@ int main (int argc, char **argv)
    * initial uniform refinement.  Here we refine adaptively instead. */
    p4est = p4est_new (mpicomm, conn, 0, NULL, NULL);
 
-   refine_and_partition(p4est, 2, refine_uniform);
-   refine_and_partition(p4est, 2, refine_circle);
-   refine_and_partition(p4est, 0, refine_square);
+   refine_and_partition(p4est, 1, refine_uniform);
+   refine_and_partition(p4est, 0, refine_circle);
+   refine_and_partition(p4est, 1, refine_square);
    refine_and_partition(p4est, 0, refine_point);
    refine_and_partition(p4est, 0, refine_diagonal);
 
+   /* Create the ghost layer to learn about parallel neighbors. */
+   p4est_ghost_t *ghost = p4est_ghost_new (p4est, P4EST_CONNECT_FULL);
+
+   /* Create a node numbering for continuous linear finite elements. */
+   p4est_lnodes_t *lnodes = p4est_lnodes_new (p4est, ghost, degree);
+
+   /* Destroy the ghost structure -- no longer needed after node creation. */
+   p4est_ghost_destroy (ghost);
+   ghost = NULL;
+
+   plot_solution(p4est, lnodes, 1, NULL, NULL, NULL);
+
 
    /* Destroy the p4est and the connectivity structure. */
+   p4est_lnodes_destroy (lnodes);
    p4est_destroy (p4est);
    p4est_connectivity_destroy (conn);
 
