@@ -15,12 +15,12 @@ include_directories("${MUMPS_ROOT}/include")
 link_directories("${MUMPS_ROOT}/lib")
 set(LIBS ${LIBS}  dmumps mumps_common pord)
 
-include_directories("${PARMETIS_ROOT}/include")
-link_directories("${PARMETIS_ROOT}")
+include_directories("${PARMETIS_INCLUDE}")
+link_directories("${PARMETIS_LIB}")
 set(LIBS ${LIBS}  parmetis)
 
-include_directories("${PARMETIS_ROOT}/METISLib")
-link_directories("${PARMETIS_ROOT}")
+include_directories("${METIS_INCLUDE}")
+link_directories("${METIS_LIB}")
 set(LIBS ${LIBS}  metis)
 
 include_directories("${P4EST_ROOT}/local/include")
