@@ -89,20 +89,26 @@ struct Quadrature
    vector<double> weights;
    vector<vector<double> > coords;
 
-   Quadrature(int dimmension, double element_length)
+   Quadrature(int dimension, double element_length)
    {
       double scale = element_length / 2.;
-      if(dimmension == 1)
+      if(dimension == 1)
       {
-         weights = {5./9. * scale, 8./9. * scale, 5./9. * scale};
-         coords = {vector<double>({-sqrt(3./5.)}), vector<double>({0.}), vector<double>({sqrt(3./5.)})};
+         //weights = {5./9. * scale, 8./9. * scale, 5./9. * scale};
+         weights.push_back(5./9. * scale);
+         weights.push_back(8./9. * scale);
+         weights.push_back(5./9. * scale);
+         //coords = {vector<double>({-sqrt(3./5.)}), vector<double>({0.}), vector<double>({sqrt(3./5.)})};
+         coords.push_back(vector<double>(1,-sqrt(3./5.))); 
+         coords.push_back(vector<double>(1,0.)); 
+         coords.push_back(vector<double>(1,sqrt(3./5.))); 
       }
-      else if(dimmension == 2)
+      else if(dimension == 2)
       {
          Quadrature q1(1, element_length);
          product(q1, q1);
       }
-      else if(dimmension == 3)
+      else if(dimension == 3)
       {
          Quadrature q1(1, element_length), q2(2, element_length);
          product(q1, q2);
@@ -145,7 +151,7 @@ struct Quadrature
 
 };
 
-void ref_value_1D(int loc_id_1d, double x, double elem_len, double& value, double& der)
+void ref_value_1D(int loc_id_1d, double x, double elem_len, double & value, double & der)
 {
    if(loc_id_1d == 0)
    {
@@ -180,7 +186,7 @@ void prepare_transformed_values(Quadrature q, double element_length,
          ref_value_1D(y_id_1D, q.coords[q_idx][1], element_length, value_y, der_y);
 
 #ifdef P4_TO_P8
-         ref_value_1D(z_id_1D, q.coords[q_idx][2], element_length, value_z, der_z);
+         ref_value_1D(z_id_1D, (q.coords[q_idx])[2], element_length, value_z, der_z);
 #endif
 
          double value = value_x * value_y;
@@ -192,9 +198,18 @@ void prepare_transformed_values(Quadrature q, double element_length,
          grad_1 *= value_z;
          grad_2 *= value_z;
          double grad_3 = value_x * value_y * der_z;
-         gradients[node].push_back(vector<double>({grad_1, grad_2, grad_3}));
+         vector<double> aux1;
+         aux1.push_back(grad_1); 
+         aux1.push_back(grad_2); 
+         aux1.push_back(grad_3); 
+         //gradients[node].push_back(vector<double>({grad_1, grad_2, grad_3}));
+         gradients[node].push_back(aux1);
 #else
-         gradients[node].push_back(vector<double>({grad_1, grad_2}));
+         vector<double> aux1;
+         aux1.push_back(grad_1); 
+         aux1.push_back(grad_2); 
+         //gradients[node].push_back(vector<double>({grad_1, grad_2}));
+         gradients[node].push_back(aux1);
 #endif
          values[node].push_back(value);
       }
