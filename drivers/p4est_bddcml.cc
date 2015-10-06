@@ -18,7 +18,7 @@
 #include "bddcml_structs.h"
 #include "mesh.h"
 #include "femspace.h"
-#include "p4est_common.h"
+#include "my_p4est_interface.h"
 #include "assemble.h"
 
 using namespace std;

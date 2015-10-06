@@ -33,14 +33,14 @@ src/bddcml_structs.cc
 )
 
 set(SOURCES_2D
-src/p4est_common.cc
+src/my_p4est_interface.cc
 src/mesh.cc
 src/femspace.cc
 src/assemble.cc
 )
 
 set(SOURCES_3D
-3d_wrappers/p8est_common.cc
+3d_wrappers/my_p8est_interface.cc
 3d_wrappers/p8est_mesh.cc
 3d_wrappers/p8est_femspace.cc
 3d_wrappers/p8est_assemble.cc
@@ -50,7 +50,7 @@ set(HEADERS
 include/definitions.h
 include/arrays.h
 include/assemble.h
-include/p4est_common.h
+include/my_p4est_interface.h
 include/bddcml_structs.h
 include/mesh.h
 include/femspace.h
@@ -100,6 +100,7 @@ add_executable(p8est_bddcml 3d_wrappers/p8est_bddcml.cc)
 #add_executable(metis_bddcml drivers/metis_bddcml.cc)
 #add_executable(metis8_bddcml 3d_wrappers/metis8_bddcml.cc)
 add_executable(p4est_experiment drivers/p4est_experiment.cc)
+add_executable(p4est_migration drivers/p4est_migration.cc)
 target_link_libraries(p4est_example ${BLOPEX_OBJECTS} mylib_2D ${LIBS} )
 target_link_libraries(p8est_example ${BLOPEX_OBJECTS} mylib_3D ${LIBS} )
 target_link_libraries(bddcml_example ${BLOPEX_OBJECTS} mylib_2D ${LIBS})
@@ -108,3 +109,4 @@ target_link_libraries(p8est_bddcml ${BLOPEX_OBJECTS} mylib_3D ${LIBS})
 #target_link_libraries(metis_bddcml ${BLOPEX_OBJECTS} mylib_2D ${LIBS})
 #target_link_libraries(metis8_bddcml ${BLOPEX_OBJECTS} mylib_3D ${LIBS})
 target_link_libraries(p4est_experiment ${BLOPEX_OBJECTS} mylib_2D ${LIBS})
+target_link_libraries(p4est_migration ${BLOPEX_OBJECTS} mylib_2D ${LIBS})

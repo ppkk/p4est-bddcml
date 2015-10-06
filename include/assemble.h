@@ -3,7 +3,7 @@
 
 #include "definitions.h"
 #include "bddcml_structs.h"
-#include "p4est_common.h"
+#include "my_p4est_interface.h"
 
 typedef std::vector<double> (*RhsPtr)(std::vector<double>);
 

@@ -16,7 +16,7 @@
 #include <vector>
 
 #include "arrays.h"
-#include "p4est_common.h"
+#include "my_p4est_interface.h"
 
 using namespace std;
 
@@ -164,7 +164,8 @@ void plot_solution(p4est_t * p4est, p4est_lnodes_t * lnodes, int num_comp, doubl
             interp_partition[node_total] = partition[quad_idx];
          ++node_total;
       }
-   }end_for_all_quads
+   }
+   end_for_all_quads
 
    if(u_sol)
    {
@@ -283,7 +284,9 @@ void print_p4est_mesh (p4est_t * p4est, p4est_lnodes_t * lnodes, int which_rank)
 
       }
       PPP printf("\n");
-   }}} // for all quads
+   }
+  end_for_all_quads
+
    PPP printf("*************** END P4EST MESH ************************\n\n");
 
 

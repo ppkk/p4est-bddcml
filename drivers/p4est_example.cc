@@ -48,7 +48,7 @@
 #endif
 
 #include "arrays.h"
-#include "p4est_common.h"
+#include "my_p4est_interface.h"
 
 const PhysicsType physicsType = PhysicsType::LAPLACE;
 

@@ -17,7 +17,7 @@
 
 #include "arrays.h"
 #include "bddcml_structs.h"
-#include "p4est_common.h"
+#include "my_p4est_interface.h"
 #include "assemble.h"
 #include "mesh.h"
 #include "femspace.h"

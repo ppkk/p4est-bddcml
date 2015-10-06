@@ -3,7 +3,7 @@
 
 #include "arrays.h"
 #include "bddcml_structs.h"
-#include "p4est_common.h"
+#include "my_p4est_interface.h"
 
 typedef struct BddcmlMesh
 {

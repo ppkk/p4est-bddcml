@@ -17,7 +17,7 @@
 
 #include "arrays.h"
 #include "bddcml_structs.h"
-#include "p4est_common.h"
+#include "my_p4est_interface.h"
 #include "mesh.h"
 #include "femspace.h"
 
@@ -154,7 +154,8 @@ void prepare_subdomain_mesh(p4est_t *p4est, p4est_lnodes_t *lnodes, BddcmlDimens
       }
 //      PPP printf("\n");
 
-   }end_for_all_quads
+   }
+   end_for_all_quads
 
 }
 
