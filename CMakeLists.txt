@@ -30,6 +30,8 @@ set(LIBS ${LIBS} sc p4est )
 set(SOURCES_DIM_INDEP
 src/arrays.cc
 src/bddcml_structs.cc
+src/gauss_quadrature.cc
+src/quadrature.cc
 )
 
 set(SOURCES_2D
@@ -101,6 +103,7 @@ add_executable(p8est_bddcml 3d_wrappers/p8est_bddcml.cc)
 #add_executable(metis8_bddcml 3d_wrappers/metis8_bddcml.cc)
 add_executable(p4est_experiment drivers/p4est_experiment.cc)
 add_executable(p4est_migration drivers/p4est_migration.cc)
+add_executable(test_quadrature drivers/test_quadrature.cc)
 target_link_libraries(p4est_example ${BLOPEX_OBJECTS} mylib_2D ${LIBS} )
 target_link_libraries(p8est_example ${BLOPEX_OBJECTS} mylib_3D ${LIBS} )
 target_link_libraries(bddcml_example ${BLOPEX_OBJECTS} mylib_2D ${LIBS})

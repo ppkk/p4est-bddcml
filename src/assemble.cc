@@ -21,6 +21,7 @@
 #include "assemble.h"
 #include "mesh.h"
 #include "femspace.h"
+#include "quadrature.h"
 
 using namespace std;
 
@@ -84,72 +85,6 @@ void print_complete_matrix_rhs(BddcmlFemSpace *femsp, BddcmlDimensions *global_d
    free(compl_mat);
 }
 
-struct Quadrature
-{
-   vector<double> weights;
-   vector<vector<double> > coords;
-
-   Quadrature(int dimension, double element_length)
-   {
-      double scale = element_length / 2.;
-      if(dimension == 1)
-      {
-         //weights = {5./9. * scale, 8./9. * scale, 5./9. * scale};
-         weights.push_back(5./9. * scale);
-         weights.push_back(8./9. * scale);
-         weights.push_back(5./9. * scale);
-         //coords = {vector<double>({-sqrt(3./5.)}), vector<double>({0.}), vector<double>({sqrt(3./5.)})};
-         coords.push_back(vector<double>(1,-sqrt(3./5.))); 
-         coords.push_back(vector<double>(1,0.)); 
-         coords.push_back(vector<double>(1,sqrt(3./5.))); 
-      }
-      else if(dimension == 2)
-      {
-         Quadrature q1(1, element_length);
-         product(q1, q1);
-      }
-      else if(dimension == 3)
-      {
-         Quadrature q1(1, element_length), q2(2, element_length);
-         product(q1, q2);
-      }
-      else
-         assert(0);
-   }
-
-   void product(Quadrature quad1, Quadrature quad2)
-   {
-      for(unsigned int i1 = 0; i1 < quad1.weights.size(); i1++)
-      {
-         for(unsigned int i2 = 0; i2 < quad2.weights.size(); i2++)
-         {
-            weights.push_back(quad1.weights[i1] * quad2.weights[i2]);
-            vector<double>product_coords;
-            product_coords.insert(product_coords.end(), quad1.coords[i1].begin(), quad1.coords[i1].end());
-            product_coords.insert(product_coords.end(), quad2.coords[i2].begin(), quad2.coords[i2].end());
-            coords.push_back(product_coords);
-         }
-      }
-   }
-
-   void print()
-   {
-      assert(weights.size() == coords.size());
-      double sum = 0.0;
-      for(unsigned int i = 0; i < weights.size(); i++)
-      {
-         cout << "(";
-         for(unsigned int j = 0; j < coords[i].size(); j++)
-         {
-            cout << coords[i][j] << ", ";
-         }
-         cout << "), " << weights[i] << endl;
-         sum += weights[i];
-      }
-      cout << "sum of weights " << sum << endl;
-   }
-
-};
 
 void ref_value_1D(int loc_id_1d, double x, double elem_len, double & value, double & der)
 {
@@ -257,7 +192,7 @@ void print_matrix_rhs(vector<vector<vector<vector<real> > > > &matrix, vector<ve
 void assemble_local_laplace(double element_size, vector<vector<vector<vector<real> > > > &matrix,
                     vector<vector<real> > &rhs, RhsPtr rhs_ptr)
 {
-   Quadrature q(P4EST_DIM, element_size);
+   Quadrature q(P4EST_DIM, QUAD_ORDER, element_size);
 
    vector<vector<double> > values;
    vector<vector<vector<double> > > gradients;
@@ -288,7 +223,7 @@ void assemble_local_laplace(double element_size, vector<vector<vector<vector<rea
 void assemble_local_elasticity(double element_size, vector<vector<vector<vector<real> > > > &matrix,
                     vector<vector<real> > &rhs, RhsPtr rhs_ptr, Parameters p)
 {
-   Quadrature q(P4EST_DIM, element_size);
+   Quadrature q(P4EST_DIM, QUAD_ORDER, element_size);
 
    int num_comp = P4EST_DIM;
    vector<vector<double> > vals; //[node][quadrature_pt]
