@@ -41,24 +41,11 @@ vector<double> rhs_fn(vector<double>)
 
 Parameters params(1e10, 0.33);
 
-int main (int argc, char **argv)
+sc_MPI_Comm mpicomm = sc_MPI_COMM_WORLD;
+
+void run(int argc, char **argv)
 {
-   init_corner_to_hanging();
-
-   int mpiret = sc_MPI_Init (&argc, &argv);
-   SC_CHECK_MPI (mpiret);
-   sc_MPI_Comm mpicomm = sc_MPI_COMM_WORLD;
-   mpiret = sc_MPI_Comm_rank(mpicomm, &mpi_rank);
-   mpiret = sc_MPI_Comm_size(mpicomm, &mpi_size);
-
-   /* These functions are optional.  If called they store the MPI rank as a
-   * static variable so subsequent global p4est log messages are only issued
-   * from processor zero.  Here we turn off most of the logging; see sc.h. */
-   sc_init (mpicomm, 1, 1, NULL, SC_LP_ESSENTIAL);
-   p4est_init (NULL, SC_LP_PRODUCTION);  /* SC_LP_ERROR for silence. */
-   P4EST_GLOBAL_PRODUCTIONF
-         ("This is the p4est %dD demo example/steps/%s_step4\n",
-          P4EST_DIM, P4EST_STRING);
+   int mpiret = 0;
 
    // WARNING: integration is based on the fact, that the domain is unit square or cube!
    // WARNING: if the domain is changed, so has to be the integration!
@@ -121,7 +108,6 @@ int main (int argc, char **argv)
    set_implicit_preconditioner_params(&preconditioner_params);
 
    BddcmlDimensions subdomain_dims, global_dims;
-   BddcmlMesh mesh;
 
    int print_rank_l = 3;
 
@@ -133,7 +119,8 @@ int main (int argc, char **argv)
    // TODO: elem_volume is correct only when the mesh is obtained by refinements
    // from a UNIT SQUARE/CUBE
 
-   prepare_subdomain_mesh(p4est, lnodes, &subdomain_dims, &mesh);
+   BddcmlMesh mesh(&subdomain_dims);
+   mesh.prepare_subdomain_mesh(p4est, lnodes);
    //print_bddcml_mesh(&mesh, print_rank_l);
 
    BddcmlFemSpace femsp;
@@ -250,24 +237,45 @@ int main (int argc, char **argv)
 
    plot_solution(p4est, lnodes, mesh.subdomain_dims->n_node_dofs, sols.val, NULL, NULL); //uexact_eval, NULL);
 
-   free_mesh(&mesh);
    free_fem_space(&femsp);
 
    free_real_array(&rhss);
    free_real_array(&sols);
    free_sparse_matrix(&matrix);
 
-   assert(get_num_allocations() == 0);
-
    /* Destroy the p4est and the connectivity structure. */
    p4est_lnodes_destroy (lnodes);
    p4est_destroy(p4est);
    p4est_connectivity_destroy(conn);
 
+   SC_CHECK_MPI (mpiret);
+}
+
+int main (int argc, char **argv)
+{
+   init_corner_to_hanging();
+
+   int mpiret = sc_MPI_Init (&argc, &argv);
+   SC_CHECK_MPI (mpiret);
+   mpiret = sc_MPI_Comm_rank(mpicomm, &mpi_rank);
+   mpiret = sc_MPI_Comm_size(mpicomm, &mpi_size);
+
+   /* These functions are optional.  If called they store the MPI rank as a
+   * static variable so subsequent global p4est log messages are only issued
+   * from processor zero.  Here we turn off most of the logging; see sc.h. */
+   sc_init (mpicomm, 1, 1, NULL, SC_LP_ESSENTIAL);
+   p4est_init (NULL, SC_LP_PRODUCTION);  /* SC_LP_ERROR for silence. */
+   P4EST_GLOBAL_PRODUCTIONF
+         ("This is the p4est %dD demo example/steps/%s_step4\n",
+          P4EST_DIM, P4EST_STRING);
+
+   run(argc, argv);
+
    /* Verify that allocations internal to p4est and sc do not leak memory.
    * This should be called if sc_init () has been called earlier. */
    sc_finalize ();
 
+   assert(get_num_allocations() == 0);
 
    /* This is standard MPI programs.  Without --enable-mpi, this is a dummy. */
    mpiret = sc_MPI_Finalize ();

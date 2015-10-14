@@ -266,7 +266,6 @@ int main(int argc, char **argv)
    init_dimmensions(&global_dims, 3, PhysicsType::LAPLACE);
    init_dimmensions(&subdomain_dims, 3, PhysicsType::LAPLACE);
 
-   BddcmlMesh mesh;
    BddcmlFemSpace femsp;
 
    // MPI initialization
@@ -378,7 +377,7 @@ int main(int argc, char **argv)
       subdomain_dims.n_nodes    = pow(num_el_per_sub_edge+1, global_dims.n_problem_dims);
       subdomain_dims.n_dofs    = subdomain_dims.n_nodes * subdomain_dims.n_node_dofs;
 
-      init_mesh(&subdomain_dims, &mesh);
+      BddcmlMesh mesh(&subdomain_dims);
       init_fem_space(&subdomain_dims, &femsp);
 
       // create subdomain mesh and boundary conditions
@@ -456,7 +455,6 @@ int main(int argc, char **argv)
                                         &user_constraints, &element_data,
                                         &dof_data, &preconditioner_params);
 
-      free_mesh(&mesh);
       free_fem_space(&femsp);
 
       free_real_array(&rhss);
@@ -558,7 +556,7 @@ int main(int argc, char **argv)
       subdomain_dims.n_nodes    = pow(num_el_per_sub_edge+1, global_dims.n_problem_dims);
       subdomain_dims.n_dofs    = subdomain_dims.n_nodes * subdomain_dims.n_node_dofs;
       
-      init_mesh(&subdomain_dims, &mesh);
+      BddcmlMesh mesh(&subdomain_dims);
       init_fem_space(&subdomain_dims, &femsp);
 
       prepare_subdomain_data(isub, num_sub_per_cube_edge, num_el_per_sub_edge, hsize,
@@ -601,7 +599,6 @@ int main(int argc, char **argv)
 //                                              sols,lsols);
       }
 
-      free_mesh(&mesh);
       free_fem_space(&femsp);
       free_real_array(&sols);
    }

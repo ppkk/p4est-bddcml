@@ -189,15 +189,17 @@ void print_matrix_rhs(vector<vector<vector<vector<real> > > > &matrix, vector<ve
    cout << "END LOCAL MATRIX:" << endl;
 }
 
-void assemble_local_laplace(double element_size, vector<vector<vector<vector<real> > > > &matrix,
+void assemble_local_laplace(Element* element, vector<vector<vector<vector<real> > > > &matrix,
                     vector<vector<real> > &rhs, RhsPtr rhs_ptr)
 {
-   Quadrature q(P4EST_DIM, QUAD_ORDER, element_size);
+   GaussQuadrature q(P4EST_DIM, QUAD_ORDER);
 
    vector<vector<double> > values;
    vector<vector<vector<double> > > gradients;
 
-   prepare_transformed_values(q, element_size, values, gradients);
+   prepare_transformed_values(q, element->size, values, gradients);
+
+   q.transform_to_physical(element);
 
    zero_matrix_rhs(matrix, rhs, 1);
 
@@ -220,16 +222,18 @@ void assemble_local_laplace(double element_size, vector<vector<vector<vector<rea
 
 }
 
-void assemble_local_elasticity(double element_size, vector<vector<vector<vector<real> > > > &matrix,
+void assemble_local_elasticity(Element* element, vector<vector<vector<vector<real> > > > &matrix,
                     vector<vector<real> > &rhs, RhsPtr rhs_ptr, Parameters p)
 {
-   Quadrature q(P4EST_DIM, QUAD_ORDER, element_size);
+   GaussQuadrature q(P4EST_DIM, QUAD_ORDER);
 
    int num_comp = P4EST_DIM;
    vector<vector<double> > vals; //[node][quadrature_pt]
    vector<vector<vector<double> > > grads;//[node][quadrature_pt][component]
 
-   prepare_transformed_values(q, element_size, vals, grads);
+   prepare_transformed_values(q, element->size, vals, grads);
+
+   q.transform_to_physical(element);
 
    zero_matrix_rhs(matrix, rhs, P4EST_DIM);
 
@@ -277,6 +281,7 @@ void assemble_local_elasticity(double element_size, vector<vector<vector<vector<
 void assemble_matrix_rhs(p4est_lnodes_t *lnodes, BddcmlMesh *mesh, BddcmlFemSpace *femsp,
                          SparseMatrix *matrix, RealArray *rhss, RhsPtr rhs_ptr, Parameters params)
 {
+   Element element;
    real i_coeffs, j_coeffs;
    int n_components = mesh->subdomain_dims->n_node_dofs;
    vector<vector<vector<vector<real> > > > element_matrix(P4EST_CHILDREN, vector<vector<vector<real> > >(
@@ -290,15 +295,12 @@ void assemble_matrix_rhs(p4est_lnodes_t *lnodes, BddcmlMesh *mesh, BddcmlFemSpac
    for(int elem_idx = 0; elem_idx < mesh->subdomain_dims->n_elems; elem_idx++) {
       assert(mesh->num_nodes_of_elem.val[elem_idx] == P4EST_CHILDREN);
 
-      // TODO: elem_size and elem_volume is correct only when the mesh is obtained by refinements
-      // from a UNIT SQUARE/CUBE
-      // TODO: ONLY FROM ****UNIT****
-      real element_size = mesh->element_lengths.val[elem_idx];
+      mesh->get_element(elem_idx, &element);
 
       if(femsp->physicsType == PhysicsType::LAPLACE)
-         assemble_local_laplace(element_size, element_matrix, element_rhs, rhs_ptr);
+         assemble_local_laplace(&element, element_matrix, element_rhs, rhs_ptr);
       else if(femsp->physicsType == PhysicsType::ELASTICITY)
-         assemble_local_elasticity(element_size, element_matrix, element_rhs, rhs_ptr, params);
+         assemble_local_elasticity(&element, element_matrix, element_rhs, rhs_ptr, params);
       else
          assert(0);
 

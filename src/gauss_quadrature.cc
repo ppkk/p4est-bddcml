@@ -1633,7 +1633,7 @@ static unsigned char std_np_1d[] =
    sizeof(std_pts_98_99_1d) / sizeof(double2)
 };
 
-GaussQuad1D::GaussQuad1D()
+GaussTables1D::GaussTables1D()
 {
    tables = std_tables_1d;
    np = std_np_1d;

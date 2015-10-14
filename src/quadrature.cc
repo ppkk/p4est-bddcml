@@ -3,40 +3,11 @@
 #include <iostream>
 
 #include "quadrature.h"
+#include "assemble.h"
 
 using namespace std;
 
-Quadrature::Quadrature(int dimension, int order, double element_length)
-{
-   double scale = element_length / 2.;
-   if(dimension == 1)
-   {
-      GaussQuad1D gauss_quad;
-
-      for(int i = 0; i < gauss_quad.get_num_points(order); i++)
-      {
-         coords.push_back(vector<double>(1, gauss_quad.get_points(order)[i][0]));
-         weights.push_back(gauss_quad.get_points(order)[i][1] * scale);
-      }
-
-      //weights = {5./9. * scale, 8./9. * scale, 5./9. * scale};
-      //coords = {vector<double>({-sqrt(3./5.)}), vector<double>({0.}), vector<double>({sqrt(3./5.)})};
-   }
-   else if(dimension == 2)
-   {
-      Quadrature q1(1, order, element_length);
-      product(q1, q1);
-   }
-   else if(dimension == 3)
-   {
-      Quadrature q1(1, order, element_length), q2(2, order, element_length);
-      product(q1, q2);
-   }
-   else
-      assert(0);
-}
-
-void Quadrature::product(const Quadrature &quad1, const Quadrature &quad2)
+void Quadrature::tensor_product(const Quadrature &quad1, const Quadrature &quad2)
 {
    for(unsigned int i1 = 0; i1 < quad1.weights.size(); i1++)
    {
@@ -68,3 +39,76 @@ void Quadrature::print()
    cout << "sum of weights " << sum << endl;
 }
 
+void Quadrature::transform_to_physical(Element *element)
+{
+   double scale_coeff = pow(element->size * 0.5, dimension);
+   for(unsigned qi = 0; qi < weights.size(); qi++)
+   {
+      weights[qi] *= scale_coeff;
+      for(int dim_idx = 0; dim_idx < dimension; dim_idx++)
+      {
+         coords[qi][dim_idx] = element->position[dim_idx] + 0.5 * (coords[qi][dim_idx] - 1) * element->size;
+      }
+   }
+}
+
+GaussQuadrature::GaussQuadrature(int dimension, int order)
+   : Quadrature(dimension)
+{
+   if(dimension == 1)
+   {
+      GaussTables1D gauss_quad;
+
+      for(int i = 0; i < gauss_quad.get_num_points(order); i++)
+      {
+         coords.push_back(vector<double>(1, gauss_quad.get_points(order)[i][0]));
+         weights.push_back(gauss_quad.get_points(order)[i][1]);
+      }
+   }
+   else if(dimension == 2)
+   {
+      GaussQuadrature q1(1, order);
+      tensor_product(q1, q1);
+   }
+   else if(dimension == 3)
+   {
+      GaussQuadrature q1(1, order), q2(2, order);
+      tensor_product(q1, q2);
+   }
+   else
+      assert(0);
+}
+
+EquidistantQuadrature::EquidistantQuadrature(int dimension, int order)
+   : Quadrature(dimension)
+{
+   if(dimension == 1)
+   {
+      // equidistant points. The number of points is the same as for Gauss quadrature
+      GaussTables1D gauss_quad;
+
+      int num_points =  gauss_quad.get_num_points(order);
+      double weight = 2. / num_points;
+      double point_distance = 2. / (num_points + 1);
+      double x = point_distance;
+      for(int i = 0; i < num_points; i++)
+      {
+         coords.push_back(vector<double>(1, x));
+         x += point_distance;
+         weights.push_back(weight);
+      }
+
+   }
+   else if(dimension == 2)
+   {
+      EquidistantQuadrature q1(1, order);
+      tensor_product(q1, q1);
+   }
+   else if(dimension == 3)
+   {
+      EquidistantQuadrature q1(1, order), q2(2, order);
+      tensor_product(q1, q2);
+   }
+   else
+      assert(0);
+}
