@@ -32,6 +32,8 @@ src/arrays.cc
 src/bddcml_structs.cc
 src/gauss_quadrature.cc
 src/quadrature.cc
+src/level_set.cc
+src/element.cc
 )
 
 set(SOURCES_2D

@@ -4,6 +4,7 @@
 #include <vector>
 
 class Element;
+class LevelSet;
 
 /*
  *  1D Quadrature rules of orders (capable of exact integration of polynomial of orders) 0-99.
@@ -57,6 +58,13 @@ class EquidistantQuadrature : public Quadrature
 public:
    EquidistantQuadrature(int dimension, int order);
 
+};
+
+class AdaptiveQuadrature : public Quadrature
+{
+public:
+   AdaptiveQuadrature(int dimension, int order);
+   void refine_by_level_set(LevelSet* level_set);
 };
 
 #endif // QUADRATURE_H

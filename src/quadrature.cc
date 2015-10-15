@@ -4,6 +4,7 @@
 
 #include "quadrature.h"
 #include "assemble.h"
+#include "element.h"
 
 using namespace std;
 

@@ -20,7 +20,7 @@
 #include "my_p4est_interface.h"
 #include "mesh.h"
 #include "femspace.h"
-#include "assemble.h"
+#include "element.h"
 
 void BddcmlMesh::init(BddcmlDimensions* subdomain_dims)
 {

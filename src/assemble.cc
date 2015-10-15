@@ -22,6 +22,7 @@
 #include "mesh.h"
 #include "femspace.h"
 #include "quadrature.h"
+#include "element.h"
 
 using namespace std;
 
