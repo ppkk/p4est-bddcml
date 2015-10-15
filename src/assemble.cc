@@ -115,7 +115,7 @@ void prepare_transformed_values(const Quadrature &q, double element_length,
       int y_id_1D = (node % 4) / 2;
       int z_id_1D = node / 4;
 
-      for(unsigned int q_idx = 0; q_idx < q.weights.size(); q_idx++)
+      for(unsigned int q_idx = 0; q_idx < q.np(); q_idx++)
       {
          double value_x, der_x, value_y, der_y, value_z, der_z;
          ref_value_1D(x_id_1D, q.coords[q_idx][0], element_length, value_x, der_x);
@@ -205,7 +205,7 @@ void assemble_local_laplace(const Element &element, vector<vector<vector<vector<
 
    zero_matrix_rhs(matrix, rhs, 1);
 
-   for(unsigned int q_idx = 0; q_idx < q_transformed.weights.size(); q_idx++)
+   for(unsigned int q_idx = 0; q_idx < q_transformed.np(); q_idx++)
    {
       for(int i_node = 0; i_node < P4EST_CHILDREN; i_node++)
       {
@@ -240,7 +240,7 @@ void assemble_local_elasticity(const Element &element, vector<vector<vector<vect
 
    zero_matrix_rhs(matrix, rhs, P4EST_DIM);
 
-   for(unsigned int q_idx = 0; q_idx < q_transformed.weights.size(); q_idx++)
+   for(unsigned int q_idx = 0; q_idx < q_transformed.np(); q_idx++)
    {
       for(int i_node = 0; i_node < P4EST_CHILDREN; i_node++)
       {

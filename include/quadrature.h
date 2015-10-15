@@ -33,12 +33,15 @@ protected:
 class Quadrature
 {
 public:
-   Quadrature(int dimmension) : dimension(dimmension) {}
-   void tensor_product(const Quadrature &quad1, const Quadrature &quad2);
-   void print();
+   Quadrature(int dimmension) : dimension(dimmension) {}   
+   inline unsigned np() const {return weights.size(); }
+   void print() const;
    void clear();
 
    void transform_to_physical(const Element &element, Quadrature *transformed) const;
+
+protected:
+   void tensor_product(const Quadrature &quad1, const Quadrature &quad2);
 
 public:
    std::vector<double> weights;
