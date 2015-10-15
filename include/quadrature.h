@@ -36,8 +36,9 @@ public:
    Quadrature(int dimmension) : dimension(dimmension) {}
    void tensor_product(const Quadrature &quad1, const Quadrature &quad2);
    void print();
+   void clear();
 
-   void transform_to_physical(Element* element);
+   void transform_to_physical(const Element &element, Quadrature *transformed) const;
 
 public:
    std::vector<double> weights;

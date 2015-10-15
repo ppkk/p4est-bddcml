@@ -16,6 +16,8 @@ public:
    void prepare_subdomain_mesh(p4est_t *p4est, p4est_lnodes_t *lnodes);
    void print(int which_rank);
 
+   // assuming that elements are squares/cubes aligned with cartesian grid in natural order of axes (x, y, z)
+   // i.e. first node of the element has lowest x, y and z
    void get_element(int elem_idx, Element* element);
 
 private:
@@ -28,6 +30,7 @@ public:
    IdxArray elem_node_indices;
    IdxArray num_nodes_of_elem;
 
+   // remember, that in the case of hanging nodes, we store the idx (and thus coordinates) of the correspondent regular node
    Real2DArray coords;
 
    IdxArray elem_global_map;

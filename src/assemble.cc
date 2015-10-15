@@ -103,7 +103,7 @@ void ref_value_1D(int loc_id_1d, double x, double elem_len, double & value, doub
       assert(0);
 }
 
-void prepare_transformed_values(Quadrature q, double element_length,
+void prepare_transformed_values(const Quadrature &q, double element_length,
                                 vector<vector<double> > &values, vector<vector<vector<double> > > &gradients)
 {
    values = vector<vector<double> >(P4EST_CHILDREN);
@@ -190,32 +190,33 @@ void print_matrix_rhs(vector<vector<vector<vector<real> > > > &matrix, vector<ve
    cout << "END LOCAL MATRIX:" << endl;
 }
 
-void assemble_local_laplace(Element* element, vector<vector<vector<vector<real> > > > &matrix,
+void assemble_local_laplace(const Element &element, vector<vector<vector<vector<real> > > > &matrix,
                     vector<vector<real> > &rhs, RhsPtr rhs_ptr)
 {
    GaussQuadrature q(P4EST_DIM, QUAD_ORDER);
 
-   vector<vector<double> > values;
-   vector<vector<vector<double> > > gradients;
+   vector<vector<double> > vals;
+   vector<vector<vector<double> > > grads;
 
-   prepare_transformed_values(q, element->size, values, gradients);
+   prepare_transformed_values(q, element.size, vals, grads);
 
-   q.transform_to_physical(element);
+   Quadrature q_transformed(P4EST_DIM);
+   q.transform_to_physical(element, &q_transformed);
 
    zero_matrix_rhs(matrix, rhs, 1);
 
-   for(unsigned int q_idx = 0; q_idx < q.weights.size(); q_idx++)
+   for(unsigned int q_idx = 0; q_idx < q_transformed.weights.size(); q_idx++)
    {
       for(int i_node = 0; i_node < P4EST_CHILDREN; i_node++)
       {
 
-         rhs[i_node][0] += q.weights[q_idx] * values[i_node][q_idx] * rhs_ptr(q.coords[q_idx])[0];
+         rhs[i_node][0] += q_transformed.weights[q_idx] * vals[i_node][q_idx] * rhs_ptr(q_transformed.coords[q_idx])[0];
 
          for(int j_node = 0; j_node < P4EST_CHILDREN; j_node++)
          {
             for(int idx_dim = 0; idx_dim < P4EST_DIM; idx_dim++)
             {
-               matrix[i_node][0][j_node][0] += q.weights[q_idx] * gradients[i_node][q_idx][idx_dim] * gradients[j_node][q_idx][idx_dim];
+               matrix[i_node][0][j_node][0] += q_transformed.weights[q_idx] * grads[i_node][q_idx][idx_dim] * grads[j_node][q_idx][idx_dim];
             }
          }
       }
@@ -223,7 +224,7 @@ void assemble_local_laplace(Element* element, vector<vector<vector<vector<real> 
 
 }
 
-void assemble_local_elasticity(Element* element, vector<vector<vector<vector<real> > > > &matrix,
+void assemble_local_elasticity(const Element &element, vector<vector<vector<vector<real> > > > &matrix,
                     vector<vector<real> > &rhs, RhsPtr rhs_ptr, Parameters p)
 {
    GaussQuadrature q(P4EST_DIM, QUAD_ORDER);
@@ -232,19 +233,20 @@ void assemble_local_elasticity(Element* element, vector<vector<vector<vector<rea
    vector<vector<double> > vals; //[node][quadrature_pt]
    vector<vector<vector<double> > > grads;//[node][quadrature_pt][component]
 
-   prepare_transformed_values(q, element->size, vals, grads);
+   prepare_transformed_values(q, element.size, vals, grads);
 
-   q.transform_to_physical(element);
+   Quadrature q_transformed(P4EST_DIM);
+   q.transform_to_physical(element, &q_transformed);
 
    zero_matrix_rhs(matrix, rhs, P4EST_DIM);
 
-   for(unsigned int q_idx = 0; q_idx < q.weights.size(); q_idx++)
+   for(unsigned int q_idx = 0; q_idx < q_transformed.weights.size(); q_idx++)
    {
       for(int i_node = 0; i_node < P4EST_CHILDREN; i_node++)
       {
          for(int i_comp = 0; i_comp < num_comp; i_comp++)
          {
-            rhs[i_node][i_comp] += q.weights[q_idx] * vals[i_node][q_idx] * rhs_ptr(q.coords[q_idx])[i_comp];
+            rhs[i_node][i_comp] += q_transformed.weights[q_idx] * vals[i_node][q_idx] * rhs_ptr(q_transformed.coords[q_idx])[i_comp];
 
             for(int j_node = 0; j_node < P4EST_CHILDREN; j_node++)
             {
@@ -269,7 +271,7 @@ void assemble_local_elasticity(Element* element, vector<vector<vector<vector<rea
                      contrib += p.lambda * grads[i_node][q_idx][i_comp] * grads[j_node][q_idx][j_comp];
                   }
 
-                  matrix[i_node][i_comp][j_node][j_comp] += q.weights[q_idx] * contrib;
+                  matrix[i_node][i_comp][j_node][j_comp] += q_transformed.weights[q_idx] * contrib;
                }
             }
          }
@@ -299,9 +301,9 @@ void assemble_matrix_rhs(p4est_lnodes_t *lnodes, BddcmlMesh *mesh, BddcmlFemSpac
       mesh->get_element(elem_idx, &element);
 
       if(femsp->physicsType == PhysicsType::LAPLACE)
-         assemble_local_laplace(&element, element_matrix, element_rhs, rhs_ptr);
+         assemble_local_laplace(element, element_matrix, element_rhs, rhs_ptr);
       else if(femsp->physicsType == PhysicsType::ELASTICITY)
-         assemble_local_elasticity(&element, element_matrix, element_rhs, rhs_ptr, params);
+         assemble_local_elasticity(element, element_matrix, element_rhs, rhs_ptr, params);
       else
          assert(0);
 

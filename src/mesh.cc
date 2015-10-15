@@ -22,6 +22,8 @@
 #include "femspace.h"
 #include "element.h"
 
+using namespace std;
+
 void BddcmlMesh::init(BddcmlDimensions* subdomain_dims)
 {
    int nnodes_per_elem;
@@ -163,9 +165,19 @@ void BddcmlMesh::get_element(int elem_idx, Element *element)
 {
    assert((elem_idx >= 0) && (elem_idx < subdomain_dims->n_elems));
    element->position.clear();
+
+   // assuming cartesian grid...
+   int first_node_idx = elem_node_indices.val[elem_idx * subdomain_dims->n_elem_nodes];
    for(int dim_idx = 0; dim_idx < subdomain_dims->n_problem_dims; dim_idx++)
-      element->position.push_back(coords.val[dim_idx][elem_idx]);
+   {
+      element->position.push_back(coords.val[dim_idx][first_node_idx]);
+   }
    element->size = element_lengths.val[elem_idx];
+
+   // this cannot be used because of hanging nodes - we do not get the actual hanging node coordinates,
+   // but the corresponding regular node coords.
+   //element->size = coords.val[0][first_node_idx + 1] - coords.val[0][first_node_idx];
+
 }
 
 

@@ -2,6 +2,17 @@
 
 using namespace std;
 
+Element::Element(double x, double y, double size)
+{
+   position.push_back(x);
+   position.push_back(y);
+   this->size = size;
+}
+
+Element::Element(double x, double y, double z, double size) : Element(x, y, size)
+{
+   position.push_back(z);
+}
 
 vector<vector<double> > Element::nodes() const
 {

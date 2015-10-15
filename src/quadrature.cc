@@ -3,7 +3,6 @@
 #include <iostream>
 
 #include "quadrature.h"
-#include "assemble.h"
 #include "element.h"
 
 using namespace std;
@@ -40,17 +39,26 @@ void Quadrature::print()
    cout << "sum of weights " << sum << endl;
 }
 
-void Quadrature::transform_to_physical(Element *element)
+void Quadrature::transform_to_physical(const Element &element, Quadrature *transformed) const
 {
-   double scale_coeff = pow(element->size * 0.5, dimension);
+   transformed->clear();
+   transformed->weights.resize(weights.size(), 0.0);
+   transformed->coords.resize(weights.size(), vector<double>(dimension, 0.0));
+   double scale_coeff = pow(element.size * 0.5, dimension);
    for(unsigned qi = 0; qi < weights.size(); qi++)
    {
-      weights[qi] *= scale_coeff;
+      transformed->weights[qi] = weights[qi] * scale_coeff;
       for(int dim_idx = 0; dim_idx < dimension; dim_idx++)
       {
-         coords[qi][dim_idx] = element->position[dim_idx] + 0.5 * (coords[qi][dim_idx] - 1) * element->size;
+         transformed->coords[qi][dim_idx] = element.position[dim_idx] + 0.5 * (coords[qi][dim_idx] - 1) * element.size;
       }
    }
+}
+
+void Quadrature::clear()
+{
+   weights.clear();
+   coords.clear();
 }
 
 GaussQuadrature::GaussQuadrature(int dimension, int order)
