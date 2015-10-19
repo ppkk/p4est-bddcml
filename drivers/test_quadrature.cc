@@ -8,8 +8,10 @@
 using namespace std;
 
 const int dimension = 2;
-const int order = 15;
-const int elems_in_dir = 40;
+//#define P4_TO_P8
+
+const int order = 3;
+const int elems_in_dir = 120;
 
 double level_set_fn_circle(vector<double> point)
 {
@@ -31,8 +33,6 @@ double integrate_element(const Quadrature &quadrature, const LevelSet &level_set
       {
          result += quad_trans.weights[qi];
 
-//         double rr = quad_trans.coords[qi][0]*quad_trans.coords[qi][0] + quad_trans.coords[qi][1]*quad_trans.coords[qi][1];
-//         cout << "including point (" << quad_trans.coords[qi][0] << ", " << quad_trans.coords[qi][1] << "), rr is " << rr << ", contrib " << quad_trans.weights[qi] << endl;
       }
    }
 
@@ -91,5 +91,6 @@ int main()
    double gauss_result = integrate(gauss_quad, level_set, elements);
    double equidist_result = integrate(equidist_quad, level_set, elements);
 
-   cout << "gauss error: " << fabs(gauss_result - M_PI) << ", equidist: " << fabs(equidist_result - M_PI) << endl;
+   double exact = (dimension == 2 ? M_PI : 4./3.*M_PI);
+   cout << "gauss error: " << fabs(gauss_result - exact) << ", equidist: " << fabs(equidist_result - exact) << endl;
 }

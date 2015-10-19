@@ -98,8 +98,8 @@ EquidistantQuadrature::EquidistantQuadrature(int dimension, int order)
 
       int num_points = gauss_quad.get_num_points(order);
       double weight = 2. / num_points;
-      double point_distance = 2. / (num_points + 1);
-      double x = -1 + point_distance;
+      double point_distance = 2. / num_points;
+      double x = -1 + point_distance / 2.;
       for(int i = 0; i < num_points; i++)
       {
          coords.push_back(vector<double>(1, x));

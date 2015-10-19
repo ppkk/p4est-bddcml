@@ -93,4 +93,9 @@ int refine_circle (p4est_t * p4est, p4est_topidx_t which_tree, p4est_quadrant_t 
 
 void refine_and_partition(p4est_t* p4est, int num, p4est_refine_t fn);
 
+class P4estClass
+{
+
+};
+
 #endif // P4EST_COMMON_H

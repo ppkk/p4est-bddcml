@@ -14,6 +14,7 @@
 
 #include "arrays.h"
 #include "my_p4est_interface.h"
+#include "geometry_mesh.h"
 
 using namespace std;
 
@@ -62,6 +63,10 @@ int main (int argc, char **argv)
    /* Destroy the ghost structure -- no longer needed after node creation. */
    p4est_ghost_destroy (ghost);
    ghost = NULL;
+
+   GeometryMesh gmesh;
+
+   gmesh.prepare_subdomain_mesh(p4est, lnodes);
 
    plot_solution(p4est, lnodes, 1, NULL, NULL, NULL);
 
