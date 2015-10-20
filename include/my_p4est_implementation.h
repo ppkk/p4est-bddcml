@@ -24,10 +24,6 @@
 
 class P4estClassDim : public P4estClass
 {
-   class LnodesContainer
-   {
-      // todo!!
-   };
 
 public:
    P4estClassDim(int degree, sc_MPI_Comm mpicomm);
@@ -57,7 +53,10 @@ protected:
 private:
    p4est_connectivity_t *conn;
    p4est_t *p4est;
-   mutable p4est_lnodes_t *lnodes;
+
+   // access through the function allways
+   inline p4est_lnodes_t *lnodes() const {update_lnodes(); return __lnodes_possibly_not_consistent; }
+   mutable p4est_lnodes_t *__lnodes_possibly_not_consistent;
 };
 
 #undef P4estClassDim

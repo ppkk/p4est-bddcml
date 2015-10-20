@@ -182,7 +182,7 @@ P4estClassDim::P4estClassDim(int degree, sc_MPI_Comm mpicomm) : P4estClass(degre
 #endif
 
    p4est = p4est_new (mpicomm, conn, 0, NULL, NULL);
-   lnodes = nullptr;
+   __lnodes_possibly_not_consistent = nullptr;
 }
 
 //****************************************************************************************
@@ -190,8 +190,7 @@ P4estClassDim::P4estClassDim(int degree, sc_MPI_Comm mpicomm) : P4estClass(degre
 P4estClassDim::~P4estClassDim()
 {
    /* Destroy the p4est and the connectivity structure. */
-   if(lnodes != nullptr)
-      p4est_lnodes_destroy (lnodes);
+   destroy_lnodes();
    p4est_destroy(p4est);
    p4est_connectivity_destroy(conn);
 }
@@ -205,14 +204,14 @@ void P4estClassDim::init()
 
 void P4estClassDim::update_lnodes() const
 {
-   if(lnodes != nullptr)
+   if(__lnodes_possibly_not_consistent != nullptr)
       return;
 
    /* Create the ghost layer to learn about parallel neighbors. */
    p4est_ghost_t *ghost = p4est_ghost_new (p4est, P4EST_CONNECT_FULL);
 
    /* Create a node numbering for continuous linear finite elements. */
-   lnodes = p4est_lnodes_new (p4est, ghost, degree);
+   __lnodes_possibly_not_consistent = p4est_lnodes_new (p4est, ghost, degree);
 
    /* Destroy the ghost structure -- no longer needed after node creation. */
    p4est_ghost_destroy (ghost);
@@ -223,21 +222,21 @@ void P4estClassDim::update_lnodes() const
 
 void P4estClassDim::destroy_lnodes()
 {
-   if(lnodes == nullptr)
+   if(__lnodes_possibly_not_consistent == nullptr)
       return;
 
-   p4est_lnodes_destroy (lnodes);
-   lnodes = nullptr;
+   p4est_lnodes_destroy (__lnodes_possibly_not_consistent);
+   __lnodes_possibly_not_consistent = nullptr;
 }
 
 //****************************************************************************************
 
 p4est_gloidx_t P4estClassDim::node_loc_to_glob(p4est_locidx_t loc_idx) const
 {
-   if(loc_idx < lnodes->owned_count)
-      return loc_idx + lnodes->global_offset;
+   if(loc_idx < lnodes()->owned_count)
+      return loc_idx + lnodes()->global_offset;
    else
-      return lnodes->nonlocal_nodes[loc_idx - lnodes->owned_count];
+      return lnodes()->nonlocal_nodes[loc_idx - lnodes()->owned_count];
 }
 
 //****************************************************************************************
@@ -262,7 +261,7 @@ void P4estClassDim::plot_solution(int num_comp, double* u_sol, double* u_exact, 
 
    for_all_quads(p4est, quad_idx, quad){
       for (int i = 0; i < P4EST_CHILDREN; ++i) {
-         int node = lnodes->element_nodes[P4EST_CHILDREN * quad_idx + i];
+         int node = lnodes()->element_nodes[P4EST_CHILDREN * quad_idx + i];
          if(u_sol)
          {
             for(int comp = 0; comp < num_comp; comp++)
@@ -279,11 +278,11 @@ void P4estClassDim::plot_solution(int num_comp, double* u_sol, double* u_exact, 
       {
          for(int comp = 0; comp < num_comp; comp++)
          {
-            P4estNamespaceDim::interpolate_hanging_nodes (lnodes->face_code[quad_idx], loc_vertex_values_sol[comp]);
+            P4estNamespaceDim::interpolate_hanging_nodes (lnodes()->face_code[quad_idx], loc_vertex_values_sol[comp]);
          }
       }
       if(u_exact)
-         P4estNamespaceDim::interpolate_hanging_nodes (lnodes->face_code[quad_idx], loc_vertex_values_exact);
+         P4estNamespaceDim::interpolate_hanging_nodes (lnodes()->face_code[quad_idx], loc_vertex_values_exact);
 
       for (int i = 0; i < P4EST_CHILDREN; ++i) {
          if(u_sol)
@@ -354,7 +353,7 @@ void P4estClassDim::plot_solution(int num_comp, double* u_sol, double* u_exact, 
  */
 void P4estClassDim::print_p4est_mesh(int which_rank) const
 {
-   const int           nloc = lnodes->num_local_nodes;
+   const int           nloc = lnodes()->num_local_nodes;
    int                 anyhang, hanging_corner[P4EST_CHILDREN];
 
    double              vxyz[3];  /* We embed the 2D vertices into 3D space. */
@@ -364,10 +363,10 @@ void P4estClassDim::print_p4est_mesh(int which_rank) const
    /* Loop over local quadrants to apply the element matrices. */
    print_rank = which_rank;
    PPP printf("\n*************** BEGIN P4EST MESH ************************\n");
-   PPP printf("rank %d, nodes owned count = %d, nodes global offset = %d\n", print_rank, lnodes->owned_count, (int)lnodes->global_offset);
+   PPP printf("rank %d, nodes owned count = %d, nodes global offset = %d\n", print_rank, lnodes()->owned_count, (int)lnodes()->global_offset);
    PPP printf("local num quadrants %d\n", p4est->local_num_quadrants);
    PPP printf("global nodes: ");
-   for(int i = 0; i < lnodes->num_local_nodes; i++)
+   for(int i = 0; i < lnodes()->num_local_nodes; i++)
    {
       PPP printf("%ld, ", node_loc_to_glob(i));
    }
@@ -380,14 +379,14 @@ void P4estClassDim::print_p4est_mesh(int which_rank) const
       PPP printf("elem %d: ", (int)p4est->global_first_quadrant[p4est->mpirank] + quad_idx);
       for(int lnode = 0; lnode < P4EST_CHILDREN; lnode++)
       {
-         node_idx = lnodes->element_nodes[P4EST_CHILDREN * quad_idx + lnode];
+         node_idx = lnodes()->element_nodes[P4EST_CHILDREN * quad_idx + lnode];
          PPP printf("%d[%d], ", (int)node_loc_to_glob(node_idx), node_idx);
       }
       //PPP printf("%d, %d, %d, %d", glob_all_lni[0], glob_all_lni[1], glob_all_lni[2], glob_all_lni[3]);
 
 
       /* Figure out the hanging corners on this element, if any. */
-      anyhang = P4estNamespaceDim::lnodes_decode2 (lnodes->face_code[quad_idx], hanging_corner);
+      anyhang = P4estNamespaceDim::lnodes_decode2 (lnodes()->face_code[quad_idx], hanging_corner);
 
 
       if (!anyhang) {
@@ -400,7 +399,7 @@ void P4estClassDim::print_p4est_mesh(int which_rank) const
          p4est_quadrant_parent (quad, parent);
       }
       for (int lnode = 0; lnode < P4EST_CHILDREN; ++lnode) {
-         node_idx = lnodes->element_nodes[P4EST_CHILDREN * quad_idx + lnode];
+         node_idx = lnodes()->element_nodes[P4EST_CHILDREN * quad_idx + lnode];
          P4EST_ASSERT (node_idx >= 0 && node_idx < nloc);
          if (anyhang && hanging_corner[lnode] >= 0) {
             /* This node is hanging; access the referenced node instead. */
@@ -435,12 +434,12 @@ int P4estClassDim::independent_nodes(p4est_locidx_t quadrant, int lnode, p4est_l
    int anyhang, hanging_corner[P4EST_CHILDREN];
 
    /* Figure out the hanging corners on this element, if any. */
-   anyhang = P4estNamespaceDim::lnodes_decode2 (lnodes->face_code[quadrant], hanging_corner);
+   anyhang = P4estNamespaceDim::lnodes_decode2 (lnodes()->face_code[quadrant], hanging_corner);
 
    if ((!anyhang) ||  (hanging_corner[lnode] == -1))
    {
       *coeffs = 1.;
-      nodes[0] = lnodes->element_nodes[P4EST_CHILDREN * quadrant + lnode];
+      nodes[0] = lnodes()->element_nodes[P4EST_CHILDREN * quadrant + lnode];
       return 1;
    }
    else
@@ -451,7 +450,7 @@ int P4estClassDim::independent_nodes(p4est_locidx_t quadrant, int lnode, p4est_l
 
       for (int j = 0; j < ncontrib; ++j) {
          int h = contrib_corner[j] ^ c;  /* Inverse transform of node number. */
-         nodes[j] = lnodes->element_nodes[P4EST_CHILDREN * quadrant + h];
+         nodes[j] = lnodes()->element_nodes[P4EST_CHILDREN * quadrant + h];
       }
       if(ncontrib == 2)
          *coeffs = 0.5;
@@ -679,7 +678,7 @@ void P4estClassDim::prepare_bddcml_subdomain_mesh(BddcmlMesh* mesh) const
    double              vxyz[3];  /* We embed the 2D vertices into 3D space. */
    p4est_quadrant_t   sp, node;
 
-   for(int lnode = 0; lnode < lnodes->num_local_nodes; lnode++)
+   for(int lnode = 0; lnode < lnodes()->num_local_nodes; lnode++)
    {
       mesh->node_global_map.val[lnode] = node_loc_to_glob(lnode);
    }
@@ -696,7 +695,7 @@ void P4estClassDim::prepare_bddcml_subdomain_mesh(BddcmlMesh* mesh) const
 
       for (int lnode = 0; lnode < P4EST_CHILDREN; ++lnode) {
          /* Cache some information on corner nodes. */
-         p4est_locidx_t node_idx = lnodes->element_nodes[P4EST_CHILDREN * quad_idx + lnode];
+         p4est_locidx_t node_idx = lnodes()->element_nodes[P4EST_CHILDREN * quad_idx + lnode];
          //      isboundary[i] = (bc == NULL ? 0 : bc[lni]);
          //       inloc[i] = !isboundary[i] ? in[lni] : 0.;
          mesh->elem_node_indices.val[P4EST_CHILDREN * quad_idx + lnode] = node_idx;
@@ -706,7 +705,7 @@ void P4estClassDim::prepare_bddcml_subdomain_mesh(BddcmlMesh* mesh) const
 
       /* Figure out the hanging corners on this element, if any. */
       int hanging_corner[P4EST_CHILDREN];
-      int anyhang = P4estNamespaceDim::lnodes_decode2 (lnodes->face_code[quad_idx], hanging_corner);
+      int anyhang = P4estNamespaceDim::lnodes_decode2 (lnodes()->face_code[quad_idx], hanging_corner);
 
       p4est_quadrant_t* parent;
       if (!anyhang) {
@@ -721,7 +720,7 @@ void P4estClassDim::prepare_bddcml_subdomain_mesh(BddcmlMesh* mesh) const
 
 
       for (int lnode = 0; lnode < P4EST_CHILDREN; ++lnode) {
-         p4est_locidx_t node_idx = lnodes->element_nodes[P4EST_CHILDREN * quad_idx + lnode];
+         p4est_locidx_t node_idx = lnodes()->element_nodes[P4EST_CHILDREN * quad_idx + lnode];
          P4EST_ASSERT (node_idx >= 0 && node_idx < mesh->subdomain_dims->n_nodes);
          if (anyhang && hanging_corner[lnode] >= 0) {
             /* This node is hanging; access the referenced node instead. */
@@ -761,8 +760,6 @@ void P4estClassDim::prepare_bddcml_subdomain_mesh(BddcmlMesh* mesh) const
 void P4estClassDim::prepare_dimmensions(PhysicsType physicsType,
                                         BddcmlDimensions *subdomain_dims, BddcmlDimensions *global_dims) const
 {
-   update_lnodes();
-
 #ifndef P4_TO_P8
    assert(num_dim == 2);
    init_dimmensions(subdomain_dims, 2, physicsType);
@@ -772,15 +769,15 @@ void P4estClassDim::prepare_dimmensions(PhysicsType physicsType,
    init_dimmensions(subdomain_dims, 3, physicsType);
    init_dimmensions(global_dims, 3, physicsType);
 #endif
-   subdomain_dims->n_nodes = lnodes->num_local_nodes;
-   subdomain_dims->n_dofs  = lnodes->num_local_nodes * subdomain_dims->n_node_dofs;
-   subdomain_dims->n_elems = lnodes->num_local_elements;
+   subdomain_dims->n_nodes = lnodes()->num_local_nodes;
+   subdomain_dims->n_dofs  = lnodes()->num_local_nodes * subdomain_dims->n_node_dofs;
+   subdomain_dims->n_elems = lnodes()->num_local_elements;
    printf("proc %d, elems %d, nodes %d\n", mpi_rank, subdomain_dims->n_elems, subdomain_dims->n_nodes);
 
    int global_num_nodes;
    if(mpi_rank == mpi_size - 1)
    {
-      global_num_nodes = lnodes->global_offset + lnodes->owned_count;
+      global_num_nodes = lnodes()->global_offset + lnodes()->owned_count;
    }
    sc_MPI_Bcast(&global_num_nodes, 1, MPI_INT, mpi_size - 1, mpicomm);
 
