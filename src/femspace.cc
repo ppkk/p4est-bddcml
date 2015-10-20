@@ -1,15 +1,3 @@
-#ifndef P4_TO_P8
-#include <p4est_bits.h>
-#include <p4est_ghost.h>
-#include <p4est_lnodes.h>
-#include <p4est_vtk.h>
-#else
-#include <p8est_bits.h>
-#include <p8est_ghost.h>
-#include <p8est_lnodes.h>
-#include <p8est_vtk.h>
-#endif
-
 #include <string.h>
 #include <stdlib.h>
 #include <stdbool.h>
@@ -69,11 +57,12 @@ void prepare_subdomain_fem_space(BddcmlMesh *mesh, BddcmlFemSpace *femsp, Physic
    for(int node = 0; node < mesh->subdomain_dims->n_nodes; node++)
    {
       bool is_on_boundary = ((real_equal(mesh->coords.val[0][node], 0.0)) || (real_equal(mesh->coords.val[0][node], 1.0))
-            || (real_equal(mesh->coords.val[1][node], 0.0)) || (real_equal(mesh->coords.val[1][node], 1.0))
-#ifdef P4_TO_P8
-            || (real_equal(mesh->coords.val[2][node], 0.0)) || (real_equal(mesh->coords.val[2][node], 1.0))
-#endif
-            );
+            || (real_equal(mesh->coords.val[1][node], 0.0)) || (real_equal(mesh->coords.val[1][node], 1.0)));
+
+      if(P4estClass::num_dim == 3)
+      {
+         is_on_boundary = is_on_boundary || ((real_equal(mesh->coords.val[2][node], 0.0)) || (real_equal(mesh->coords.val[2][node], 1.0)));
+      }
 
       femsp->node_num_dofs.val[node] = num_dofs_per_node;
 

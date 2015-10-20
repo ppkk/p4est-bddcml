@@ -1,15 +1,3 @@
-#ifndef P4_TO_P8
-#include <p4est_bits.h>
-#include <p4est_ghost.h>
-#include <p4est_lnodes.h>
-#include <p4est_vtk.h>
-#else
-#include <p8est_bits.h>
-#include <p8est_ghost.h>
-#include <p8est_lnodes.h>
-#include <p8est_vtk.h>
-#endif
-
 #include <string.h>
 #include <stdlib.h>
 #include <stdbool.h>
@@ -106,10 +94,10 @@ void ref_value_1D(int loc_id_1d, double x, double elem_len, double & value, doub
 void prepare_transformed_values(const Quadrature &q, double element_length,
                                 vector<vector<double> > &values, vector<vector<vector<double> > > &gradients)
 {
-   values = vector<vector<double> >(P4EST_CHILDREN);
-   gradients = vector<vector<vector<double> > >(P4EST_CHILDREN);
+   values = vector<vector<double> >(P4estClass::children);
+   gradients = vector<vector<vector<double> > >(P4estClass::children);
 
-   for(int node = 0; node < P4EST_CHILDREN; node++)
+   for(int node = 0; node < P4estClass::children; node++)
    {
       int x_id_1D = node % 2;
       int y_id_1D = (node % 4) / 2;
@@ -121,32 +109,36 @@ void prepare_transformed_values(const Quadrature &q, double element_length,
          ref_value_1D(x_id_1D, q.coords[q_idx][0], element_length, value_x, der_x);
          ref_value_1D(y_id_1D, q.coords[q_idx][1], element_length, value_y, der_y);
 
-#ifdef P4_TO_P8
-         ref_value_1D(z_id_1D, (q.coords[q_idx])[2], element_length, value_z, der_z);
-#endif
+         if(P4estClass::num_dim == 3)
+         {
+            ref_value_1D(z_id_1D, (q.coords[q_idx])[2], element_length, value_z, der_z);
+         }
 
          double value = value_x * value_y;
          double grad_1 = der_x * value_y;
          double grad_2 = value_x * der_y;
 
-#ifdef P4_TO_P8
-         value *= value_z;
-         grad_1 *= value_z;
-         grad_2 *= value_z;
-         double grad_3 = value_x * value_y * der_z;
-         vector<double> aux1;
-         aux1.push_back(grad_1); 
-         aux1.push_back(grad_2); 
-         aux1.push_back(grad_3); 
-         //gradients[node].push_back(vector<double>({grad_1, grad_2, grad_3}));
-         gradients[node].push_back(aux1);
-#else
-         vector<double> aux1;
-         aux1.push_back(grad_1); 
-         aux1.push_back(grad_2); 
-         //gradients[node].push_back(vector<double>({grad_1, grad_2}));
-         gradients[node].push_back(aux1);
-#endif
+         if(P4estClass::num_dim == 3)
+         {
+            value *= value_z;
+            grad_1 *= value_z;
+            grad_2 *= value_z;
+            double grad_3 = value_x * value_y * der_z;
+            vector<double> aux1;
+            aux1.push_back(grad_1);
+            aux1.push_back(grad_2);
+            aux1.push_back(grad_3);
+            //gradients[node].push_back(vector<double>({grad_1, grad_2, grad_3}));
+            gradients[node].push_back(aux1);
+         }
+         else
+         {
+            vector<double> aux1;
+            aux1.push_back(grad_1);
+            aux1.push_back(grad_2);
+            //gradients[node].push_back(vector<double>({grad_1, grad_2}));
+            gradients[node].push_back(aux1);
+         }
          values[node].push_back(value);
       }
    }
@@ -154,12 +146,12 @@ void prepare_transformed_values(const Quadrature &q, double element_length,
 
 void zero_matrix_rhs(vector<vector<vector<vector<real> > > > &matrix, vector<vector<real> > &rhs, int num_comp)
 {
-   for(int i_node = 0; i_node < P4EST_CHILDREN; i_node++)
+   for(int i_node = 0; i_node < P4estClass::children; i_node++)
    {
       for(int i_comp = 0; i_comp < num_comp; i_comp++)
       {
          rhs[i_node][i_comp] = 0.0;
-         for(int j_node = 0; j_node < P4EST_CHILDREN; j_node++)
+         for(int j_node = 0; j_node < P4estClass::children; j_node++)
          {
             for(int j_comp = 0; j_comp < num_comp; j_comp++)
             {
@@ -173,11 +165,11 @@ void zero_matrix_rhs(vector<vector<vector<vector<real> > > > &matrix, vector<vec
 void print_matrix_rhs(vector<vector<vector<vector<real> > > > &matrix, vector<vector<real> > &rhs, int num_comp)
 {
    cout << "LOCAL MATRIX:" << endl;
-   for(int i_node = 0; i_node < P4EST_CHILDREN; i_node++)
+   for(int i_node = 0; i_node < P4estClass::children; i_node++)
    {
       for(int i_comp = 0; i_comp < num_comp; i_comp++)
       {
-         for(int j_node = 0; j_node < P4EST_CHILDREN; j_node++)
+         for(int j_node = 0; j_node < P4estClass::children; j_node++)
          {
             for(int j_comp = 0; j_comp < num_comp; j_comp++)
             {
@@ -193,28 +185,28 @@ void print_matrix_rhs(vector<vector<vector<vector<real> > > > &matrix, vector<ve
 void assemble_local_laplace(const Element &element, vector<vector<vector<vector<real> > > > &matrix,
                     vector<vector<real> > &rhs, RhsPtr rhs_ptr)
 {
-   GaussQuadrature q(P4EST_DIM, QUAD_ORDER);
+   GaussQuadrature q(P4estClass::num_dim, QUAD_ORDER);
 
    vector<vector<double> > vals;
    vector<vector<vector<double> > > grads;
 
    prepare_transformed_values(q, element.size, vals, grads);
 
-   Quadrature q_transformed(P4EST_DIM);
+   Quadrature q_transformed(P4estClass::num_dim);
    q.transform_to_physical(element, &q_transformed);
 
    zero_matrix_rhs(matrix, rhs, 1);
 
    for(unsigned int q_idx = 0; q_idx < q_transformed.np(); q_idx++)
    {
-      for(int i_node = 0; i_node < P4EST_CHILDREN; i_node++)
+      for(int i_node = 0; i_node < P4estClass::children; i_node++)
       {
 
          rhs[i_node][0] += q_transformed.weights[q_idx] * vals[i_node][q_idx] * rhs_ptr(q_transformed.coords[q_idx])[0];
 
-         for(int j_node = 0; j_node < P4EST_CHILDREN; j_node++)
+         for(int j_node = 0; j_node < P4estClass::children; j_node++)
          {
-            for(int idx_dim = 0; idx_dim < P4EST_DIM; idx_dim++)
+            for(int idx_dim = 0; idx_dim < P4estClass::num_dim; idx_dim++)
             {
                matrix[i_node][0][j_node][0] += q_transformed.weights[q_idx] * grads[i_node][q_idx][idx_dim] * grads[j_node][q_idx][idx_dim];
             }
@@ -227,28 +219,28 @@ void assemble_local_laplace(const Element &element, vector<vector<vector<vector<
 void assemble_local_elasticity(const Element &element, vector<vector<vector<vector<real> > > > &matrix,
                     vector<vector<real> > &rhs, RhsPtr rhs_ptr, Parameters p)
 {
-   GaussQuadrature q(P4EST_DIM, QUAD_ORDER);
+   GaussQuadrature q(P4estClass::num_dim, QUAD_ORDER);
 
-   int num_comp = P4EST_DIM;
+   int num_comp = P4estClass::num_dim;
    vector<vector<double> > vals; //[node][quadrature_pt]
    vector<vector<vector<double> > > grads;//[node][quadrature_pt][component]
 
    prepare_transformed_values(q, element.size, vals, grads);
 
-   Quadrature q_transformed(P4EST_DIM);
+   Quadrature q_transformed(P4estClass::num_dim);
    q.transform_to_physical(element, &q_transformed);
 
-   zero_matrix_rhs(matrix, rhs, P4EST_DIM);
+   zero_matrix_rhs(matrix, rhs, P4estClass::num_dim);
 
    for(unsigned int q_idx = 0; q_idx < q_transformed.np(); q_idx++)
    {
-      for(int i_node = 0; i_node < P4EST_CHILDREN; i_node++)
+      for(int i_node = 0; i_node < P4estClass::children; i_node++)
       {
          for(int i_comp = 0; i_comp < num_comp; i_comp++)
          {
             rhs[i_node][i_comp] += q_transformed.weights[q_idx] * vals[i_node][q_idx] * rhs_ptr(q_transformed.coords[q_idx])[i_comp];
 
-            for(int j_node = 0; j_node < P4EST_CHILDREN; j_node++)
+            for(int j_node = 0; j_node < P4estClass::children; j_node++)
             {
                for(int j_comp = 0; j_comp < num_comp; j_comp++)
                {
@@ -281,22 +273,22 @@ void assemble_local_elasticity(const Element &element, vector<vector<vector<vect
 }
 
 
-void assemble_matrix_rhs(p4est_lnodes_t *lnodes, BddcmlMesh *mesh, BddcmlFemSpace *femsp,
+void assemble_matrix_rhs(const P4estClass &p4est, BddcmlMesh *mesh, BddcmlFemSpace *femsp,
                          SparseMatrix *matrix, RealArray *rhss, RhsPtr rhs_ptr, Parameters params)
 {
    Element element;
    real i_coeffs, j_coeffs;
    int n_components = mesh->subdomain_dims->n_node_dofs;
-   vector<vector<vector<vector<real> > > > element_matrix(P4EST_CHILDREN, vector<vector<vector<real> > >(
+   vector<vector<vector<vector<real> > > > element_matrix(P4estClass::children, vector<vector<vector<real> > >(
                                            n_components, vector<vector<real> >(
-                                           P4EST_CHILDREN, vector<real>(
+                                           P4estClass::children, vector<real>(
                                            n_components,0.0))));
-   vector<vector<real> > element_rhs(P4EST_CHILDREN, vector<real>(n_components, 0.0));
+   vector<vector<real> > element_rhs(P4estClass::children, vector<real>(n_components, 0.0));
    p4est_locidx_t i_indep_nodes[4], j_indep_nodes[4];
 
    int element_offset = 0;
    for(int elem_idx = 0; elem_idx < mesh->subdomain_dims->n_elems; elem_idx++) {
-      assert(mesh->num_nodes_of_elem.val[elem_idx] == P4EST_CHILDREN);
+      assert(mesh->num_nodes_of_elem.val[elem_idx] == P4estClass::children);
 
       mesh->get_element(elem_idx, &element);
 
@@ -309,9 +301,9 @@ void assemble_matrix_rhs(p4est_lnodes_t *lnodes, BddcmlMesh *mesh, BddcmlFemSpac
 
       //print_matrix_rhs(element_matrix, element_rhs, n_components);
 
-      for(int i_node_loc = 0; i_node_loc < P4EST_CHILDREN; i_node_loc++) {
+      for(int i_node_loc = 0; i_node_loc < P4estClass::children; i_node_loc++) {
          int i_node = mesh->elem_node_indices.val[element_offset + i_node_loc];
-         int i_nindep = independent_nodes(lnodes, elem_idx, i_node_loc, i_indep_nodes, &i_coeffs);
+         int i_nindep = p4est.independent_nodes(elem_idx, i_node_loc, i_indep_nodes, &i_coeffs);
          assert((i_nindep != 1) || (i_node == i_indep_nodes[0]));
 
          for(int i_indep_nodes_idx = 0; i_indep_nodes_idx < i_nindep; i_indep_nodes_idx++)
@@ -321,10 +313,10 @@ void assemble_matrix_rhs(p4est_lnodes_t *lnodes, BddcmlMesh *mesh, BddcmlFemSpac
             for(int i_comp = 0; i_comp < n_components; i_comp++)
             {
                int i_dof = femsp->node_num_dofs.val[i_indep_node] * i_indep_node + i_comp;
-               for(int j_node_loc = 0; j_node_loc < P4EST_CHILDREN; j_node_loc++) {
+               for(int j_node_loc = 0; j_node_loc < P4estClass::children; j_node_loc++) {
                   //todo: dofs should be taken from femsp!
                   int j_node = mesh->elem_node_indices.val[element_offset + j_node_loc];
-                  int j_nindep = independent_nodes(lnodes, elem_idx, j_node_loc, j_indep_nodes, &j_coeffs);
+                  int j_nindep = p4est.independent_nodes(elem_idx, j_node_loc, j_indep_nodes, &j_coeffs);
                   assert((j_nindep != 1) || (j_node == j_indep_nodes[0]));
 
                   for(int j_indep_nodes_idx = 0; j_indep_nodes_idx < j_nindep; j_indep_nodes_idx++)
@@ -342,14 +334,14 @@ void assemble_matrix_rhs(p4est_lnodes_t *lnodes, BddcmlMesh *mesh, BddcmlFemSpac
                   }
                }
 
-               //double rhs_value = i_coeffs * 1./(real)P4EST_CHILDREN * elem_volume * 1;
+               //double rhs_value = i_coeffs * 1./(real)P4estClass::children * elem_volume * 1;
                double rhs_value = i_coeffs * element_rhs[i_node_loc][i_comp];
                rhss->val[i_dof] += rhs_value;
 
             }
          }
       }
-      element_offset += P4EST_CHILDREN;
+      element_offset += P4estClass::children;
    }
 
 }

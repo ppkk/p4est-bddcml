@@ -1,15 +1,3 @@
-#ifndef P4_TO_P8
-#include <p4est_bits.h>
-#include <p4est_ghost.h>
-#include <p4est_lnodes.h>
-#include <p4est_vtk.h>
-#else
-#include <p8est_bits.h>
-#include <p8est_ghost.h>
-#include <p8est_lnodes.h>
-#include <p8est_vtk.h>
-#endif
-
 #include <string.h>
 #include <stdlib.h>
 #include <stdbool.h>
@@ -23,6 +11,7 @@
 
 using namespace std;
 
+const int num_dim = 2;
 const int degree = 1;
 const PhysicsType physicsType = PhysicsType::ELASTICITY;
 
@@ -31,7 +20,7 @@ vector<double> rhs_fn(vector<double>)
    if(physicsType == PhysicsType::LAPLACE)
       return {1};
    else if (physicsType == PhysicsType::ELASTICITY)
-      if(P4EST_DIM == 2)
+      if(num_dim == 2)
          return {0,-1e5};
       else
          return {0,0,-1e5};
@@ -46,41 +35,22 @@ sc_MPI_Comm mpicomm = sc_MPI_COMM_WORLD;
 void run(int argc, char **argv)
 {
    int mpiret = 0;
-
-   // WARNING: integration is based on the fact, that the domain is unit square or cube!
-   // WARNING: if the domain is changed, so has to be the integration!
-   // TODO: do it properly
-#ifndef P4_TO_P8
-   p4est_connectivity_t *conn = p4est_connectivity_new_unitsquare ();
-#else
-   p4est_connectivity_t *conn = p8est_connectivity_new_unitcube ();
-#endif
-
-   p4est_t *p4est = p4est_new (mpicomm, conn, 0, NULL, NULL);
+   P4estClass* p4est_class = P4estClass::create(num_dim, degree, mpicomm);
 
    // 2D
-   //refine_and_partition(p4est, 4, refine_uniform);
-   //refine_and_partition(p4est, 5, refine_circle);
-   //refine_and_partition(p4est, 6, refine_square);
-   //refine_and_partition(p4est, 0, refine_point);
-   //refine_and_partition(p4est, 0, refine_diagonal);
+//   p4est_class->refine_and_partition(4, RefineType::UNIFORM);
+//   p4est_class->refine_and_partition(5, RefineType::CIRCLE);
+//   p4est_class->refine_and_partition(6, RefineType::SQUARE);
+
+   // 2D elasticity gives 11 PCG iterations and condition number 0.433169186E+01
+   p4est_class->refine_and_partition(4, RefineType::UNIFORM);
+   p4est_class->refine_and_partition(3, RefineType::CIRCLE);
+   p4est_class->refine_and_partition(3, RefineType::SQUARE);
 
    // 3D
-   refine_and_partition(p4est, 4, refine_uniform);
-   refine_and_partition(p4est, 3, refine_circle);
-   refine_and_partition(p4est, 3, refine_square);
-   refine_and_partition(p4est, 0, refine_point);
-   refine_and_partition(p4est, 0, refine_diagonal);
-
-   /* Create the ghost layer to learn about parallel neighbors. */
-   p4est_ghost_t *ghost = p4est_ghost_new (p4est, P4EST_CONNECT_FULL);
-
-   /* Create a node numbering for continuous linear finite elements. */
-   p4est_lnodes_t *lnodes = p4est_lnodes_new (p4est, ghost, degree);
-
-   /* Destroy the ghost structure -- no longer needed after node creation. */
-   p4est_ghost_destroy (ghost);
-   ghost = NULL;
+//   p4est_class->refine_and_partition(2, RefineType::UNIFORM);
+//   p4est_class->refine_and_partition(3, RefineType::CIRCLE);
+//   p4est_class->refine_and_partition(3, RefineType::SQUARE);
 
    BddcmlLevelInfo level_info;
    // Number of elements in an edge of a subdomain and number of subdomains in an edge of the unit cube
@@ -112,7 +82,7 @@ void run(int argc, char **argv)
    int print_rank_l = 3;
 
    // todo: using MPI Bcast in the following, should be possible to do without
-   prepare_dimmensions(p4est, lnodes, physicsType, &subdomain_dims, &global_dims, mpicomm);
+   p4est_class->prepare_dimmensions(physicsType, &subdomain_dims, &global_dims);
 
    //print_p4est_mesh(p4est, lnodes, print_rank_l);
 
@@ -120,14 +90,14 @@ void run(int argc, char **argv)
    // from a UNIT SQUARE/CUBE
 
    BddcmlMesh mesh(&subdomain_dims);
-   mesh.prepare_subdomain_mesh(p4est, lnodes);
+   p4est_class->prepare_bddcml_subdomain_mesh(&mesh);
    //print_bddcml_mesh(&mesh, print_rank_l);
 
    BddcmlFemSpace femsp;
    prepare_subdomain_fem_space(&mesh, &femsp, physicsType);
    //print_bddcml_fem_space(&femsp, &mesh, print_rank_l);
 
-   plot_solution(p4est, lnodes, mesh.subdomain_dims->n_node_dofs, NULL, NULL, NULL);
+   p4est_class->plot_solution(mesh.subdomain_dims->n_node_dofs, NULL, NULL, NULL);
 
    print_rank = print_rank_l;
    print_basic_properties(&global_dims, mpi_size, &level_info, &krylov_params);
@@ -153,7 +123,7 @@ void run(int argc, char **argv)
    zero_real_array(&sols);
 
    SparseMatrix matrix;
-   int ndof_per_element = P4EST_CHILDREN * femsp.subdomain_dims->n_node_dofs;
+   int ndof_per_element = p4est_class->children * femsp.subdomain_dims->n_node_dofs;
    // how much space the upper triangle of the element matrix occupies
    int lelm = ndof_per_element * (ndof_per_element + 1) / 2;
 
@@ -163,7 +133,7 @@ void run(int argc, char **argv)
    allocate_sparse_matrix(extra_space_for_hanging_nodes * subdomain_dims.n_elems * lelm, matrix_type, &matrix);
    zero_matrix(&matrix);
 
-   assemble_matrix_rhs(lnodes, &mesh, &femsp, &matrix, &rhss, &rhs_fn, params);
+   assemble_matrix_rhs(*p4est_class, &mesh, &femsp, &matrix, &rhss, &rhs_fn, params);
    //print_complete_matrix_rhs(&femsp, &global_dims, &matrix, &rhss, mpicomm);
 
    // user constraints - not really used here
@@ -235,7 +205,7 @@ void run(int argc, char **argv)
 
    bddcml_download_local_solution(subdomain_idx, &sols);
 
-   plot_solution(p4est, lnodes, mesh.subdomain_dims->n_node_dofs, sols.val, NULL, NULL); //uexact_eval, NULL);
+   p4est_class->plot_solution(mesh.subdomain_dims->n_node_dofs, sols.val, NULL, NULL); //uexact_eval, NULL);
 
    free_fem_space(&femsp);
 
@@ -243,36 +213,29 @@ void run(int argc, char **argv)
    free_real_array(&sols);
    free_sparse_matrix(&matrix);
 
-   /* Destroy the p4est and the connectivity structure. */
-   p4est_lnodes_destroy (lnodes);
-   p4est_destroy(p4est);
-   p4est_connectivity_destroy(conn);
+   delete p4est_class;
 
    SC_CHECK_MPI (mpiret);
 }
 
 int main (int argc, char **argv)
 {
-   init_corner_to_hanging();
-
    int mpiret = sc_MPI_Init (&argc, &argv);
    SC_CHECK_MPI (mpiret);
    mpiret = sc_MPI_Comm_rank(mpicomm, &mpi_rank);
    mpiret = sc_MPI_Comm_size(mpicomm, &mpi_size);
 
-   /* These functions are optional.  If called they store the MPI rank as a
-   * static variable so subsequent global p4est log messages are only issued
-   * from processor zero.  Here we turn off most of the logging; see sc.h. */
-   sc_init (mpicomm, 1, 1, NULL, SC_LP_ESSENTIAL);
-   p4est_init (NULL, SC_LP_PRODUCTION);  /* SC_LP_ERROR for silence. */
-   P4EST_GLOBAL_PRODUCTIONF
-         ("This is the p4est %dD demo example/steps/%s_step4\n",
-          P4EST_DIM, P4EST_STRING);
+//   /* These functions are optional.  If called they store the MPI rank as a
+//   * static variable so subsequent global p4est log messages are only issued
+//   * from processor zero.  Here we turn off most of the logging; see sc.h. */
+//   sc_init (mpicomm, 1, 1, NULL, SC_LP_ESSENTIAL);
+//   p4est_init (NULL, SC_LP_PRODUCTION);  /* SC_LP_ERROR for silence. */
 
    run(argc, argv);
 
    /* Verify that allocations internal to p4est and sc do not leak memory.
    * This should be called if sc_init () has been called earlier. */
+
    sc_finalize ();
 
    assert(get_num_allocations() == 0);

@@ -755,7 +755,7 @@ main (int argc, char **argv)
    p4est = p4est_new (mpicomm, conn, 0, NULL, NULL);
 
    refine_and_partition(p4est, 2, refine_uniform);
-   refine_and_partition(p4est, 2, refine_circle);
+   refine_and_partition(p4est, 4, refine_circle);
    refine_and_partition(p4est, 0, refine_square);
    refine_and_partition(p4est, 0, refine_point);
    refine_and_partition(p4est, 0, refine_diagonal);

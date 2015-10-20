@@ -13,7 +13,6 @@ public:
    BddcmlMesh(BddcmlDimensions* subdomain_dims) {init(subdomain_dims);}
    ~BddcmlMesh() {free(); }
 
-   void prepare_subdomain_mesh(p4est_t *p4est, p4est_lnodes_t *lnodes);
    void print(int which_rank);
 
    // assuming that elements are squares/cubes aligned with cartesian grid in natural order of axes (x, y, z)
@@ -68,10 +67,6 @@ public:
 
 
 void init_dimmensions(BddcmlDimensions* dimmensions, int mesh_dim, PhysicsType physicsType);
-void prepare_dimmensions(p4est_t *p4est, p4est_lnodes_t *lnodes, PhysicsType physicsType,
-                         BddcmlDimensions *subdomain_dims, BddcmlDimensions *global_dims,
-                         sc_MPI_Comm mpicomm);
-
 
 
 

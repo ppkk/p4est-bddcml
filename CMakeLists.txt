@@ -27,29 +27,20 @@ include_directories("${P4EST_ROOT}/local/include")
 link_directories("${P4EST_ROOT}/local/lib")
 set(LIBS ${LIBS} sc p4est )
 
-set(SOURCES_DIM_INDEP
+set(SOURCES
 src/arrays.cc
 src/bddcml_structs.cc
 src/gauss_quadrature.cc
 src/quadrature.cc
 src/level_set.cc
 src/element.cc
-)
-
-set(SOURCES_2D
 src/my_p4est_interface.cc
+src/my_p4est_implementation.cc
+src/my_p8est_implementation.cc
 src/mesh.cc
 src/femspace.cc
 src/assemble.cc
 src/geometry_mesh.cc
-)
-
-set(SOURCES_3D
-3d_wrappers/my_p8est_interface.cc
-3d_wrappers/p8est_mesh.cc
-3d_wrappers/p8est_femspace.cc
-3d_wrappers/p8est_assemble.cc
-src/geometry_mesh.cc   # so far the same
 )
 
 set(HEADERS
@@ -57,6 +48,7 @@ include/definitions.h
 include/arrays.h
 include/assemble.h
 include/my_p4est_interface.h
+include/my_p4est_implementation.h
 include/bddcml_structs.h
 include/mesh.h
 include/femspace.h
@@ -99,28 +91,18 @@ pthread mpi_f77
 
 include_directories("include")
 
-add_library(mylib ${HEADERS} ${SOURCES_DIM_INDEP})
-add_library(mylib_2D ${HEADERS}  ${SOURCES_2D})
-add_library(mylib_3D ${HEADERS}  ${SOURCES_3D})
+add_library(mylib ${HEADERS} ${SOURCES})
 
-add_executable(p4est_example drivers/p4est_example.cc)
-add_executable(p8est_example 3d_wrappers/p8est_example.cc)
 add_executable(bddcml_example drivers/bddcml_cube_example.cc)
 add_executable(p4est_bddcml drivers/p4est_bddcml)
-add_executable(p8est_bddcml 3d_wrappers/p8est_bddcml.cc)
 #add_executable(metis_bddcml drivers/metis_bddcml.cc)
-#add_executable(metis8_bddcml 3d_wrappers/metis8_bddcml.cc)
-add_executable(p4est_experiment drivers/p4est_experiment.cc)
-add_executable(p4est_migration drivers/p4est_migration.cc)
+#add_executable(p4est_experiment drivers/p4est_experiment.cc)
+#add_executable(p4est_migration drivers/p4est_migration.cc)
 add_executable(test_quadrature drivers/test_quadrature.cc)
 
-target_link_libraries(p4est_example ${BLOPEX_OBJECTS} mylib_2D mylib ${LIBS} )
-target_link_libraries(p8est_example ${BLOPEX_OBJECTS} mylib_3D mylib ${LIBS} )
-target_link_libraries(bddcml_example ${BLOPEX_OBJECTS} mylib_2D mylib ${LIBS})
-target_link_libraries(p4est_bddcml ${BLOPEX_OBJECTS} mylib_2D mylib ${LIBS})
-target_link_libraries(p8est_bddcml ${BLOPEX_OBJECTS} mylib_3D mylib ${LIBS})
-#target_link_libraries(metis_bddcml ${BLOPEX_OBJECTS} mylib_2D mylib ${LIBS})
-#target_link_libraries(metis8_bddcml ${BLOPEX_OBJECTS} mylib_3D mylib ${LIBS})
-target_link_libraries(p4est_experiment ${BLOPEX_OBJECTS} mylib_2D mylib ${LIBS})
-target_link_libraries(p4est_migration ${BLOPEX_OBJECTS} mylib_2D mylib ${LIBS})
+target_link_libraries(bddcml_example ${BLOPEX_OBJECTS} mylib ${LIBS})
+target_link_libraries(p4est_bddcml ${BLOPEX_OBJECTS} mylib ${LIBS})
+#target_link_libraries(metis_bddcml ${BLOPEX_OBJECTS} mylib ${LIBS})
+#target_link_libraries(p4est_experiment ${BLOPEX_OBJECTS} mylib ${LIBS})
+#target_link_libraries(p4est_migration ${BLOPEX_OBJECTS} mylib ${LIBS})
 target_link_libraries(test_quadrature mylib)
