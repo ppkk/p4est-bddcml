@@ -757,17 +757,12 @@ void P4estClassDim::prepare_bddcml_subdomain_mesh(BddcmlMesh* mesh) const
 
 //****************************************************************************************
 
-void P4estClassDim::prepare_dimmensions(PhysicsType physicsType,
-                                        BddcmlDimensions *subdomain_dims, BddcmlDimensions *global_dims) const
+void P4estClassDim::prepare_dimmensions(BddcmlDimensions *subdomain_dims, BddcmlDimensions *global_dims) const
 {
 #ifndef P4_TO_P8
    assert(num_dim == 2);
-   init_dimmensions(subdomain_dims, 2, physicsType);
-   init_dimmensions(global_dims, 2, physicsType);
 #else
    assert(num_dim == 3);
-   init_dimmensions(subdomain_dims, 3, physicsType);
-   init_dimmensions(global_dims, 3, physicsType);
 #endif
    subdomain_dims->n_nodes = lnodes()->num_local_nodes;
    subdomain_dims->n_dofs  = lnodes()->num_local_nodes * subdomain_dims->n_node_dofs;

@@ -12,7 +12,7 @@
 
 using namespace std;
 
-void BddcmlMesh::init(BddcmlDimensions* subdomain_dims)
+void BddcmlMesh::init(const BddcmlDimensions *subdomain_dims)
 {
    int nnodes_per_elem;
    if(subdomain_dims->n_mesh_dims == 2)
@@ -84,29 +84,27 @@ void BddcmlMesh::get_element(int elem_idx, Element *element) const
    // this cannot be used because of hanging nodes - we do not get the actual hanging node coordinates,
    // but the corresponding regular node coords.
    //element->size = coords.val[0][first_node_idx + 1] - coords.val[0][first_node_idx];
-
 }
 
-
-void init_dimmensions(BddcmlDimensions* dimmensions, int mesh_dim, PhysicsType physicsType)
+BddcmlDimensions::BddcmlDimensions(int mesh_dim, PhysicsType physicsType)
 {
-   dimmensions->n_problem_dims = mesh_dim;
-   dimmensions->n_mesh_dims = mesh_dim;
-   dimmensions->n_dofs = 0;
-   dimmensions->n_elems = 0;
-   dimmensions->n_nodes = 0;
+   n_problem_dims = mesh_dim;
+   n_mesh_dims = mesh_dim;
+   n_dofs = 0;
+   n_elems = 0;
+   n_nodes = 0;
 
    if(mesh_dim == 2)
-      dimmensions->n_elem_nodes = 4;
+      n_elem_nodes = 4;
    else if(mesh_dim == 3)
-      dimmensions->n_elem_nodes = 8;
+      n_elem_nodes = 8;
    else
       assert(0);
 
    if(physicsType == PhysicsType::LAPLACE)
-      dimmensions->n_node_dofs = 1;
+      n_node_dofs = 1;
    else if(physicsType == PhysicsType::ELASTICITY)
-      dimmensions->n_node_dofs = mesh_dim;
+      n_node_dofs = mesh_dim;
    else
       assert(0);
 }

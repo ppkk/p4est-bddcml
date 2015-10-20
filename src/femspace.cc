@@ -10,34 +10,34 @@
 #include "femspace.h"
 
 
-void init_fem_space(BddcmlDimensions* dims, BddcmlFemSpace* femsp)
+BddcmlFemSpace::BddcmlFemSpace(const BddcmlMesh *mesh) : mesh(mesh)
 {
-   femsp->subdomain_dims = dims;
-   allocate_idx_array(dims->n_nodes, &femsp->node_num_dofs);
-   allocate_idx_array(dims->n_dofs, &femsp->dofs_global_map);
-   allocate_idx_array(dims->n_dofs, &femsp->fixs_code);
-   allocate_real_array(dims->n_dofs, &femsp->fixs_values);
+   subdomain_dims = mesh->subdomain_dims;
+   allocate_idx_array(subdomain_dims->n_nodes, &node_num_dofs);
+   allocate_idx_array(subdomain_dims->n_dofs, &dofs_global_map);
+   allocate_idx_array(subdomain_dims->n_dofs, &fixs_code);
+   allocate_real_array(subdomain_dims->n_dofs, &fixs_values);
 }
 
-void free_fem_space(BddcmlFemSpace* femsp)
+BddcmlFemSpace::~BddcmlFemSpace()
 {
-   free_idx_array(&femsp->node_num_dofs);
-   free_idx_array(&femsp->dofs_global_map);
-   free_idx_array(&femsp->fixs_code);
-   free_real_array(&femsp->fixs_values);
+   free_idx_array(&node_num_dofs);
+   free_idx_array(&dofs_global_map);
+   free_idx_array(&fixs_code);
+   free_real_array(&fixs_values);
 }
 
-void print_bddcml_fem_space(BddcmlFemSpace *femsp, BddcmlMesh *mesh, int which_rank)
+void BddcmlFemSpace::print(int which_rank) const
 {
    print_rank = which_rank;
    PPP printf("\n*************** BEGIN BDDCML FEM SPACE ************************\n");
-   PPP printf("dofs: %d\n", femsp->subdomain_dims->n_dofs);
-   assert(femsp->subdomain_dims->n_dofs == femsp->subdomain_dims->n_nodes);
-   for(int node = 0; node < femsp->subdomain_dims->n_dofs; node++)
+   PPP printf("dofs: %d\n", subdomain_dims->n_dofs);
+   assert(subdomain_dims->n_dofs == subdomain_dims->n_nodes);
+   for(int node = 0; node < subdomain_dims->n_dofs; node++)
    {
-      assert(femsp->node_num_dofs.val[node] == 1);
-      PPP printf("node %d -> num dofs %d, gdofs: (%d ), bc code %d, bc val %6.4lf, coords (%4.3lf, %4.3lf)\n", node, femsp->node_num_dofs.val[node],
-                 femsp->dofs_global_map.val[node], femsp->fixs_code.val[node], femsp->fixs_values.val[node],
+      assert(node_num_dofs.val[node] == 1);
+      PPP printf("node %d -> num dofs %d, gdofs: (%d ), bc code %d, bc val %6.4lf, coords (%4.3lf, %4.3lf)\n", node, node_num_dofs.val[node],
+                 dofs_global_map.val[node], fixs_code.val[node], fixs_values.val[node],
                  mesh->coords.val[0][node], mesh->coords.val[1][node]);
    }
    PPP printf("*************** END BDDCML FEM SPACE ************************\n\n");
@@ -49,10 +49,9 @@ bool real_equal(real a, real b)
    return fabs(a - b) < EPS;
 }
 
-void prepare_subdomain_fem_space(BddcmlMesh *mesh, BddcmlFemSpace *femsp, PhysicsType physicsType)
+void BddcmlFemSpace::prepare_subdomain_fem_space(PhysicsType physicsType)
 {
-   init_fem_space(mesh->subdomain_dims, femsp);
-   femsp->physicsType = physicsType;
+   this->physicsType = physicsType;
    int num_dofs_per_node = mesh->subdomain_dims->n_node_dofs;
    for(int node = 0; node < mesh->subdomain_dims->n_nodes; node++)
    {
@@ -64,24 +63,24 @@ void prepare_subdomain_fem_space(BddcmlMesh *mesh, BddcmlFemSpace *femsp, Physic
          is_on_boundary = is_on_boundary || ((real_equal(mesh->coords.val[2][node], 0.0)) || (real_equal(mesh->coords.val[2][node], 1.0)));
       }
 
-      femsp->node_num_dofs.val[node] = num_dofs_per_node;
+      node_num_dofs.val[node] = num_dofs_per_node;
 
       for(int local_dof_idx = 0; local_dof_idx < num_dofs_per_node; local_dof_idx++)
       {
          int subdomain_dof = num_dofs_per_node * node + local_dof_idx;
          int global_dof = num_dofs_per_node * mesh->node_global_map.val[node] + local_dof_idx;
 
-         femsp->dofs_global_map.val[subdomain_dof] = global_dof;
+         dofs_global_map.val[subdomain_dof] = global_dof;
 
          if(is_on_boundary)
          {
-            femsp->fixs_code.val[subdomain_dof] = 1;
-            femsp->fixs_values.val[subdomain_dof] = 0.0;
+            fixs_code.val[subdomain_dof] = 1;
+            fixs_values.val[subdomain_dof] = 0.0;
          }
          else
          {
-            femsp->fixs_code.val[subdomain_dof] = 0;
-            femsp->fixs_values.val[subdomain_dof] = 0.0;
+            fixs_code.val[subdomain_dof] = 0;
+            fixs_values.val[subdomain_dof] = 0.0;
          }
 
       }

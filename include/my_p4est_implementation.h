@@ -33,8 +33,7 @@ public:
    virtual void plot_solution(int num_components, double* u_sol, double* u_exact, int *partition) const;
    virtual void print_p4est_mesh (int which_rank) const;
    virtual void prepare_bddcml_subdomain_mesh(BddcmlMesh* mesh) const;
-   virtual void prepare_dimmensions(PhysicsType physicsType,
-                                    BddcmlDimensions *subdomain_dims, BddcmlDimensions *global_dims) const;
+   virtual void prepare_dimmensions(BddcmlDimensions *subdomain_dims, BddcmlDimensions *global_dims) const;
 
    virtual int independent_nodes(p4est_locidx_t quadrant, int lnode, p4est_locidx_t *nodes, real* coeffs) const;
 

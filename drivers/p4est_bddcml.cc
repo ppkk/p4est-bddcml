@@ -70,12 +70,13 @@ void run(int argc, char **argv)
    BddcmlKrylovParams krylov_params;
    BddcmlPreconditionerParams preconditioner_params;
 
-   BddcmlDimensions subdomain_dims, global_dims;
+   BddcmlDimensions subdomain_dims(P4estClass::num_dim, physicsType);
+   BddcmlDimensions global_dims(P4estClass::num_dim, physicsType);
 
    int print_rank_l = 3;
 
    // todo: using MPI Bcast in the following, should be possible to do without
-   p4est_class->prepare_dimmensions(physicsType, &subdomain_dims, &global_dims);
+   p4est_class->prepare_dimmensions(&subdomain_dims, &global_dims);
 
    //print_p4est_mesh(p4est, lnodes, print_rank_l);
 
@@ -86,8 +87,8 @@ void run(int argc, char **argv)
    p4est_class->prepare_bddcml_subdomain_mesh(&mesh);
    //print_bddcml_mesh(&mesh, print_rank_l);
 
-   BddcmlFemSpace femsp;
-   prepare_subdomain_fem_space(&mesh, &femsp, physicsType);
+   BddcmlFemSpace femsp(&mesh);
+   femsp.prepare_subdomain_fem_space(physicsType);
    //print_bddcml_fem_space(&femsp, &mesh, print_rank_l);
 
    p4est_class->plot_solution(mesh.subdomain_dims->n_node_dofs, NULL, NULL, NULL);
@@ -200,8 +201,6 @@ void run(int argc, char **argv)
 
    p4est_class->plot_solution(mesh.subdomain_dims->n_node_dofs, sols.val, NULL, NULL); //uexact_eval, NULL);
 
-   free_fem_space(&femsp);
-
    free_real_array(&rhss);
    free_real_array(&sols);
    free_sparse_matrix(&matrix);
@@ -228,7 +227,6 @@ int main (int argc, char **argv)
 
    /* Verify that allocations internal to p4est and sc do not leak memory.
    * This should be called if sc_init () has been called earlier. */
-
    sc_finalize ();
 
    assert(get_num_allocations() == 0);

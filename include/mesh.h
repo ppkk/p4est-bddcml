@@ -10,7 +10,7 @@ class Element;
 class BddcmlMesh
 {
 public:
-   BddcmlMesh(BddcmlDimensions* subdomain_dims) {init(subdomain_dims);}
+   BddcmlMesh(const BddcmlDimensions* subdomain_dims) {init(subdomain_dims);}
    ~BddcmlMesh() {free(); }
 
    void print(int which_rank) const;
@@ -20,11 +20,11 @@ public:
    void get_element(int elem_idx, Element* element) const;
 
 private:
-   void init(BddcmlDimensions* subdomain_dims);
+   void init(const BddcmlDimensions* subdomain_dims);
    void free();
 
 public:
-   BddcmlDimensions* subdomain_dims;
+   const BddcmlDimensions* subdomain_dims;
 
    IdxArray elem_node_indices;
    IdxArray num_nodes_of_elem;
@@ -46,6 +46,8 @@ public:
 class BddcmlDimensions
 {   
 public:
+   BddcmlDimensions(int mesh_dim, PhysicsType physicsType);
+
    int n_elems;  // number of elements
    int n_nodes;  // number of nodes
    int n_dofs;   // number on degrees of freedom
@@ -63,10 +65,6 @@ public:
    int n_node_dofs;
 
 };
-
-
-
-void init_dimmensions(BddcmlDimensions* dimmensions, int mesh_dim, PhysicsType physicsType);
 
 
 

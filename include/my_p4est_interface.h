@@ -29,8 +29,7 @@ public:
    virtual void print_p4est_mesh (int which_rank) const = 0;
 
    virtual void prepare_bddcml_subdomain_mesh(BddcmlMesh* mesh) const = 0;
-   virtual void prepare_dimmensions(PhysicsType physicsType,
-                                    BddcmlDimensions *subdomain_dims, BddcmlDimensions *global_dims) const = 0;
+   virtual void prepare_dimmensions(BddcmlDimensions *subdomain_dims, BddcmlDimensions *global_dims) const = 0;
    virtual int independent_nodes(p4est_locidx_t quadrant, int lnode, p4est_locidx_t *nodes, real* coeffs) const = 0;
 
    virtual void refine_and_partition(int num, RefineType type) = 0;
