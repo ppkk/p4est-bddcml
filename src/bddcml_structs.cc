@@ -13,67 +13,68 @@ extern "C"{
 #include "mesh.h"
 #include "femspace.h"
 
-void set_implicit_general_params(BddcmlGeneralParams *params)
+BddcmlGeneralParams::BddcmlGeneralParams()
 {
-   params->numbase = 0;
-   params->just_direct_solve_int = 0;
-   params->verbose_level = 1;
-   params->export_solution = 1;
-   strcpy(params->output_file_prefix, "poisson_solution");
+   numbase = 0;
+   just_direct_solve_int = 0;
+   verbose_level = 1;
+   export_solution = 1;
+   strcpy(output_file_prefix, "poisson_solution");
 }
 
-void set_implicit_krylov_params(BddcmlKrylovParams *params)
+BddcmlKrylovParams::BddcmlKrylovParams()
 {
-   params->krylov_method = 0;
-   params->recycling_int = 1;
-   params->max_number_of_stored_vectors = 50;
-   params->maxit = 500;
-   params->ndecrmax = 50;
-   params->tol = 1.e-6;
+   krylov_method = 0;
+   recycling_int = 1;
+   max_number_of_stored_vectors = 50;
+   maxit = 500;
+   ndecrmax = 50;
+   tol = 1.e-6;
 }
 
-void set_implicit_preconditioner_params(BddcmlPreconditionerParams *params)
+BddcmlPreconditionerParams::BddcmlPreconditionerParams()
 {
-   params->use_preconditioner_defaults = 0;
-   params->use_corner_constraints = 1;
-   params->use_arithmetic_constraints = 1;
-   params->use_adaptive_constraints = 0;
-   params->use_user_constraints = 0;
-   params->weights_type = 0;
-   params->parallel_division = 1;
-   params->find_components_int = 1;
+   use_preconditioner_defaults = 0;
+   use_corner_constraints = 1;
+   use_arithmetic_constraints = 1;
+   use_adaptive_constraints = 0;
+   use_user_constraints = 0;
+   weights_type = 0;
+   parallel_division = 1;
+   find_components_int = 1;
 }
 
 //*******************************************************************************************
 
-void init_levels(int n_subdomains_first_level, BddcmlLevelInfo *level_info)
+BddcmlLevelInfo::BddcmlLevelInfo(int n_levels, int n_subdomains_first_level)
 {
    real coarsening;
    int i, ir;
 
    // initialize levels
-   level_info->lnsublev = level_info->nlevels;
-   level_info->nsublev = (int*) malloc(level_info->lnsublev * sizeof(int));
-   if (level_info->nlevels == 2) {
-      level_info->nsublev[0] = n_subdomains_first_level;
-      level_info->nsublev[1] = 1;
+   nlevels = n_levels;
+   lnsublev = nlevels;
+   nsublev = (int*) malloc(lnsublev * sizeof(int));
+   if (nlevels == 2) {
+      nsublev[0] = n_subdomains_first_level;
+      nsublev[1] = 1;
    }
-   else if (level_info->nlevels > 2) {
+   else if (nlevels > 2) {
       // determine coarsening factor
-      coarsening = pow(n_subdomains_first_level, 1./(level_info->nlevels-1));
+      coarsening = pow(n_subdomains_first_level, 1./(nlevels-1));
       // prescribe number of subdomains on levels so that coarsening is fixed between levels
-      level_info->nsublev[0] = n_subdomains_first_level;
-      for( i = 1; i < level_info->nlevels - 1; i++) {
-         ir = level_info->nlevels - i;
-         level_info->nsublev[i] = (int)pow(coarsening, ir-1);
-         if (level_info->nsublev[i] % 2 != 0) {
-            level_info->nsublev[i] = level_info->nsublev[i] + 1;
+      nsublev[0] = n_subdomains_first_level;
+      for( i = 1; i < nlevels - 1; i++) {
+         ir = nlevels - i;
+         nsublev[i] = (int)pow(coarsening, ir-1);
+         if (nsublev[i] % 2 != 0) {
+            nsublev[i] = nsublev[i] + 1;
          }
       }
-      level_info->nsublev[level_info->nlevels-1] = 1;
+      nsublev[nlevels-1] = 1;
    }
    else {
-      printf("Unsupported number of levels: %d\n", level_info->nlevels);
+      printf("Unsupported number of levels: %d\n", nlevels);
       exit(0);
    }
 
@@ -85,28 +86,29 @@ void init_levels(int n_subdomains_first_level, BddcmlLevelInfo *level_info)
 
 
 // Basic properties
-void print_basic_properties(BddcmlDimensions *global_dims, int num_subdomains, BddcmlLevelInfo *level_info, BddcmlKrylovParams *krylov_params)
+void print_basic_properties(const BddcmlDimensions &global_dims, int num_subdomains,
+                            const BddcmlLevelInfo &level_info, const BddcmlKrylovParams &krylov_params)
 {
    if (mpi_rank == print_rank) {
       printf("Characteristics of the problem :\n");
       printf("  number of processors            nproc = %d\n" ,mpi_size);
-      printf("  number of dimensions             ndim = %d\n", global_dims->n_problem_dims);
-      printf("  mesh dimension                meshdim = %d\n", global_dims->n_mesh_dims);
-      printf("  number of elements global       nelem = %d\n", global_dims->n_elems);
+      printf("  number of dimensions             ndim = %d\n", global_dims.n_problem_dims);
+      printf("  mesh dimension                meshdim = %d\n", global_dims.n_mesh_dims);
+      printf("  number of elements global       nelem = %d\n", global_dims.n_elems);
       printf("  number of subdomains             nsub = %d\n", num_subdomains);
-      printf("  number of nodes global           nnod = %d\n", global_dims->n_nodes);
-      printf("  number of DOF                    ndof = %d\n", global_dims->n_dofs);
-      printf("  number of levels              nlevels = %d\n", level_info->nlevels);
+      printf("  number of nodes global           nnod = %d\n", global_dims.n_nodes);
+      printf("  number of DOF                    ndof = %d\n", global_dims.n_dofs);
+      printf("  number of levels              nlevels = %d\n", level_info.nlevels);
       printf("  number of subdomains in levels        = ");
-      for(int idx = 0; idx < level_info->nlevels; idx++) {
-         printf("%d, ", level_info->nsublev[idx]);
+      for(int idx = 0; idx < level_info.nlevels; idx++) {
+         printf("%d, ", level_info.nsublev[idx]);
       }
       printf("\n");
       printf("Characteristics of iterational process:\n");
-      printf("  tolerance of error                tol = %lf\n", krylov_params->tol);
-      printf("  maximum number of iterations    maxit = %d\n", krylov_params->maxit);
-      printf("  number of incresing residual ndecrmax = %d\n", krylov_params->ndecrmax);
-      printf("  using recycling of Krylov method ?      %d\n", krylov_params->recycling_int);
+      printf("  tolerance of error                tol = %lf\n", krylov_params.tol);
+      printf("  maximum number of iterations    maxit = %d\n", krylov_params.maxit);
+      printf("  number of incresing residual ndecrmax = %d\n", krylov_params.ndecrmax);
+      printf("  using recycling of Krylov method ?      %d\n", krylov_params.recycling_int);
    }
 }
 //*******************************************************************************************

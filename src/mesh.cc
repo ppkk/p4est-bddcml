@@ -41,7 +41,7 @@ void BddcmlMesh::free()
    free_real_2D_array(&coords);
 }
 
-void BddcmlMesh::print(int which_rank)
+void BddcmlMesh::print(int which_rank) const
 {
    print_rank = which_rank;
    PPP printf("\n*************** BEGIN BDDCML MESH ************************\n");
@@ -68,7 +68,7 @@ void BddcmlMesh::print(int which_rank)
 
 
 
-void BddcmlMesh::get_element(int elem_idx, Element *element)
+void BddcmlMesh::get_element(int elem_idx, Element *element) const
 {
    assert((elem_idx >= 0) && (elem_idx < subdomain_dims->n_elems));
    element->position.clear();

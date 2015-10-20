@@ -12,8 +12,10 @@ class BddcmlFemSpace;
 // **************************
 // GENERAL BDDCML PARAMETERS:
 // **************************
-typedef struct BddcmlGeneralParams
+struct BddcmlGeneralParams
 {
+   BddcmlGeneralParams();
+
    // beginning index of arrays ( 0 for C, 1 for Fortran )
    int numbase;
 
@@ -28,15 +30,15 @@ typedef struct BddcmlGeneralParams
 
    // what is the name of that file (resp. collection of files)
    char output_file_prefix[255];
-}
-BddcmlGeneralParams;
-
+};
 
 // *************************
 // KRYLOV METHOD PARAMETERS:
 // *************************
-typedef struct BddcmlKrylovParams
+struct BddcmlKrylovParams
 {
+   BddcmlKrylovParams();
+
    // Krylov subspace iterative method to be used
    //   -1 - use solver defaults
    //   0 - PCG
@@ -61,15 +63,16 @@ typedef struct BddcmlKrylovParams
 
    // relative precision of the Krylov subspace method ||residual||/||right-hand side||
    real tol;
-}
-BddcmlKrylovParams;
+};
 
 
 // *******************************
 // BDDC PRECONDITIONER PARAMETERS:
 // *******************************
-typedef struct BddcmlPreconditionerParams
+struct BddcmlPreconditionerParams
 {
+   BddcmlPreconditionerParams();
+
    // use default values in preconditioner? In such case, all other parameters are ignored
    int use_preconditioner_defaults;
 
@@ -102,23 +105,22 @@ typedef struct BddcmlPreconditionerParams
    // find components of the mesh and handle them as independent subdomains when selecting coarse dofs
    // recommended for unstructured meshes, but could be switched off for these simple cubes
    int find_components_int;
-}
-BddcmlPreconditionerParams;
-
+};
 
 // **************************
 // BDDCML LEVELS INFORMATION
 // **************************
-typedef struct BddcmlLevelInfo
+struct BddcmlLevelInfo
 {
+   BddcmlLevelInfo(int n_levels, int n_subdomains_first_level);
+
    int nlevels; // number of levels
 
    // subdomains in levels
    int lnsublev;
    int *nsublev;
    int nsub_loc_1;
-}
-BddcmlLevelInfo;
+};
 
 
 // **************************
@@ -132,18 +134,14 @@ typedef struct BddcmlConvergenceInfo
 }
 BddcmlConvergenceInfo;
 
-
-void set_implicit_general_params(BddcmlGeneralParams *params);
-void set_implicit_krylov_params(BddcmlKrylovParams *params);
-void set_implicit_preconditioner_params(BddcmlPreconditionerParams *params);
-void init_levels(int n_subdomains_first_level, BddcmlLevelInfo *level_info);
-
-void print_basic_properties(BddcmlDimensions *global_dims, int num_subdomains, BddcmlLevelInfo *level_info, BddcmlKrylovParams *krylov_params);
+void print_basic_properties(const BddcmlDimensions &global_dims, int num_subdomains,
+                            const BddcmlLevelInfo &level_info, const BddcmlKrylovParams &krylov_params);
 
 
 // **************************************************************
 // INTERFACE TO BDDCML FUNCTIONS USING DEFINED STRUCTURES
 // **************************************************************
+// everything has to be passed as pointers, const ref would not do because of fortran interface
 void bddcml_init(BddcmlGeneralParams *general_params, BddcmlLevelInfo *level_info, MPI_Comm communicator);
 void bddcml_upload_subdomain_data(BddcmlDimensions *global_dims, BddcmlDimensions *subdomain_dims,
                                   int isub, BddcmlMesh *mesh, BddcmlFemSpace *femsp,

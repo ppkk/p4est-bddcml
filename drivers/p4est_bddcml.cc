@@ -34,7 +34,7 @@ sc_MPI_Comm mpicomm = sc_MPI_COMM_WORLD;
 
 void run(int argc, char **argv)
 {
-   int mpiret = 0;
+   int mpiret = 0, num_levels;
    P4estClass* p4est_class = P4estClass::create(num_dim, degree, mpicomm);
 
    // 2D
@@ -52,10 +52,9 @@ void run(int argc, char **argv)
 //   p4est_class->refine_and_partition(3, RefineType::CIRCLE);
 //   p4est_class->refine_and_partition(3, RefineType::SQUARE);
 
-   BddcmlLevelInfo level_info;
    // Number of elements in an edge of a subdomain and number of subdomains in an edge of the unit cube
    if(argc == 1 + 1) {
-      level_info.nlevels = atoi(argv[1]);
+      num_levels = atoi(argv[1]);
    }
    else {
       if ( mpi_rank == 0 ) {
@@ -65,17 +64,11 @@ void run(int argc, char **argv)
    }
 
    // number of subdomains == mpi_size
-   init_levels(mpi_size, &level_info);
-
+   BddcmlLevelInfo level_info(num_levels, mpi_size);
    BddcmlGeneralParams general_params;
-   set_implicit_general_params(&general_params);
    //general_params.just_direct_solve_int = 1;
-
    BddcmlKrylovParams krylov_params;
-   set_implicit_krylov_params(&krylov_params);
-
    BddcmlPreconditionerParams preconditioner_params;
-   set_implicit_preconditioner_params(&preconditioner_params);
 
    BddcmlDimensions subdomain_dims, global_dims;
 
@@ -100,7 +93,7 @@ void run(int argc, char **argv)
    p4est_class->plot_solution(mesh.subdomain_dims->n_node_dofs, NULL, NULL, NULL);
 
    print_rank = print_rank_l;
-   print_basic_properties(&global_dims, mpi_size, &level_info, &krylov_params);
+   print_basic_properties(global_dims, mpi_size, level_info, krylov_params);
    PPP printf("Initializing BDDCML ...");
    // tell me how much subdomains should I load
    level_info.nsub_loc_1 = -1;
@@ -133,7 +126,7 @@ void run(int argc, char **argv)
    allocate_sparse_matrix(extra_space_for_hanging_nodes * subdomain_dims.n_elems * lelm, matrix_type, &matrix);
    zero_matrix(&matrix);
 
-   assemble_matrix_rhs(*p4est_class, &mesh, &femsp, &matrix, &rhss, &rhs_fn, params);
+   assemble_matrix_rhs(*p4est_class, mesh, femsp, &matrix, &rhss, &rhs_fn, params);
    //print_complete_matrix_rhs(&femsp, &global_dims, &matrix, &rhss, mpicomm);
 
    // user constraints - not really used here

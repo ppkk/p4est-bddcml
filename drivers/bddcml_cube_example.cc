@@ -251,16 +251,10 @@ void prepare_subdomain_data(int isub, // global subdomain index
 
 int main(int argc, char **argv)
 {
+   int num_levels;
    BddcmlGeneralParams general_params;
-   set_implicit_general_params(&general_params);
-
    BddcmlKrylovParams krylov_params;
-   set_implicit_krylov_params(&krylov_params);
-
    BddcmlPreconditionerParams preconditioner_params;
-   set_implicit_preconditioner_params(&preconditioner_params);
-
-   BddcmlLevelInfo level_info;
 
    BddcmlDimensions global_dims, subdomain_dims;
    init_dimmensions(&global_dims, 3, PhysicsType::LAPLACE);
@@ -292,7 +286,7 @@ int main(int argc, char **argv)
       if(argc == 3 + 1) {
          num_el_per_sub_edge = atoi(argv[1]);
          num_sub_per_cube_edge = atoi(argv[2]);
-         level_info.nlevels = atoi(argv[3]);
+         num_levels = atoi(argv[3]);
       }
       else {
          printf(" Usage: mpirun -np X ./poisson_on_cube NUM_EL_PER_SUB_EDGE NUM_SUB_PER_CUBE_EDGE NLEVELS");
@@ -305,7 +299,7 @@ int main(int argc, char **argv)
 //***************************************************************PARALLEL
    ierr = MPI_Bcast(&num_el_per_sub_edge,   1, MPI_INT,   0, comm_all);
    ierr = MPI_Bcast(&num_sub_per_cube_edge, 1, MPI_INT,   0, comm_all);
-   ierr = MPI_Bcast(&level_info.nlevels,    1, MPI_INT,   0, comm_all);
+   ierr = MPI_Bcast(&num_levels,    1, MPI_INT,   0, comm_all);
 //***************************************************************PARALLEL
 
    // measuring time
@@ -329,9 +323,9 @@ int main(int argc, char **argv)
    // total number of degrees of freedom - equal to number of nodes for scalar problem
    global_dims.n_dofs  = global_dims.n_nodes * global_dims.n_node_dofs;
 
-   init_levels(nsub, &level_info);
+   BddcmlLevelInfo level_info(num_levels, nsub);
 
-   print_basic_properties(&global_dims, nsub, &level_info, &krylov_params);
+   print_basic_properties(global_dims, nsub, level_info, krylov_params);
 
    if (myid == 0) {
          printf("Initializing BDDCML ...");

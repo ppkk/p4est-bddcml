@@ -42,9 +42,7 @@ public:
 protected:
    virtual p4est_gloidx_t node_loc_to_glob(p4est_locidx_t loc_idx) const = 0;
 
-
-//protected:
-public:
+protected:
    int degree;
    sc_MPI_Comm mpicomm;
 };

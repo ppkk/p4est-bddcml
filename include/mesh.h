@@ -13,11 +13,11 @@ public:
    BddcmlMesh(BddcmlDimensions* subdomain_dims) {init(subdomain_dims);}
    ~BddcmlMesh() {free(); }
 
-   void print(int which_rank);
+   void print(int which_rank) const;
 
    // assuming that elements are squares/cubes aligned with cartesian grid in natural order of axes (x, y, z)
    // i.e. first node of the element has lowest x, y and z
-   void get_element(int elem_idx, Element* element);
+   void get_element(int elem_idx, Element* element) const;
 
 private:
    void init(BddcmlDimensions* subdomain_dims);

@@ -14,10 +14,11 @@
 
 using namespace std;
 
-void print_complete_matrix_rhs(BddcmlFemSpace *femsp, BddcmlDimensions *global_dims, SparseMatrix *matrix, RealArray *rhss, MPI_Comm mpicomm)
+void print_complete_matrix_rhs(const BddcmlFemSpace &femsp, const BddcmlDimensions &global_dims,
+                               const SparseMatrix &matrix, const RealArray &rhss, MPI_Comm mpicomm)
 {
-   real* compl_rhs = (real*) malloc(global_dims->n_dofs * sizeof(real));
-   real* compl_mat = (real*) malloc(global_dims->n_dofs * global_dims->n_dofs * sizeof(real));
+   real* compl_rhs = (real*) malloc(global_dims.n_dofs * sizeof(real));
+   real* compl_mat = (real*) malloc(global_dims.n_dofs * global_dims.n_dofs * sizeof(real));
 
    if(!compl_rhs || !compl_mat)
    {
@@ -25,46 +26,46 @@ void print_complete_matrix_rhs(BddcmlFemSpace *femsp, BddcmlDimensions *global_d
       return;
    }
 
-   memset(compl_rhs, 0, global_dims->n_dofs * sizeof(real));
-   memset(compl_mat, 0, global_dims->n_dofs * global_dims->n_dofs * sizeof(real));
+   memset(compl_rhs, 0, global_dims.n_dofs * sizeof(real));
+   memset(compl_mat, 0, global_dims.n_dofs * global_dims.n_dofs * sizeof(real));
 
-   for(int loc_dof = 0; loc_dof < femsp->subdomain_dims->n_dofs; loc_dof++)
+   for(int loc_dof = 0; loc_dof < femsp.subdomain_dims->n_dofs; loc_dof++)
    {
-      int glob_dof = femsp->dofs_global_map.val[loc_dof];
-      compl_rhs[glob_dof] = rhss->val[loc_dof];
+      int glob_dof = femsp.dofs_global_map.val[loc_dof];
+      compl_rhs[glob_dof] = rhss.val[loc_dof];
    }
 
-   for(int idx = 0; idx < matrix->nnz; idx++)
+   for(int idx = 0; idx < matrix.nnz; idx++)
    {
-      int glob_dof_j = femsp->dofs_global_map.val[matrix->j[idx]];
-      int glob_dof_i = femsp->dofs_global_map.val[matrix->i[idx]];
-      compl_mat[global_dims->n_dofs * glob_dof_j + glob_dof_i] += matrix->val[idx];
+      int glob_dof_j = femsp.dofs_global_map.val[matrix.j[idx]];
+      int glob_dof_i = femsp.dofs_global_map.val[matrix.i[idx]];
+      compl_mat[global_dims.n_dofs * glob_dof_j + glob_dof_i] += matrix.val[idx];
 
       // adding also symmetric counterpart
-      if(matrix->type != MatrixType::GENERAL)
-         compl_mat[global_dims->n_dofs * glob_dof_i + glob_dof_j] += matrix->val[idx];
+      if(matrix.type != MatrixType::GENERAL)
+         compl_mat[global_dims.n_dofs * glob_dof_i + glob_dof_j] += matrix.val[idx];
    }
 
    if(mpi_rank == 0)
    {
-      MPI_Reduce(MPI_IN_PLACE, compl_rhs, global_dims->n_dofs, MPI_DOUBLE, MPI_SUM, 0, mpicomm);
-      MPI_Reduce(MPI_IN_PLACE, compl_mat, global_dims->n_dofs * global_dims->n_dofs, MPI_DOUBLE, MPI_SUM, 0, mpicomm);
+      MPI_Reduce(MPI_IN_PLACE, compl_rhs, global_dims.n_dofs, MPI_DOUBLE, MPI_SUM, 0, mpicomm);
+      MPI_Reduce(MPI_IN_PLACE, compl_mat, global_dims.n_dofs * global_dims.n_dofs, MPI_DOUBLE, MPI_SUM, 0, mpicomm);
    }
    else
    {
-      MPI_Reduce(compl_rhs, compl_rhs, global_dims->n_dofs, MPI_DOUBLE, MPI_SUM, 0, mpicomm);
-      MPI_Reduce(compl_mat, compl_mat, global_dims->n_dofs * global_dims->n_dofs, MPI_DOUBLE, MPI_SUM, 0, mpicomm);
+      MPI_Reduce(compl_rhs, compl_rhs, global_dims.n_dofs, MPI_DOUBLE, MPI_SUM, 0, mpicomm);
+      MPI_Reduce(compl_mat, compl_mat, global_dims.n_dofs * global_dims.n_dofs, MPI_DOUBLE, MPI_SUM, 0, mpicomm);
    }
 
    if(mpi_rank == 0)
    {
       FILE *f = fopen("discr.txt", "w");
-      for(int dof_j = 0; dof_j < global_dims->n_dofs; dof_j++)
+      for(int dof_j = 0; dof_j < global_dims.n_dofs; dof_j++)
       {
          fprintf(f, "dof %d, rhs: %g\n", dof_j, compl_rhs[dof_j]);
-         for(int dof_i = 0; dof_i < global_dims->n_dofs; dof_i++)
+         for(int dof_i = 0; dof_i < global_dims.n_dofs; dof_i++)
          {
-            fprintf(f, "%g\n", compl_mat[dof_j*global_dims->n_dofs + dof_i]);
+            fprintf(f, "%g\n", compl_mat[dof_j*global_dims.n_dofs + dof_i]);
          }
       }
       fclose(f);
@@ -273,12 +274,12 @@ void assemble_local_elasticity(const Element &element, vector<vector<vector<vect
 }
 
 
-void assemble_matrix_rhs(const P4estClass &p4est, BddcmlMesh *mesh, BddcmlFemSpace *femsp,
+void assemble_matrix_rhs(const P4estClass &p4est, const BddcmlMesh &mesh, const BddcmlFemSpace &femsp,
                          SparseMatrix *matrix, RealArray *rhss, RhsPtr rhs_ptr, Parameters params)
 {
    Element element;
    real i_coeffs, j_coeffs;
-   int n_components = mesh->subdomain_dims->n_node_dofs;
+   int n_components = mesh.subdomain_dims->n_node_dofs;
    vector<vector<vector<vector<real> > > > element_matrix(P4estClass::children, vector<vector<vector<real> > >(
                                            n_components, vector<vector<real> >(
                                            P4estClass::children, vector<real>(
@@ -287,14 +288,14 @@ void assemble_matrix_rhs(const P4estClass &p4est, BddcmlMesh *mesh, BddcmlFemSpa
    p4est_locidx_t i_indep_nodes[4], j_indep_nodes[4];
 
    int element_offset = 0;
-   for(int elem_idx = 0; elem_idx < mesh->subdomain_dims->n_elems; elem_idx++) {
-      assert(mesh->num_nodes_of_elem.val[elem_idx] == P4estClass::children);
+   for(int elem_idx = 0; elem_idx < mesh.subdomain_dims->n_elems; elem_idx++) {
+      assert(mesh.num_nodes_of_elem.val[elem_idx] == P4estClass::children);
 
-      mesh->get_element(elem_idx, &element);
+      mesh.get_element(elem_idx, &element);
 
-      if(femsp->physicsType == PhysicsType::LAPLACE)
+      if(femsp.physicsType == PhysicsType::LAPLACE)
          assemble_local_laplace(element, element_matrix, element_rhs, rhs_ptr);
-      else if(femsp->physicsType == PhysicsType::ELASTICITY)
+      else if(femsp.physicsType == PhysicsType::ELASTICITY)
          assemble_local_elasticity(element, element_matrix, element_rhs, rhs_ptr, params);
       else
          assert(0);
@@ -302,7 +303,7 @@ void assemble_matrix_rhs(const P4estClass &p4est, BddcmlMesh *mesh, BddcmlFemSpa
       //print_matrix_rhs(element_matrix, element_rhs, n_components);
 
       for(int i_node_loc = 0; i_node_loc < P4estClass::children; i_node_loc++) {
-         int i_node = mesh->elem_node_indices.val[element_offset + i_node_loc];
+         int i_node = mesh.elem_node_indices.val[element_offset + i_node_loc];
          int i_nindep = p4est.independent_nodes(elem_idx, i_node_loc, i_indep_nodes, &i_coeffs);
          assert((i_nindep != 1) || (i_node == i_indep_nodes[0]));
 
@@ -312,10 +313,10 @@ void assemble_matrix_rhs(const P4estClass &p4est, BddcmlMesh *mesh, BddcmlFemSpa
 
             for(int i_comp = 0; i_comp < n_components; i_comp++)
             {
-               int i_dof = femsp->node_num_dofs.val[i_indep_node] * i_indep_node + i_comp;
+               int i_dof = femsp.node_num_dofs.val[i_indep_node] * i_indep_node + i_comp;
                for(int j_node_loc = 0; j_node_loc < P4estClass::children; j_node_loc++) {
                   //todo: dofs should be taken from femsp!
-                  int j_node = mesh->elem_node_indices.val[element_offset + j_node_loc];
+                  int j_node = mesh.elem_node_indices.val[element_offset + j_node_loc];
                   int j_nindep = p4est.independent_nodes(elem_idx, j_node_loc, j_indep_nodes, &j_coeffs);
                   assert((j_nindep != 1) || (j_node == j_indep_nodes[0]));
 
@@ -325,7 +326,7 @@ void assemble_matrix_rhs(const P4estClass &p4est, BddcmlMesh *mesh, BddcmlFemSpa
 
                      for(int j_comp = 0; j_comp < n_components; j_comp++)
                      {
-                        int j_dof = femsp->node_num_dofs.val[j_indep_node] * j_indep_node + j_comp;
+                        int j_dof = femsp.node_num_dofs.val[j_indep_node] * j_indep_node + j_comp;
                         double matrix_value = i_coeffs * j_coeffs * element_matrix[i_node_loc][i_comp][j_node_loc][j_comp];
                         add_matrix_entry(matrix, i_dof, j_dof, matrix_value);
 //                        printf("adding entry loc (%d, %d), nodes orig (%d, %d), nodes indep (%d, %d), dofs (%d, %d), coefs (%3.2lf, %3.2lf), number indep (%d, %d), locstiff %lf, value %lf\n",
