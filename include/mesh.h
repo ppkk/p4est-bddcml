@@ -38,8 +38,6 @@ public:
    RealArray element_lengths;
 };
 
-
-
 // **************************
 // BDDCML MESH DIMMENSIONS
 // **************************
@@ -65,7 +63,5 @@ public:
    int n_node_dofs;
 
 };
-
-
 
 #endif // MESH_H

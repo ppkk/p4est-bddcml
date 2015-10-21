@@ -20,6 +20,7 @@
 #include "my_p4est_implementation.h"
 
 #include "mesh.h"
+#include "geometry_mesh.h"
 
 using namespace std;
 
@@ -36,11 +37,23 @@ using namespace std;
    quad_idx = 0;\
    for (p4est_topidx_t tt = p4est->first_local_tree;\
         tt <= p4est->last_local_tree; ++tt) {\
-      p4est_tree_t *tree = p4est_tree_array_index (p4est->trees, tt);\
-      sc_array_t *tquadrants = &tree->quadrants;\
+      p4est_tree_t *tree_ptr = p4est_tree_array_index (p4est->trees, tt);\
+      sc_array_t *tquadrants = &tree_ptr->quadrants;\
       p4est_locidx_t num_tree_quads = (p4est_locidx_t) tquadrants->elem_count;\
       for (p4est_locidx_t tree_quad_idx = 0; tree_quad_idx < num_tree_quads; ++tree_quad_idx, ++quad_idx) {\
          quad = p4est_quadrant_array_index (tquadrants, tree_quad_idx);\
+         assert(quad);
+
+#define for_all_quads_with_tree(p4est, tt, quad_idx, quad) \
+   quad_idx = 0;\
+   for (tt = p4est->first_local_tree;\
+        tt <= p4est->last_local_tree; ++tt) {\
+      p4est_tree_t *tree_ptr = p4est_tree_array_index (p4est->trees, tt);\
+      sc_array_t *tquadrants = &tree_ptr->quadrants;\
+      p4est_locidx_t num_tree_quads = (p4est_locidx_t) tquadrants->elem_count;\
+      for (p4est_locidx_t tree_quad_idx = 0; tree_quad_idx < num_tree_quads; ++tree_quad_idx, ++quad_idx) {\
+         quad = p4est_quadrant_array_index (tquadrants, tree_quad_idx);\
+         assert(quad);
 
 #define end_for_all_quads }}
 
@@ -673,9 +686,55 @@ void P4estClassDim::refine_and_partition(int num, RefineType type)
 
 //****************************************************************************************
 
-void P4estClassDim::prepare_bddcml_subdomain_mesh(BddcmlMesh* mesh) const
+void P4estClassDim::prepare_dimmensions(BddcmlDimensions *subdomain_dims, BddcmlDimensions *global_dims) const
 {
-   double              vxyz[3];  /* We embed the 2D vertices into 3D space. */
+#ifndef P4_TO_P8
+   assert(num_dim == 2);
+#else
+   assert(num_dim == 3);
+#endif
+   subdomain_dims->n_nodes = lnodes()->num_local_nodes;
+   subdomain_dims->n_dofs  = lnodes()->num_local_nodes * subdomain_dims->n_node_dofs;
+   subdomain_dims->n_elems = lnodes()->num_local_elements;
+   printf("proc %d, elems %d, nodes %d\n", mpi_rank, subdomain_dims->n_elems, subdomain_dims->n_nodes);
+
+   int global_num_nodes;
+   if(mpi_rank == mpi_size - 1)
+   {
+      global_num_nodes = lnodes()->global_offset + lnodes()->owned_count;
+   }
+   sc_MPI_Bcast(&global_num_nodes, 1, MPI_INT, mpi_size - 1, mpicomm);
+
+   global_dims->n_nodes = global_num_nodes;
+   global_dims->n_dofs = global_num_nodes * global_dims->n_node_dofs;
+   global_dims->n_elems = p4est->global_num_quadrants;
+}
+
+//****************************************************************************************
+
+void P4estClassDim::get_node_coords(p4est_topidx_t tree, const p4est_quadrant_t &node, vector<double> *coords) const
+{
+   double vxyz[3];  /* We embed the 2D vertices into 3D space. */
+
+   coords->clear();
+   /* Transform per-tree reference coordinates into physical space. */
+   p4est_qcoord_to_vertex (p4est->connectivity, tree, node.x, node.y,
+#ifdef P4_TO_P8
+                           node.z,
+#endif
+                           vxyz);
+   for(int i = 0; i < num_dim; i++)
+   {
+      coords->push_back(vxyz[i]);
+   }
+
+}
+
+//****************************************************************************************
+
+void P4estClassDim::prepare_subdomain_bddcml_mesh(BddcmlMesh* mesh) const
+{
+   vector<double> coords;
    p4est_quadrant_t   sp, node;
 
    for(int lnode = 0; lnode < lnodes()->num_local_nodes; lnode++)
@@ -686,8 +745,9 @@ void P4estClassDim::prepare_bddcml_subdomain_mesh(BddcmlMesh* mesh) const
    /* Loop over local quadrants to apply the element matrices. */
    p4est_locidx_t quad_idx = 0;
    p4est_quadrant_t *quad;
+   p4est_topidx_t tree;
 
-   for_all_quads(p4est, quad_idx, quad)
+   for_all_quads_with_tree(p4est, tree, quad_idx, quad)
    {
       // element local to global mapping -- obtained by adding the offset from p4est
       mesh->elem_global_map.val[quad_idx] = (int)p4est->global_first_quadrant[p4est->mpirank] + quad_idx;
@@ -730,56 +790,47 @@ void P4estClassDim::prepare_bddcml_subdomain_mesh(BddcmlMesh* mesh) const
             p4est_quadrant_corner_node (quad, lnode, &node);
          }
 
-         /* Transform per-tree reference coordinates into physical space. */
-         p4est_qcoord_to_vertex (p4est->connectivity, tt, node.x, node.y,
-#ifdef P4_TO_P8
-                                 node.z,
-#endif
-                                 vxyz);
-
-         mesh->coords.val[0][node_idx] = vxyz[0];
-         mesh->coords.val[1][node_idx] = vxyz[1];
-#ifdef P4_TO_P8
-         mesh->coords.val[2][node_idx] = vxyz[2];
-#endif
-
-
-
-//         PPP printf("(%3.2lf, %3.2lf), ", vxyz[0], vxyz[1]);
-
+         get_node_coords(tree, node, &coords);
+         for(int i = 0; i < num_dim; i++)
+            mesh->coords.val[i][node_idx] = coords[i];
       }
-//      PPP printf("\n");
+   }
+   end_for_all_quads
+}
+
+//****************************************************************************************
+
+const int nodes_in_axes_dirs[3] = {1,2,4};
+const double tolerance = 1e-10;
+
+void P4estClassDim::prepare_subdomain_geometry_mesh(GeometryMesh *mesh) const
+{
+   p4est_quadrant_t node;
+   p4est_locidx_t quad_idx = 0;
+   p4est_quadrant_t *quad;
+   p4est_topidx_t tree;
+   Element element;
+   vector<double> other_point;
+
+   for_all_quads_with_tree(p4est, tree, quad_idx, quad)
+   {
+      element.clear();
+      p4est_quadrant_corner_node (quad, 0, &node);
+      get_node_coords(tree, node, &element.position);
+
+      p4est_quadrant_corner_node (quad, nodes_in_axes_dirs[0], &node);
+      get_node_coords(tree, node, &other_point);
+      element.size = other_point[0] - element.position[0];
+
+      for(int i = 1; i < 3; i++)
+      {
+         p4est_quadrant_corner_node (quad, nodes_in_axes_dirs[i], &node);
+         get_node_coords(tree, node, &other_point);
+         assert(element.size - (other_point[i] - element.position[i]) < tolerance * element.size);
+      }
 
    }
    end_for_all_quads
-
 }
 
 //****************************************************************************************
-
-void P4estClassDim::prepare_dimmensions(BddcmlDimensions *subdomain_dims, BddcmlDimensions *global_dims) const
-{
-#ifndef P4_TO_P8
-   assert(num_dim == 2);
-#else
-   assert(num_dim == 3);
-#endif
-   subdomain_dims->n_nodes = lnodes()->num_local_nodes;
-   subdomain_dims->n_dofs  = lnodes()->num_local_nodes * subdomain_dims->n_node_dofs;
-   subdomain_dims->n_elems = lnodes()->num_local_elements;
-   printf("proc %d, elems %d, nodes %d\n", mpi_rank, subdomain_dims->n_elems, subdomain_dims->n_nodes);
-
-   int global_num_nodes;
-   if(mpi_rank == mpi_size - 1)
-   {
-      global_num_nodes = lnodes()->global_offset + lnodes()->owned_count;
-   }
-   sc_MPI_Bcast(&global_num_nodes, 1, MPI_INT, mpi_size - 1, mpicomm);
-
-   global_dims->n_nodes = global_num_nodes;
-   global_dims->n_dofs = global_num_nodes * global_dims->n_node_dofs;
-   global_dims->n_elems = p4est->global_num_quadrants;
-}
-
-//****************************************************************************************
-

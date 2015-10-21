@@ -11,7 +11,7 @@
 
 using namespace std;
 
-const int num_dim = 2;
+const int num_dim = 3;
 const int degree = 1;
 const PhysicsType physicsType = PhysicsType::ELASTICITY;
 
@@ -47,7 +47,7 @@ void run(int argc, char **argv)
    p4est_class->refine_and_partition(3, RefineType::CIRCLE);
    p4est_class->refine_and_partition(3, RefineType::SQUARE);
 
-   // 3D
+   // 3D elasticity gives 19 iterations and condition number 0.190076921E+02
 //   p4est_class->refine_and_partition(2, RefineType::UNIFORM);
 //   p4est_class->refine_and_partition(3, RefineType::CIRCLE);
 //   p4est_class->refine_and_partition(3, RefineType::SQUARE);
@@ -84,7 +84,7 @@ void run(int argc, char **argv)
    // from a UNIT SQUARE/CUBE
 
    BddcmlMesh mesh(&subdomain_dims);
-   p4est_class->prepare_bddcml_subdomain_mesh(&mesh);
+   p4est_class->prepare_subdomain_bddcml_mesh(&mesh);
    //print_bddcml_mesh(&mesh, print_rank_l);
 
    BddcmlFemSpace femsp(&mesh);

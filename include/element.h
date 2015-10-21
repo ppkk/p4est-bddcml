@@ -13,6 +13,9 @@ public:
    Element(double x, double y, double size);
    // creates cube
    Element(double x, double y, double z, double size);
+
+   void clear();
+
    int n_dimensions() const  {return position.size();}
    std::vector<std::vector<double> > nodes() const;
 

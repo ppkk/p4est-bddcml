@@ -1,6 +1,8 @@
 #ifndef MY_P4EST_IMPLEMENTATION_H
 #define MY_P4EST_IMPLEMENTATION_H
 
+#include <vector>
+
 #ifndef P4_TO_P8
 #include <p4est_bits.h>
 #include <p4est_ghost.h>
@@ -32,15 +34,17 @@ public:
 
    virtual void plot_solution(int num_components, double* u_sol, double* u_exact, int *partition) const;
    virtual void print_p4est_mesh (int which_rank) const;
-   virtual void prepare_bddcml_subdomain_mesh(BddcmlMesh* mesh) const;
+
    virtual void prepare_dimmensions(BddcmlDimensions *subdomain_dims, BddcmlDimensions *global_dims) const;
+   virtual void prepare_subdomain_bddcml_mesh(BddcmlMesh *mesh) const;
+   virtual void prepare_subdomain_geometry_mesh(GeometryMesh *mesh) const;
 
    virtual int independent_nodes(p4est_locidx_t quadrant, int lnode, p4est_locidx_t *nodes, real* coeffs) const;
-
    virtual void refine_and_partition(int num, RefineType type);
 
 protected:
-   virtual p4est_gloidx_t node_loc_to_glob(p4est_locidx_t loc_idx) const;
+   p4est_gloidx_t node_loc_to_glob(p4est_locidx_t loc_idx) const;
+   void get_node_coords(p4est_topidx_t tree, const p4est_quadrant_t &node, std::vector<double> *coords) const;
 
    // should be called at the beginning of each function, which uses lnodes
    void update_lnodes() const ;
