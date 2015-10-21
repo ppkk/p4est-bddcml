@@ -2,12 +2,10 @@
 #include <stdlib.h>
 #include <stdbool.h>
 #include <assert.h>
+#include <math.h>
 
-#include "arrays.h"
-#include "bddcml_structs.h"
-#include "my_p4est_interface.h"
-#include "mesh.h"
-#include "femspace.h"
+#include "bddcml/bddcml_mesh.h"
+#include "bddcml/bddcml_femspace.h"
 
 
 BddcmlFemSpace::BddcmlFemSpace(const BddcmlMesh *mesh) : mesh(mesh)
@@ -58,7 +56,7 @@ void BddcmlFemSpace::prepare_subdomain_fem_space(PhysicsType physicsType)
       bool is_on_boundary = ((real_equal(mesh->coords.val[0][node], 0.0)) || (real_equal(mesh->coords.val[0][node], 1.0))
             || (real_equal(mesh->coords.val[1][node], 0.0)) || (real_equal(mesh->coords.val[1][node], 1.0)));
 
-      if(P4estClass::num_dim == 3)
+      if(subdomain_dims->n_mesh_dims == 3)
       {
          is_on_boundary = is_on_boundary || ((real_equal(mesh->coords.val[2][node], 0.0)) || (real_equal(mesh->coords.val[2][node], 1.0)));
       }

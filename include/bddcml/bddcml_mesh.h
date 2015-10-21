@@ -1,11 +1,12 @@
 #ifndef MESH_H
 #define MESH_H
 
+#include <stdio.h>
 #include "arrays.h"
-#include "bddcml_structs.h"
-#include "my_p4est_interface.h"
 
-class Element;
+class BddcmlDimensions;
+class BddcmlMesh;
+class BddcmlFemSpace;
 
 class BddcmlMesh
 {
@@ -14,10 +15,6 @@ public:
    ~BddcmlMesh() {free(); }
 
    void print(int which_rank) const;
-
-   // assuming that elements are squares/cubes aligned with cartesian grid in natural order of axes (x, y, z)
-   // i.e. first node of the element has lowest x, y and z
-   void get_element(int elem_idx, Element* element) const;
 
 private:
    void init(const BddcmlDimensions* subdomain_dims);

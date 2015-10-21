@@ -15,11 +15,8 @@
 
 #include <vector>
 
-#include "arrays.h"
-#include "my_p4est_interface.h"
-#include "my_p4est_implementation.h"
-
-#include "mesh.h"
+#include "p4est/my_p4est_implementation.h"
+#include "bddcml/bddcml_mesh.h"
 #include "geometry_mesh.h"
 
 using namespace std;
@@ -812,6 +809,8 @@ void P4estClassDim::prepare_subdomain_geometry_mesh(GeometryMesh *mesh) const
    Element element;
    vector<double> other_point;
 
+   mesh->clear();
+
    for_all_quads_with_tree(p4est, tree, quad_idx, quad)
    {
       element.clear();
@@ -822,13 +821,14 @@ void P4estClassDim::prepare_subdomain_geometry_mesh(GeometryMesh *mesh) const
       get_node_coords(tree, node, &other_point);
       element.size = other_point[0] - element.position[0];
 
-      for(int i = 1; i < 3; i++)
+      for(int i = 1; i < num_dim; i++)
       {
          p4est_quadrant_corner_node (quad, nodes_in_axes_dirs[i], &node);
          get_node_coords(tree, node, &other_point);
          assert(element.size - (other_point[i] - element.position[i]) < tolerance * element.size);
       }
 
+      mesh->elements.push_back(element);
    }
    end_for_all_quads
 }

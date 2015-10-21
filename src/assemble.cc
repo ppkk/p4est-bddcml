@@ -3,14 +3,13 @@
 #include <stdbool.h>
 #include <assert.h>
 
-#include "arrays.h"
-#include "bddcml_structs.h"
-#include "my_p4est_interface.h"
 #include "assemble.h"
-#include "mesh.h"
-#include "femspace.h"
+#include "bddcml/bddcml_mesh.h"
+#include "bddcml/bddcml_femspace.h"
 #include "quadrature.h"
-#include "element.h"
+#include "geometry_mesh.h"
+#include "p4est/my_p4est_interface.h"
+
 
 using namespace std;
 
@@ -274,12 +273,12 @@ void assemble_local_elasticity(const Element &element, vector<vector<vector<vect
 }
 
 
-void assemble_matrix_rhs(const P4estClass &p4est, const BddcmlMesh &mesh, const BddcmlFemSpace &femsp,
+void assemble_matrix_rhs(const P4estClass &p4est, const GeometryMesh &geometry_mesh, const BddcmlMesh &bddcml_mesh, const BddcmlFemSpace &femsp,
                          SparseMatrix *matrix, RealArray *rhss, RhsPtr rhs_ptr, Parameters params)
 {
-   Element element;
+   assert(geometry_mesh.num_elements() == bddcml_mesh.subdomain_dims->n_elems);
    real i_coeffs, j_coeffs;
-   int n_components = mesh.subdomain_dims->n_node_dofs;
+   int n_components = bddcml_mesh.subdomain_dims->n_node_dofs;
    vector<vector<vector<vector<real> > > > element_matrix(P4estClass::children, vector<vector<vector<real> > >(
                                            n_components, vector<vector<real> >(
                                            P4estClass::children, vector<real>(
@@ -288,22 +287,22 @@ void assemble_matrix_rhs(const P4estClass &p4est, const BddcmlMesh &mesh, const 
    p4est_locidx_t i_indep_nodes[4], j_indep_nodes[4];
 
    int element_offset = 0;
-   for(int elem_idx = 0; elem_idx < mesh.subdomain_dims->n_elems; elem_idx++) {
-      assert(mesh.num_nodes_of_elem.val[elem_idx] == P4estClass::children);
+   for(int elem_idx = 0; elem_idx < bddcml_mesh.subdomain_dims->n_elems; elem_idx++) {
+      assert(bddcml_mesh.num_nodes_of_elem.val[elem_idx] == P4estClass::children);
 
-      mesh.get_element(elem_idx, &element);
+      //mesh.get_element(elem_idx, &element);
 
       if(femsp.physicsType == PhysicsType::LAPLACE)
-         assemble_local_laplace(element, element_matrix, element_rhs, rhs_ptr);
+         assemble_local_laplace(geometry_mesh.elements[elem_idx], element_matrix, element_rhs, rhs_ptr);
       else if(femsp.physicsType == PhysicsType::ELASTICITY)
-         assemble_local_elasticity(element, element_matrix, element_rhs, rhs_ptr, params);
+         assemble_local_elasticity(geometry_mesh.elements[elem_idx], element_matrix, element_rhs, rhs_ptr, params);
       else
          assert(0);
 
       //print_matrix_rhs(element_matrix, element_rhs, n_components);
 
       for(int i_node_loc = 0; i_node_loc < P4estClass::children; i_node_loc++) {
-         int i_node = mesh.elem_node_indices.val[element_offset + i_node_loc];
+         int i_node = bddcml_mesh.elem_node_indices.val[element_offset + i_node_loc];
          int i_nindep = p4est.independent_nodes(elem_idx, i_node_loc, i_indep_nodes, &i_coeffs);
          assert((i_nindep != 1) || (i_node == i_indep_nodes[0]));
 
@@ -316,7 +315,7 @@ void assemble_matrix_rhs(const P4estClass &p4est, const BddcmlMesh &mesh, const 
                int i_dof = femsp.node_num_dofs.val[i_indep_node] * i_indep_node + i_comp;
                for(int j_node_loc = 0; j_node_loc < P4estClass::children; j_node_loc++) {
                   //todo: dofs should be taken from femsp!
-                  int j_node = mesh.elem_node_indices.val[element_offset + j_node_loc];
+                  int j_node = bddcml_mesh.elem_node_indices.val[element_offset + j_node_loc];
                   int j_nindep = p4est.independent_nodes(elem_idx, j_node_loc, j_indep_nodes, &j_coeffs);
                   assert((j_nindep != 1) || (j_node == j_indep_nodes[0]));
 

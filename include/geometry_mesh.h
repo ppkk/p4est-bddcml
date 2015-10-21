@@ -9,8 +9,8 @@ struct p4est_lnodes;
 class GeometryMesh
 {
 public:
-   void prepare_subdomain_mesh(p4est *p4est, p4est_lnodes *lnodes);
-
+   void clear() {elements.clear(); }
+   int num_elements() const {return elements.size(); }
 public:
    std::vector<Element> elements;
 };

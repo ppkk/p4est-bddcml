@@ -28,30 +28,30 @@ link_directories("${P4EST_ROOT}/local/lib")
 set(LIBS ${LIBS} sc p4est )
 
 set(SOURCES
-src/arrays.cc
-src/bddcml_structs.cc
+src/bddcml/arrays.cc
+src/bddcml/bddcml_structs.cc
+src/bddcml/bddcml_mesh.cc
+src/bddcml/bddcml_femspace.cc
+src/p4est/my_p4est_interface.cc
+src/p4est/my_p4est_implementation.cc
+src/p4est/my_p8est_implementation.cc
 src/gauss_quadrature.cc
 src/quadrature.cc
 src/level_set.cc
 src/element.cc
-src/my_p4est_interface.cc
-src/my_p4est_implementation.cc
-src/my_p8est_implementation.cc
-src/mesh.cc
-src/femspace.cc
 src/assemble.cc
 src/geometry_mesh.cc
 )
 
 set(HEADERS
+include/bddcml/arrays.h
+include/bddcml/bddcml_structs.h
+include/bddcml/bddcml_mesh.h
+include/bddcml/bddcml_femspace.h
+include/p4est/my_p4est_interface.h
+include/p4est/my_p4est_implementation.h
 include/definitions.h
-include/arrays.h
 include/assemble.h
-include/my_p4est_interface.h
-include/my_p4est_implementation.h
-include/bddcml_structs.h
-include/mesh.h
-include/femspace.h
 include/assemble.h
 include/element.h
 include/quadrature.h

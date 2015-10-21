@@ -3,15 +3,15 @@
 #include <stdbool.h>
 #include <assert.h>
 
-#include "bddcml_structs.h"
-#include "mesh.h"
-#include "femspace.h"
-#include "my_p4est_interface.h"
+#include "bddcml/bddcml_mesh.h"
+#include "bddcml/bddcml_femspace.h"
+#include "p4est/my_p4est_interface.h"
 #include "assemble.h"
+#include "geometry_mesh.h"
 
 using namespace std;
 
-const int num_dim = 3;
+const int num_dim = 2;
 const int degree = 1;
 const PhysicsType physicsType = PhysicsType::ELASTICITY;
 
@@ -77,21 +77,20 @@ void run(int argc, char **argv)
 
    // todo: using MPI Bcast in the following, should be possible to do without
    p4est_class->prepare_dimmensions(&subdomain_dims, &global_dims);
-
    //print_p4est_mesh(p4est, lnodes, print_rank_l);
 
-   // TODO: elem_volume is correct only when the mesh is obtained by refinements
-   // from a UNIT SQUARE/CUBE
-
-   BddcmlMesh mesh(&subdomain_dims);
-   p4est_class->prepare_subdomain_bddcml_mesh(&mesh);
+   BddcmlMesh bddcml_mesh(&subdomain_dims);
+   p4est_class->prepare_subdomain_bddcml_mesh(&bddcml_mesh);
    //print_bddcml_mesh(&mesh, print_rank_l);
 
-   BddcmlFemSpace femsp(&mesh);
+   BddcmlFemSpace femsp(&bddcml_mesh);
    femsp.prepare_subdomain_fem_space(physicsType);
    //print_bddcml_fem_space(&femsp, &mesh, print_rank_l);
 
-   p4est_class->plot_solution(mesh.subdomain_dims->n_node_dofs, NULL, NULL, NULL);
+   GeometryMesh geometry_mesh;
+   p4est_class->prepare_subdomain_geometry_mesh(&geometry_mesh);
+
+   p4est_class->plot_solution(bddcml_mesh.subdomain_dims->n_node_dofs, NULL, NULL, NULL);
 
    print_rank = print_rank_l;
    print_basic_properties(global_dims, mpi_size, level_info, krylov_params);
@@ -127,7 +126,7 @@ void run(int argc, char **argv)
    allocate_sparse_matrix(extra_space_for_hanging_nodes * subdomain_dims.n_elems * lelm, matrix_type, &matrix);
    zero_matrix(&matrix);
 
-   assemble_matrix_rhs(*p4est_class, mesh, femsp, &matrix, &rhss, &rhs_fn, params);
+   assemble_matrix_rhs(*p4est_class, geometry_mesh, bddcml_mesh, femsp, &matrix, &rhss, &rhs_fn, params);
    //print_complete_matrix_rhs(&femsp, &global_dims, &matrix, &rhss, mpicomm);
 
    // user constraints - not really used here
@@ -147,7 +146,7 @@ void run(int argc, char **argv)
 
    int subdomain_idx = mpi_rank;
    bddcml_upload_subdomain_data(&global_dims, &subdomain_dims,
-                                     subdomain_idx, &mesh, &femsp,
+                                     subdomain_idx, &bddcml_mesh, &femsp,
                                      &rhss, is_rhs_complete, &sols, &matrix,
                                      &user_constraints, &element_data,
                                      &dof_data, &preconditioner_params);
@@ -199,7 +198,7 @@ void run(int argc, char **argv)
 
    bddcml_download_local_solution(subdomain_idx, &sols);
 
-   p4est_class->plot_solution(mesh.subdomain_dims->n_node_dofs, sols.val, NULL, NULL); //uexact_eval, NULL);
+   p4est_class->plot_solution(bddcml_mesh.subdomain_dims->n_node_dofs, sols.val, NULL, NULL); //uexact_eval, NULL);
 
    free_real_array(&rhss);
    free_real_array(&sols);

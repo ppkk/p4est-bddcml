@@ -4,10 +4,8 @@
 #include <math.h>
 #include <mpi.h>
 #include <assert.h>
-#include "arrays.h"
-#include "bddcml_structs.h"
-#include "mesh.h"
-#include "femspace.h"
+#include "bddcml/bddcml_mesh.h"
+#include "bddcml/bddcml_femspace.h"
 
 
 // *******************
