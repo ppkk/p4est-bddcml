@@ -20,6 +20,27 @@ void assemble_matrix_rhs(const P4estClass &p4est, const GeometryMesh &geometry_m
 
 
 
+// todo: in the future, it could be rectangular (pressure has less dofs than velocity)
+// todo: -> ndofs1, ndofs2
+class LocalMatrixComponent
+{
+public:
+   LocalMatrixComponent(int ndofs);
+
+   int ndofs;
+   std::vector<std::vector<real> > mat;
+};
+
+class LocalMatrix
+{
+public:
+   LocalMatrix(int ncomponents, int ndofs);
+
+   int ncomponents;
+   int ndofs;
+   std::vector<std::vector<LocalMatrixComponent> > comps;
+};
+
 
 
 

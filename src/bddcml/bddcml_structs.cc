@@ -13,8 +13,7 @@ extern "C"{
 #include "bddcml/bddcml_mesh.h"
 #include "bddcml/bddcml_femspace.h"
 
-BddcmlGeneralParams::BddcmlGeneralParams()
-{
+BddcmlGeneralParams::BddcmlGeneralParams() {
    numbase = 0;
    just_direct_solve_int = 0;
    verbose_level = 1;
@@ -22,8 +21,7 @@ BddcmlGeneralParams::BddcmlGeneralParams()
    strcpy(output_file_prefix, "poisson_solution");
 }
 
-BddcmlKrylovParams::BddcmlKrylovParams()
-{
+BddcmlKrylovParams::BddcmlKrylovParams() {
    krylov_method = 0;
    recycling_int = 1;
    max_number_of_stored_vectors = 50;
@@ -32,8 +30,7 @@ BddcmlKrylovParams::BddcmlKrylovParams()
    tol = 1.e-6;
 }
 
-BddcmlPreconditionerParams::BddcmlPreconditionerParams()
-{
+BddcmlPreconditionerParams::BddcmlPreconditionerParams() {
    use_preconditioner_defaults = 0;
    use_corner_constraints = 1;
    use_arithmetic_constraints = 1;
@@ -46,8 +43,7 @@ BddcmlPreconditionerParams::BddcmlPreconditionerParams()
 
 //*******************************************************************************************
 
-BddcmlLevelInfo::BddcmlLevelInfo(int n_levels, int n_subdomains_first_level)
-{
+BddcmlLevelInfo::BddcmlLevelInfo(int n_levels, int n_subdomains_first_level) {
    real coarsening;
    int i, ir;
 
@@ -87,8 +83,7 @@ BddcmlLevelInfo::BddcmlLevelInfo(int n_levels, int n_subdomains_first_level)
 
 // Basic properties
 void print_basic_properties(const BddcmlDimensions &global_dims, int num_subdomains,
-                            const BddcmlLevelInfo &level_info, const BddcmlKrylovParams &krylov_params)
-{
+                            const BddcmlLevelInfo &level_info, const BddcmlKrylovParams &krylov_params) {
    if (mpi_rank == print_rank) {
       printf("Characteristics of the problem :\n");
       printf("  number of processors            nproc = %d\n" ,mpi_size);
@@ -114,8 +109,7 @@ void print_basic_properties(const BddcmlDimensions &global_dims, int num_subdoma
 //*******************************************************************************************
 
 
-void bddcml_init(BddcmlGeneralParams *general_params, BddcmlLevelInfo *level_info, MPI_Comm communicator)
-{
+void bddcml_init(BddcmlGeneralParams *general_params, BddcmlLevelInfo *level_info, MPI_Comm communicator) {
    int fortran_comm =  MPI_Comm_c2f(communicator);
 
    bddcml_init_c(&level_info->nlevels,
@@ -132,8 +126,7 @@ void bddcml_upload_subdomain_data(BddcmlDimensions *global_dims, BddcmlDimension
                                   int isub, BddcmlMesh *mesh, BddcmlFemSpace *femsp,
                                   RealArray *rhss, int is_rhs_complete, RealArray *sols, SparseMatrix *matrix,
                                   Real2DArray *user_constraints, Real2DArray *element_data,
-                                  RealArray *dof_data, BddcmlPreconditionerParams* preconditioner_params)
-{
+                                  RealArray *dof_data, BddcmlPreconditionerParams* preconditioner_params) {
    bddcml_upload_subdomain_data_c(&global_dims->n_elems,
                                   &global_dims->n_nodes,
                                   &global_dims->n_dofs,
@@ -185,8 +178,7 @@ void bddcml_upload_subdomain_data(BddcmlDimensions *global_dims, BddcmlDimension
 
 }
 
-void bddcml_setup_preconditioner(MatrixType matrixtype, BddcmlPreconditionerParams *params)
-{
+void bddcml_setup_preconditioner(MatrixType matrixtype, BddcmlPreconditionerParams *params) {
    bddcml_setup_preconditioner_c((int*) &matrixtype,
                                  &params->use_preconditioner_defaults,
                                  &params->parallel_division,
@@ -197,8 +189,7 @@ void bddcml_setup_preconditioner(MatrixType matrixtype, BddcmlPreconditionerPara
                                  &params->weights_type);
 }
 
-void bddcml_solve(BddcmlKrylovParams *krylov_params, BddcmlConvergenceInfo *convergence_info, MPI_Comm communicator)
-{
+void bddcml_solve(BddcmlKrylovParams *krylov_params, BddcmlConvergenceInfo *convergence_info, MPI_Comm communicator) {
    int fortran_comm =  MPI_Comm_c2f(communicator);
 
    bddcml_solve_c(&fortran_comm,
@@ -213,19 +204,16 @@ void bddcml_solve(BddcmlKrylovParams *krylov_params, BddcmlConvergenceInfo *conv
                   &convergence_info->condition_number);
 }
 
-void bddcml_download_local_solution(int isub, RealArray *sols)
-{
+void bddcml_download_local_solution(int isub, RealArray *sols) {
    bddcml_download_local_solution_c(&isub,
                                     sols->val,
                                     &sols->len);
 }
 
-void bddcml_dotprod_subdomain(int isub, RealArray *sols1, RealArray *sols2, real *normRn2_sub)
-{
+void bddcml_dotprod_subdomain(int isub, RealArray *sols1, RealArray *sols2, real *normRn2_sub) {
    bddcml_dotprod_subdomain_c( &isub, sols1->val, &sols1->len, sols2->val, &sols2->len, normRn2_sub );
 }
 
-void bddcml_finalize()
-{
+void bddcml_finalize() {
    bddcml_finalize_c();
 }
