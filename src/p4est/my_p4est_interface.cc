@@ -22,6 +22,3 @@ P4estClass *P4estClass::create(int num_dim, int degree, sc_MPI_Comm mpicomm)
    else
       assert(0);
 }
-
-int P4estClass::num_dim;
-int P4estClass::children;

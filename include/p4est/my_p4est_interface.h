@@ -38,11 +38,10 @@ public:
    virtual void refine_and_partition(int num, RefineType type) = 0;
 
    static P4estClass *create(int num_dim, int degree, MPI_Comm mpicomm);
-   static int num_dim;
-   static int children;
 
 protected:
    int degree;
+   int num_dim;
    sc_MPI_Comm mpicomm;
 
    // I cannot store p4est or lnodes here, since it is only a #define and the actuall types are

@@ -10,6 +10,19 @@ extern int print_rank;
 
 #define PPP if(mpi_rank == print_rank)
 
+class Def {
+public:
+   static void init(int num_dim, int order);
+   static int num_dim;
+   static int num_children;
+   static int num_corners;
+   static int num_edges;
+   static int num_faces;
+
+   static int order;   // this actually should not be here...
+   static int num_loc_dofs;
+};
+
 
 enum class MatrixType{
    GENERAL,      // general (full storage)

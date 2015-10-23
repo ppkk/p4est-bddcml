@@ -12,7 +12,7 @@
 using namespace std;
 
 const int num_dim = 2;
-const int degree = 1;
+const int order = 1;
 const PhysicsType physicsType = PhysicsType::ELASTICITY;
 
 vector<double> rhs_fn(vector<double>)
@@ -35,19 +35,20 @@ sc_MPI_Comm mpicomm = sc_MPI_COMM_WORLD;
 void run(int argc, char **argv)
 {
    int mpiret = 0, num_levels;
-   P4estClass* p4est_class = P4estClass::create(num_dim, degree, mpicomm);
+   Def::init(num_dim, order);
+   P4estClass* p4est_class = P4estClass::create(num_dim, order, mpicomm);
 
    // 2D
 //   p4est_class->refine_and_partition(4, RefineType::UNIFORM);
 //   p4est_class->refine_and_partition(5, RefineType::CIRCLE);
 //   p4est_class->refine_and_partition(6, RefineType::SQUARE);
 
-   // 2D elasticity gives 11 PCG iterations and condition number 0.433169186E+01
+   // 2D elasticity on 4 procs gives 11 PCG iterations and condition number 0.433169186E+01
    p4est_class->refine_and_partition(4, RefineType::UNIFORM);
    p4est_class->refine_and_partition(3, RefineType::CIRCLE);
    p4est_class->refine_and_partition(3, RefineType::SQUARE);
 
-   // 3D elasticity gives 19 iterations and condition number 0.190076921E+02
+   // 3D elasticity on 4 procs gives 19 iterations and condition number 0.190076921E+02
 //   p4est_class->refine_and_partition(2, RefineType::UNIFORM);
 //   p4est_class->refine_and_partition(3, RefineType::CIRCLE);
 //   p4est_class->refine_and_partition(3, RefineType::SQUARE);
@@ -70,8 +71,8 @@ void run(int argc, char **argv)
    BddcmlKrylovParams krylov_params;
    BddcmlPreconditionerParams preconditioner_params;
 
-   BddcmlDimensions subdomain_dims(P4estClass::num_dim, physicsType);
-   BddcmlDimensions global_dims(P4estClass::num_dim, physicsType);
+   BddcmlDimensions subdomain_dims(Def::num_dim, physicsType);
+   BddcmlDimensions global_dims(Def::num_dim, physicsType);
 
    int print_rank_l = 3;
 
@@ -116,7 +117,7 @@ void run(int argc, char **argv)
    zero_real_array(&sols);
 
    SparseMatrix matrix;
-   int ndof_per_element = p4est_class->children * femsp.subdomain_dims->n_node_dofs;
+   int ndof_per_element = Def::num_children * femsp.subdomain_dims->n_node_dofs;
    // how much space the upper triangle of the element matrix occupies
    int lelm = ndof_per_element * (ndof_per_element + 1) / 2;
 

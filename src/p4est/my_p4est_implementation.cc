@@ -179,11 +179,9 @@ P4estClassDim::P4estClassDim(int degree, sc_MPI_Comm mpicomm) : P4estClass(degre
 
 #ifndef P4_TO_P8
    num_dim = 2;
-   children = 4;
    conn = p4est_connectivity_new_unitsquare ();
 #else
    num_dim = 3;
-   children = 8;
    conn = p8est_connectivity_new_unitcube ();
 #endif
 

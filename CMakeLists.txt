@@ -35,12 +35,14 @@ src/bddcml/bddcml_femspace.cc
 src/p4est/my_p4est_interface.cc
 src/p4est/my_p4est_implementation.cc
 src/p4est/my_p8est_implementation.cc
-src/gauss_quadrature.cc
+src/definitions.cc
 src/quadrature.cc
+src/gauss_quadrature.cc
 src/level_set.cc
 src/element.cc
 src/assemble.cc
 src/geometry_mesh.cc
+src/shapefun.cc
 )
 
 set(HEADERS
@@ -51,11 +53,12 @@ include/bddcml/bddcml_femspace.h
 include/p4est/my_p4est_interface.h
 include/p4est/my_p4est_implementation.h
 include/definitions.h
-include/assemble.h
-include/assemble.h
-include/element.h
 include/quadrature.h
 include/level_set.h
+include/element.h
+include/assemble.h
+include/geometry_mesh.h
+include/shapefun.h
 )
 
 # BLOPEX objects
