@@ -34,7 +34,6 @@ public:
    virtual void prepare_subdomain_bddcml_mesh(BddcmlMesh* mesh) const = 0;
    virtual void prepare_subdomain_geometry_mesh(GeometryMesh *mesh) const = 0;
 
-   virtual int independent_nodes(p4est_locidx_t quadrant, int lnode, p4est_locidx_t *nodes, real* coeffs) const = 0;
    virtual bool get_hanging_info(int quad_idx, HangingInfo *hanging_info) const = 0;
 
    virtual void refine_and_partition(int num, RefineType type) = 0;

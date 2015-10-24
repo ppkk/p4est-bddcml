@@ -412,39 +412,6 @@ void P4estClassDim::print_p4est_mesh(int which_rank) const {
 
 //****************************************************************************************
 
-int P4estClassDim::independent_nodes(p4est_locidx_t quadrant, int lnode, p4est_locidx_t *nodes, real* coeffs) const {
-   int anyhang, hanging_corner[P4EST_CHILDREN];
-
-   /* Figure out the hanging corners on this element, if any. */
-   anyhang = P4estNamespaceDim::lnodes_decode2 (lnodes()->face_code[quadrant], hanging_corner);
-
-   if ((!anyhang) ||  (hanging_corner[lnode] == -1)) {
-      *coeffs = 1.;
-      nodes[0] = lnodes()->element_nodes[P4EST_CHILDREN * quadrant + lnode];
-      return 1;
-   }
-   else {
-      int c = hanging_corner[lnode];      /* Child id of quadrant. */
-      int ncontrib = P4estNamespaceDim::corner_num_hanging[lnode ^ c];
-      const int *contrib_corner = P4estNamespaceDim::corner_to_hanging[lnode ^ c];
-
-      for (int j = 0; j < ncontrib; ++j) {
-         int h = contrib_corner[j] ^ c;  /* Inverse transform of node number. */
-         nodes[j] = lnodes()->element_nodes[P4EST_CHILDREN * quadrant + h];
-      }
-      if(ncontrib == 2)
-         *coeffs = 0.5;
-      else if(ncontrib == 4)
-         *coeffs = 0.25;
-      else
-         assert(0);
-
-      return ncontrib;
-   }
-}
-
-//****************************************************************************************
-
 bool P4estClassDim::get_hanging_info(int quad_idx, HangingInfo *hanging_info) const {
    assert(sizeof(p4est_locidx_t) == sizeof(int));
    return (bool) p4est_lnodes_decode(lnodes()->face_code[quad_idx],
