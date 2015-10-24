@@ -161,15 +161,13 @@ void assemble_local_elasticity(const Element &element, RhsPtr rhs_ptr, Parameter
 
 void assemble_matrix_rhs(const P4estClass &p4est, const GeometryMesh &geometry_mesh, const BddcmlMesh &bddcml_mesh, const BddcmlFemSpace &femsp,
                          SparseMatrix *matrix, RealArray *rhss, RhsPtr rhs_ptr, Parameters params) {
-
    assert(geometry_mesh.num_elements() == bddcml_mesh.subdomain_dims->n_elems);
-   real i_coeffs, j_coeffs;
+   HangingInfo hanging_info(p4est);
    int n_components = bddcml_mesh.subdomain_dims->n_node_dofs;
 
-   LocalMatrix element_matrix(n_components, Def::num_children);
-   LocalVector element_rhs(n_components, Def::num_children);
+   LocalMatrix element_matrix_nohang(n_components, Def::num_children), element_matrix(n_components, Def::num_children);
+   LocalVector element_rhs_nohang(n_components, Def::num_children), element_rhs(n_components, Def::num_children);
    //vector<vector<real> > element_rhs(Def::num_children, vector<real>(n_components, 0.0));
-   p4est_locidx_t i_indep_nodes[4], j_indep_nodes[4];
 
    int element_offset = 0;
    for(int elem_idx = 0; elem_idx < bddcml_mesh.subdomain_dims->n_elems; elem_idx++) {
@@ -178,48 +176,38 @@ void assemble_matrix_rhs(const P4estClass &p4est, const GeometryMesh &geometry_m
       //mesh.get_element(elem_idx, &element);
 
       if(femsp.physicsType == PhysicsType::LAPLACE)
-         assemble_local_laplace(geometry_mesh.elements[elem_idx], rhs_ptr, &element_matrix, &element_rhs);
+         assemble_local_laplace(geometry_mesh.elements[elem_idx], rhs_ptr, &element_matrix_nohang, &element_rhs_nohang);
       else if(femsp.physicsType == PhysicsType::ELASTICITY)
-         assemble_local_elasticity(geometry_mesh.elements[elem_idx], rhs_ptr, params, &element_matrix, &element_rhs);
+         assemble_local_elasticity(geometry_mesh.elements[elem_idx], rhs_ptr, params, &element_matrix_nohang, &element_rhs_nohang);
       else
          assert(0);
+
+      hanging_info.apply_constraints(elem_idx, element_matrix_nohang, &element_matrix);
+      hanging_info.apply_constraints(elem_idx, element_rhs_nohang, &element_rhs);
 
       //print_matrix_rhs(element_matrix, element_rhs, n_components);
 
       for(int i_node_loc = 0; i_node_loc < Def::num_children; i_node_loc++) {
          int i_node = bddcml_mesh.elem_node_indices.val[element_offset + i_node_loc];
-         int i_nindep = p4est.independent_nodes(elem_idx, i_node_loc, i_indep_nodes, &i_coeffs);
-         assert((i_nindep != 1) || (i_node == i_indep_nodes[0]));
 
-         for(int i_indep_nodes_idx = 0; i_indep_nodes_idx < i_nindep; i_indep_nodes_idx++) {
-            int i_indep_node = i_indep_nodes[i_indep_nodes_idx];
+         for(int i_comp = 0; i_comp < n_components; i_comp++) {
+            int i_dof = femsp.node_num_dofs.val[i_node] * i_node + i_comp;
+            for(int j_node_loc = 0; j_node_loc < Def::num_children; j_node_loc++) {
+               //todo: dofs should be taken from femsp!
+               int j_node = bddcml_mesh.elem_node_indices.val[element_offset + j_node_loc];
 
-            for(int i_comp = 0; i_comp < n_components; i_comp++) {
-               int i_dof = femsp.node_num_dofs.val[i_indep_node] * i_indep_node + i_comp;
-               for(int j_node_loc = 0; j_node_loc < Def::num_children; j_node_loc++) {
-                  //todo: dofs should be taken from femsp!
-                  int j_node = bddcml_mesh.elem_node_indices.val[element_offset + j_node_loc];
-                  int j_nindep = p4est.independent_nodes(elem_idx, j_node_loc, j_indep_nodes, &j_coeffs);
-                  assert((j_nindep != 1) || (j_node == j_indep_nodes[0]));
-
-                  for(int j_indep_nodes_idx = 0; j_indep_nodes_idx < j_nindep; j_indep_nodes_idx++) {
-                     int j_indep_node = j_indep_nodes[j_indep_nodes_idx];
-
-                     for(int j_comp = 0; j_comp < n_components; j_comp++) {
-                        int j_dof = femsp.node_num_dofs.val[j_indep_node] * j_indep_node + j_comp;
-                        double matrix_value = i_coeffs * j_coeffs * element_matrix.comps[i_comp][j_comp].mat[i_node_loc][j_node_loc];
-                        add_matrix_entry(matrix, i_dof, j_dof, matrix_value);
-//                        printf("adding entry loc (%d, %d), nodes orig (%d, %d), nodes indep (%d, %d), dofs (%d, %d), coefs (%3.2lf, %3.2lf), number indep (%d, %d), locstiff %lf, value %lf\n",
-//                               i_node_loc, j_node_loc, i_node, j_node, i_indep_node, j_indep_node, i_dof, j_dof, i_coeffs, j_coeffs, i_nindep, j_nindep, element_matrix[i_node_loc][i_comp][j_node_loc][j_comp], matrix_value);
-                     }
-                  }
+               for(int j_comp = 0; j_comp < n_components; j_comp++) {
+                  int j_dof = femsp.node_num_dofs.val[j_node] * j_node + j_comp;
+                  double matrix_value = element_matrix.comps[i_comp][j_comp].mat[i_node_loc][j_node_loc];
+                  add_matrix_entry(matrix, i_dof, j_dof, matrix_value);
+                  //                        printf("adding entry loc (%d, %d), nodes orig (%d, %d), nodes indep (%d, %d), dofs (%d, %d), coefs (%3.2lf, %3.2lf), number indep (%d, %d), locstiff %lf, value %lf\n",
+                  //                               i_node_loc, j_node_loc, i_node, j_node, i_indep_node, j_indep_node, i_dof, j_dof, i_coeffs, j_coeffs, i_nindep, j_nindep, element_matrix[i_node_loc][i_comp][j_node_loc][j_comp], matrix_value);
                }
-
-               //double rhs_value = i_coeffs * 1./(real)Def::num_children * elem_volume * 1;
-               double rhs_value = i_coeffs * element_rhs.comps[i_comp].vec[i_node_loc];
-               rhss->val[i_dof] += rhs_value;
-
             }
+
+            //double rhs_value = i_coeffs * 1./(real)Def::num_children * elem_volume * 1;
+            double rhs_value = element_rhs.comps[i_comp].vec[i_node_loc];
+            rhss->val[i_dof] += rhs_value;
          }
       }
       element_offset += Def::num_children;

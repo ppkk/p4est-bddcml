@@ -68,7 +68,7 @@ void LocalVector::clear()
 }
 
 
-HangingInfo::HangingInfo(P4estClass &p4est) : p4est(p4est){
+HangingInfo::HangingInfo(const P4estClass &p4est) : p4est(p4est){
    active_elem_idx = -1;
    faces.resize(Def::num_faces, 0.0);
    edges.resize(Def::num_edges, 0.0);
@@ -99,12 +99,14 @@ void HangingInfo::init_coefs(int elem_idx)
    if(!active_elem_anyhang)
       return;
 
+   int indep_node, hanging_node;
+   vector<int> indep_nodes;
+
    if(p4est.get_num_dim() == 2) {
       for(int face_idx = 0; face_idx < Def::num_faces; face_idx++) {
          if(faces[face_idx] == -1)
             continue;
 
-         int indep_node, hanging_node;
          if(faces[face_idx] == 0) {
             // it is a first part of a larger face
             indep_node = Def::face_corners[face_idx][0];
@@ -121,6 +123,48 @@ void HangingInfo::init_coefs(int elem_idx)
 
          coefs[hanging_node][hanging_node] = 0.5;
          coefs[hanging_node][indep_node] = 0.5;
+      }
+   }
+   else if(p4est.get_num_dim() == 3) {
+      for(int edge_idx = 0; edge_idx < Def::num_edges; edge_idx++) {
+         if(edges[edge_idx] == -1)
+            continue;
+
+         if((edges[edge_idx] == 0) || (edges[edge_idx] == 2)) {
+            indep_node = Def::edge_corners[edge_idx][0];
+            hanging_node = Def::edge_corners[edge_idx][1];
+         }
+         else if((edges[edge_idx] == 1) || (edges[edge_idx] == 3)) {
+            indep_node = Def::edge_corners[edge_idx][1];
+            hanging_node = Def::edge_corners[edge_idx][0];
+         }
+         else {
+            assert(edges[edge_idx] == 4); // inner edge, will be dealt with using faces
+            continue;
+         }
+
+         coefs[hanging_node][hanging_node] = 0.5;
+         coefs[hanging_node][indep_node] = 0.5;
+      }
+      for(int face_idx = 0; face_idx < Def::num_faces; face_idx++) {
+         if(faces[face_idx] == -1)
+            continue;
+
+         indep_nodes.clear();
+         for(int loc_face_corner = 0; loc_face_corner < Def::num_face_corners; loc_face_corner++) {
+            // finding the hanging for this situation
+            if(loc_face_corner == 3 - faces[face_idx]) {
+               hanging_node = Def::face_corners[face_idx][loc_face_corner];
+            }
+            else {
+               indep_nodes.push_back(Def::face_corners[face_idx][loc_face_corner]);
+            }
+         }
+
+         coefs[hanging_node][hanging_node] = 0.25;
+         for(int indep_node : indep_nodes) {
+            coefs[hanging_node][indep_node] = 0.25;
+         }
       }
    }
    else {

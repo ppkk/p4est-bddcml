@@ -60,7 +60,7 @@ public:
 class HangingInfo
 {
 public:
-   HangingInfo(P4estClass &p4est);
+   HangingInfo(const P4estClass &p4est);
 
    void apply_constraints(int elem_idx, const LocalMatrixComponent &in, LocalMatrixComponent *out);
    void apply_constraints(int elem_idx, const LocalMatrix &in, LocalMatrix *out);

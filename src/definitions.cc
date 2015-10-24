@@ -16,6 +16,9 @@ void Def::init(int num_dim, int order)
       num_face_corners = 2;
       num_corner_faces = 2;
 
+      num_edge_corners = -1;
+      num_corner_edges = -1;
+
       num_loc_dofs = (order + 1) * (order + 1);
    }
    else if(num_dim == 3) {
@@ -26,6 +29,9 @@ void Def::init(int num_dim, int order)
 
       num_face_corners = 4;
       num_corner_faces = 3;
+
+      num_edge_corners = 2;
+      num_corner_edges = 3;
 
       num_loc_dofs = (order + 1) * (order + 1) * (order + 1);
    }
@@ -49,5 +55,8 @@ int Def::num_loc_dofs;
 int Def::num_face_corners;
 int Def::num_corner_faces;
 
+int Def::num_edge_corners;
+int Def::num_corner_edges;
 
+std::vector<std::vector<int> > Def::edge_corners;
 std::vector<std::vector<int> > Def::face_corners;

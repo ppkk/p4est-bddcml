@@ -24,9 +24,13 @@ public:
    static int num_face_corners;
    static int num_corner_faces;
 
+   static int num_edge_corners;
+   static int num_corner_edges;
+
    static int order;   // this actually should not be here...
    static int num_loc_dofs;
 
+   static std::vector<std::vector<int> > edge_corners;
    static std::vector<std::vector<int> > face_corners;
 };
 

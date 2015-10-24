@@ -782,4 +782,14 @@ void P4estClassDim::init_definitions()
          Def::face_corners[face_idx][corner_idx] = p4est_face_corners[face_idx][corner_idx];
       }
    }
+
+#ifdef P4_TO_P8
+   Def::edge_corners.resize(Def::num_edges, vector<int>(Def::num_edge_corners, -1));
+   for(int edge_idx = 0; edge_idx < Def::num_edges; edge_idx++) {
+      for(int corner_idx = 0; corner_idx < Def::num_edge_corners; corner_idx++) {
+         Def::edge_corners[edge_idx][corner_idx] = p8est_edge_corners[edge_idx][corner_idx];
+      }
+   }
+#endif
+
 }
