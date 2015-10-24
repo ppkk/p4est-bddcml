@@ -15,9 +15,11 @@
 
 #include <vector>
 
+#include "definitions.h"
 #include "p4est/my_p4est_implementation.h"
 #include "bddcml/bddcml_mesh.h"
 #include "geometry_mesh.h"
+#include "local_matrix.h"
 
 using namespace std;
 
@@ -443,6 +445,18 @@ int P4estClassDim::independent_nodes(p4est_locidx_t quadrant, int lnode, p4est_l
 
 //****************************************************************************************
 
+bool P4estClassDim::get_hanging_info(int quad_idx, HangingInfo *hanging_info) const {
+   assert(sizeof(p4est_locidx_t) == sizeof(int));
+   return (bool) p4est_lnodes_decode(lnodes()->face_code[quad_idx],
+                              &hanging_info->faces[0]
+#ifdef P4_TO_P8
+                              , &hanging_info->edges[0]
+#endif
+                              );
+}
+
+//****************************************************************************************
+
 void get_quad_coords(p4est_quadrant_t * quadrant, double* coords, double *length) {
    int quad_coords[3];
    quad_coords[0] = quadrant->x;
@@ -758,3 +772,14 @@ void P4estClassDim::prepare_subdomain_geometry_mesh(GeometryMesh *mesh) const {
 }
 
 //****************************************************************************************
+
+
+void P4estClassDim::init_definitions()
+{
+   Def::face_corners.resize(Def::num_faces, vector<int>(Def::num_face_corners, -1));
+   for(int face_idx = 0; face_idx < Def::num_faces; face_idx++) {
+      for(int corner_idx = 0; corner_idx < Def::num_face_corners; corner_idx++) {
+         Def::face_corners[face_idx][corner_idx] = p4est_face_corners[face_idx][corner_idx];
+      }
+   }
+}

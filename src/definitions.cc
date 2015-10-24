@@ -1,6 +1,7 @@
 #include <assert.h>
 
 #include "definitions.h"
+#include "p4est/my_p4est_interface.h"
 
 void Def::init(int num_dim, int order)
 {
@@ -12,6 +13,9 @@ void Def::init(int num_dim, int order)
       num_edges = 0;
       num_faces = 4;
 
+      num_face_corners = 2;
+      num_corner_faces = 2;
+
       num_loc_dofs = (order + 1) * (order + 1);
    }
    else if(num_dim == 3) {
@@ -20,11 +24,18 @@ void Def::init(int num_dim, int order)
       num_edges = 12;
       num_faces = 6;
 
+      num_face_corners = 4;
+      num_corner_faces = 3;
+
       num_loc_dofs = (order + 1) * (order + 1) * (order + 1);
    }
    else {
       assert(0);
    }
+
+   // copy important connectivity information froma p4est
+   // has to be done in my_p4est_implementation to distinguish 2D and 3D
+   P4estClass::init_definitions();
 }
 
 int Def::num_dim;
@@ -34,3 +45,9 @@ int Def::num_corners;
 int Def::num_edges;
 int Def::num_faces;
 int Def::num_loc_dofs;
+
+int Def::num_face_corners;
+int Def::num_corner_faces;
+
+
+std::vector<std::vector<int> > Def::face_corners;

@@ -62,9 +62,9 @@ void shape_fun(int order, int idx, double x, double elem_len, double *value, dou
 
 
 void prepare_transformed_values(const Quadrature &q, double element_length,
-                                vector<vector<double> > &values, vector<vector<vector<double> > > &gradients) {
-   values = vector<vector<double> >(Def::num_children);
-   gradients = vector<vector<vector<double> > >(Def::num_children);
+                                vector<vector<double> > *values, vector<vector<vector<double> > > *gradients) {
+   *values = vector<vector<double> >(Def::num_children);
+   *gradients = vector<vector<vector<double> > >(Def::num_children);
 
    for(int node = 0; node < Def::num_children; node++) {
       int x_id_1D = node % 2;
@@ -98,16 +98,17 @@ void prepare_transformed_values(const Quadrature &q, double element_length,
             aux1.push_back(grad_2);
             aux1.push_back(grad_3);
             //gradients[node].push_back(vector<double>({grad_1, grad_2, grad_3}));
-            gradients[node].push_back(aux1);
+            (*gradients)[node].push_back(aux1);
          }
          else {
             vector<double> aux1;
             aux1.push_back(grad_1);
             aux1.push_back(grad_2);
             //gradients[node].push_back(vector<double>({grad_1, grad_2}));
-            gradients[node].push_back(aux1);
+            (*gradients)[node].push_back(aux1);
          }
-         values[node].push_back(value);
+         (*values)[node].push_back(value);
       }
    }
 }
+

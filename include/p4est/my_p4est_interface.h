@@ -7,6 +7,7 @@
 class BddcmlMesh;
 class BddcmlDimensions;
 class GeometryMesh;
+class HangingInfo;
 
 enum class RefineType
 {
@@ -34,10 +35,15 @@ public:
    virtual void prepare_subdomain_geometry_mesh(GeometryMesh *mesh) const = 0;
 
    virtual int independent_nodes(p4est_locidx_t quadrant, int lnode, p4est_locidx_t *nodes, real* coeffs) const = 0;
+   virtual bool get_hanging_info(int quad_idx, HangingInfo *hanging_info) const = 0;
 
    virtual void refine_and_partition(int num, RefineType type) = 0;
 
    static P4estClass *create(int num_dim, int degree, MPI_Comm mpicomm);
+
+   static void init_definitions();
+
+   inline int get_num_dim() const {return num_dim; }
 
 protected:
    int degree;

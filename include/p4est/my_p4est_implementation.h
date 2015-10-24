@@ -40,7 +40,11 @@ public:
    virtual void prepare_subdomain_geometry_mesh(GeometryMesh *mesh) const;
 
    virtual int independent_nodes(p4est_locidx_t quadrant, int lnode, p4est_locidx_t *nodes, real* coeffs) const;
+   virtual bool get_hanging_info(int quad_idx, HangingInfo *hanging_info) const;
+
    virtual void refine_and_partition(int num, RefineType type);
+
+   static void init_definitions();
 
 protected:
    p4est_gloidx_t node_loc_to_glob(p4est_locidx_t loc_idx) const;

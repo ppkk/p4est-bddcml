@@ -10,6 +10,7 @@
 #include "geometry_mesh.h"
 #include "p4est/my_p4est_interface.h"
 #include "shapefun.h"
+#include "local_matrix.h"
 
 
 using namespace std;
@@ -66,20 +67,6 @@ void print_complete_matrix_rhs(const BddcmlFemSpace &femsp, const BddcmlDimensio
    free(compl_mat);
 }
 
-
-void zero_matrix_rhs(LocalMatrix *matrix, vector<vector<real> > *rhs) {
-   for(int i_node = 0; i_node < Def::num_children; i_node++) {
-      for(int i_comp = 0; i_comp < matrix->ncomponents; i_comp++) {
-         (*rhs)[i_node][i_comp] = 0.0;
-         for(int j_node = 0; j_node < Def::num_children; j_node++) {
-            for(int j_comp = 0; j_comp < matrix->ncomponents; j_comp++) {
-               matrix->comps[i_comp][j_comp].mat[i_node][j_node] = 0.0;
-            }
-         }
-      }
-   }
-}
-
 void print_matrix_rhs(const vector<vector<vector<vector<real> > > > &matrix, const vector<vector<real> > &rhs, int num_comp) {
    cout << "LOCAL MATRIX:" << endl;
    for(int i_node = 0; i_node < Def::num_children; i_node++) {
@@ -95,23 +82,24 @@ void print_matrix_rhs(const vector<vector<vector<vector<real> > > > &matrix, con
    cout << "END LOCAL MATRIX:" << endl;
 }
 
-void assemble_local_laplace(const Element &element, RhsPtr rhs_ptr, LocalMatrix *matrix, vector<vector<real> > *rhs) {
+void assemble_local_laplace(const Element &element, RhsPtr rhs_ptr, LocalMatrix *matrix, LocalVector *rhs) {
    GaussQuadrature q(Def::num_dim, QUAD_ORDER);
 
    vector<vector<double> > vals;
    vector<vector<vector<double> > > grads;
 
-   prepare_transformed_values(q, element.size, vals, grads);
+   prepare_transformed_values(q, element.size, &vals, &grads);
 
    Quadrature q_transformed(Def::num_dim);
    q.transform_to_physical(element, &q_transformed);
 
-   zero_matrix_rhs(matrix, rhs);
+   matrix->clear();
+   rhs->clear();
 
    for(unsigned int q_idx = 0; q_idx < q_transformed.np(); q_idx++) {
       for(int i_node = 0; i_node < Def::num_children; i_node++) {
 
-         (*rhs)[i_node][0] += q_transformed.weights[q_idx] * vals[i_node][q_idx] * rhs_ptr(q_transformed.coords[q_idx])[0];
+         rhs->comps[0].vec[i_node] += q_transformed.weights[q_idx] * vals[i_node][q_idx] * rhs_ptr(q_transformed.coords[q_idx])[0];
 
          for(int j_node = 0; j_node < Def::num_children; j_node++) {
             for(int idx_dim = 0; idx_dim < Def::num_dim; idx_dim++) {
@@ -124,24 +112,25 @@ void assemble_local_laplace(const Element &element, RhsPtr rhs_ptr, LocalMatrix 
 }
 
 void assemble_local_elasticity(const Element &element, RhsPtr rhs_ptr, Parameters p,
-                               LocalMatrix *matrix, vector<vector<real> > *rhs) {
+                               LocalMatrix *matrix, LocalVector *rhs) {
    GaussQuadrature q(Def::num_dim, QUAD_ORDER);
 
    int num_comp = Def::num_dim;
    vector<vector<double> > vals; //[node][quadrature_pt]
    vector<vector<vector<double> > > grads;//[node][quadrature_pt][component]
 
-   prepare_transformed_values(q, element.size, vals, grads);
+   prepare_transformed_values(q, element.size, &vals, &grads);
 
    Quadrature q_transformed(Def::num_dim);
    q.transform_to_physical(element, &q_transformed);
 
-   zero_matrix_rhs(matrix, rhs);
+   matrix->clear();
+   rhs->clear();
 
    for(unsigned int q_idx = 0; q_idx < q_transformed.np(); q_idx++) {
       for(int i_node = 0; i_node < Def::num_children; i_node++) {
          for(int i_comp = 0; i_comp < num_comp; i_comp++) {
-            (*rhs)[i_node][i_comp] += q_transformed.weights[q_idx] * vals[i_node][q_idx] * rhs_ptr(q_transformed.coords[q_idx])[i_comp];
+            rhs->comps[i_comp].vec[i_node] += q_transformed.weights[q_idx] * vals[i_node][q_idx] * rhs_ptr(q_transformed.coords[q_idx])[i_comp];
 
             for(int j_node = 0; j_node < Def::num_children; j_node++) {
                for(int j_comp = 0; j_comp < num_comp; j_comp++) {
@@ -170,20 +159,6 @@ void assemble_local_elasticity(const Element &element, RhsPtr rhs_ptr, Parameter
 
 }
 
-LocalMatrixComponent::LocalMatrixComponent(int ndofs) : ndofs(ndofs){
-   mat.resize(ndofs, vector<real>(ndofs, 0.0));
-}
-
-LocalMatrix::LocalMatrix(int ncomponents, int ndofs) : ncomponents(ncomponents), ndofs(ndofs) {
-   comps.resize(ncomponents, vector<LocalMatrixComponent>(ncomponents, LocalMatrixComponent(ndofs)));
-}
-
-void apply_constraints(const LocalMatrix &in, LocalMatrix *out)
-{
-   
-}
-
-
 void assemble_matrix_rhs(const P4estClass &p4est, const GeometryMesh &geometry_mesh, const BddcmlMesh &bddcml_mesh, const BddcmlFemSpace &femsp,
                          SparseMatrix *matrix, RealArray *rhss, RhsPtr rhs_ptr, Parameters params) {
 
@@ -192,7 +167,8 @@ void assemble_matrix_rhs(const P4estClass &p4est, const GeometryMesh &geometry_m
    int n_components = bddcml_mesh.subdomain_dims->n_node_dofs;
 
    LocalMatrix element_matrix(n_components, Def::num_children);
-   vector<vector<real> > element_rhs(Def::num_children, vector<real>(n_components, 0.0));
+   LocalVector element_rhs(n_components, Def::num_children);
+   //vector<vector<real> > element_rhs(Def::num_children, vector<real>(n_components, 0.0));
    p4est_locidx_t i_indep_nodes[4], j_indep_nodes[4];
 
    int element_offset = 0;
@@ -240,7 +216,7 @@ void assemble_matrix_rhs(const P4estClass &p4est, const GeometryMesh &geometry_m
                }
 
                //double rhs_value = i_coeffs * 1./(real)Def::num_children * elem_volume * 1;
-               double rhs_value = i_coeffs * element_rhs[i_node_loc][i_comp];
+               double rhs_value = i_coeffs * element_rhs.comps[i_comp].vec[i_node_loc];
                rhss->val[i_dof] += rhs_value;
 
             }

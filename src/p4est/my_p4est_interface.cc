@@ -22,3 +22,14 @@ P4estClass *P4estClass::create(int num_dim, int degree, sc_MPI_Comm mpicomm)
    else
       assert(0);
 }
+
+
+void P4estClass::init_definitions()
+{
+   if(Def::num_dim == 2)
+      P4estClass2D::init_definitions();
+   else if(Def::num_dim == 3)
+      P4estClass3D::init_definitions();
+   else
+      assert(0);
+}

@@ -1,6 +1,8 @@
 #ifndef DEFINITIONS_H
 #define DEFINITIONS_H
 
+#include <vector>
+
 // type used for floating point
 typedef double real;
 
@@ -19,8 +21,13 @@ public:
    static int num_edges;
    static int num_faces;
 
+   static int num_face_corners;
+   static int num_corner_faces;
+
    static int order;   // this actually should not be here...
    static int num_loc_dofs;
+
+   static std::vector<std::vector<int> > face_corners;
 };
 
 
