@@ -44,6 +44,7 @@ src/assemble.cc
 src/geometry_mesh.cc
 src/shapefun.cc
 src/local_matrix.cc
+src/integration_cell.cc
 )
 
 set(HEADERS
@@ -61,6 +62,7 @@ include/assemble.h
 include/geometry_mesh.h
 include/shapefun.h
 include/local_matrix.h
+include/integration_cell.h
 )
 
 # BLOPEX objects

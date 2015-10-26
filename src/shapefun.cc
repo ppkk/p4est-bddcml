@@ -1,4 +1,5 @@
 #include <assert.h>
+#include <iostream>
 
 #include "shapefun.h"
 #include "p4est/my_p4est_interface.h"
@@ -6,21 +7,49 @@
 
 using namespace std;
 
-void ref_value_1D(int loc_id_1d, double x, double elem_len, double *value, double *der) {
-   if(loc_id_1d == 0) {
-      *value = (1-x)/2.;
-      *der = -1/elem_len;
+//void ref_value_1D(int loc_id_1d, double x, double elem_len, double *value, double *der) {
+//   if(loc_id_1d == 0) {
+//      *value = (1-x)/2.;
+//      *der = -1/elem_len;
+//   }
+//   else if(loc_id_1d == 1) {
+//      *value = (1+x)/2.;
+//      *der = 1/elem_len;
+//   }
+//   else {
+//      assert(0);
+//   }
+//}
+
+void ReferenceElement::find_node_coords(const std::vector<double> &start, double element_len,
+                                   std::vector<std::vector<double> > *coords) const {
+   int num_points_1d = order + 1;
+   double node_distance = element_len / order;
+   vector<double> node(num_dim, 0.0);
+   int difs[num_dim];
+   for(difs[2] = 0; difs[2] < ((num_dim == 3) ? num_points_1d : 1); difs[2]++) {
+      for(difs[1] = 0; difs[1] < num_points_1d; difs[1]++) {
+         for(difs[0] = 0; difs[0] < num_points_1d; difs[0]++) {
+            // now we know which of the dim^(order+1) points we want, construct its coordinates
+            cout << difs[0] << ", " << difs[1] << ", " << difs[2] << endl;
+            for(int dim = 0; dim < num_dim; dim++) {
+               node[dim] = start[dim] + difs[dim] * node_distance;
+            }
+            coords->push_back(node);
+         }
+      }
    }
-   else if(loc_id_1d == 1) {
-      *value = (1+x)/2.;
-      *der = 1/elem_len;
-   }
-   else {
-      assert(0);
-   }
+
 }
 
-void shape_fun(int order, int idx, double x, double elem_len, double *value, double* der) {
+ReferenceElement::ReferenceElement(int num_dim, int order) : num_dim(num_dim), order(order)
+{
+   vector<double> starting_corner(num_dim, -1.0);
+   // use for reference element [-1,1]^dim
+   find_node_coords(starting_corner, 2., &node_coords);
+}
+
+void ReferenceElement::shape_fun_1d(int idx, double x, double *value, double* der) const {
    int n_nodes = order + 1;
    assert((idx >= 0) && (idx < n_nodes));
 
@@ -56,13 +85,11 @@ void shape_fun(int order, int idx, double x, double elem_len, double *value, dou
       }
    }
    *der /= denominator;
-
-   *der /= elem_len; // todo ne takhle
 }
 
 
-void prepare_transformed_values(const Quadrature &q, double element_length,
-                                vector<vector<double> > *values, vector<vector<vector<double> > > *gradients) {
+void ReferenceElement::prepare_transformed_values(const Quadrature &q, double element_length,
+                                vector<vector<double> > *values, vector<vector<vector<double> > > *gradients) const {
    *values = vector<vector<double> >(Def::num_children);
    *gradients = vector<vector<vector<double> > >(Def::num_children);
 
@@ -73,15 +100,14 @@ void prepare_transformed_values(const Quadrature &q, double element_length,
 
       for(unsigned int q_idx = 0; q_idx < q.np(); q_idx++) {
          double value_x, der_x, value_y, der_y, value_z, der_z;
-//         ref_value_1D(x_id_1D, q.coords[q_idx][0], element_length, &value_x, &der_x);
-//         ref_value_1D(y_id_1D, q.coords[q_idx][1], element_length, &value_y, &der_y);
-         shape_fun(1, x_id_1D, q.coords[q_idx][0], element_length, &value_x, &der_x);
-         shape_fun(1, y_id_1D, q.coords[q_idx][1], element_length, &value_y, &der_y);
-
+         shape_fun_1d(x_id_1D, q.coords[q_idx][0], &value_x, &der_x);
+         der_x /= element_length;
+         shape_fun_1d(y_id_1D, q.coords[q_idx][1], &value_y, &der_y);
+         der_y /= element_length;
 
          if(Def::num_dim == 3) {
-            //ref_value_1D(z_id_1D, (q.coords[q_idx])[2], element_length, &value_z, &der_z);
-            shape_fun(1, z_id_1D, (q.coords[q_idx])[2], element_length, &value_z, &der_z);
+            shape_fun_1d(z_id_1D, (q.coords[q_idx])[2], &value_z, &der_z);
+            der_z /= element_length;
          }
 
          double value = value_x * value_y;

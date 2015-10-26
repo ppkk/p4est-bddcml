@@ -20,6 +20,7 @@
 #include "bddcml/bddcml_mesh.h"
 #include "geometry_mesh.h"
 #include "local_matrix.h"
+#include "integration_cell.h"
 
 using namespace std;
 
@@ -656,17 +657,15 @@ void P4estClassDim::prepare_subdomain_bddcml_mesh(BddcmlMesh* mesh) const {
    for_all_quads_with_tree(p4est, tree, quad_idx, quad) {
       // element local to global mapping -- obtained by adding the offset from p4est
       mesh->elem_global_map.val[quad_idx] = (int)p4est->global_first_quadrant[p4est->mpirank] + quad_idx;
-      mesh->num_nodes_of_elem.val[quad_idx] = P4EST_CHILDREN;
+      mesh->num_nodes_of_elem.val[quad_idx] = Def::num_element_nodes;
 
-      for (int lnode = 0; lnode < P4EST_CHILDREN; ++lnode) {
+      for (int lnode = 0; lnode < Def::num_element_nodes; ++lnode) {
          /* Cache some information on corner nodes. */
-         p4est_locidx_t node_idx = lnodes()->element_nodes[P4EST_CHILDREN * quad_idx + lnode];
+         p4est_locidx_t node_idx = lnodes()->element_nodes[Def::num_element_nodes * quad_idx + lnode];
          //      isboundary[i] = (bc == NULL ? 0 : bc[lni]);
          //       inloc[i] = !isboundary[i] ? in[lni] : 0.;
-         mesh->elem_node_indices.val[P4EST_CHILDREN * quad_idx + lnode] = node_idx;
+         mesh->elem_node_indices.val[Def::num_element_nodes * quad_idx + lnode] = node_idx;
       }
-
-      mesh->element_lengths.val[quad_idx] = pow(0.5, quad->level);
 
       /* Figure out the hanging corners on this element, if any. */
       int hanging_corner[P4EST_CHILDREN];
@@ -708,38 +707,59 @@ void P4estClassDim::prepare_subdomain_bddcml_mesh(BddcmlMesh* mesh) const {
 const int nodes_in_axes_dirs[3] = {1,2,4};
 const double tolerance = 1e-10;
 
-void P4estClassDim::prepare_subdomain_geometry_mesh(GeometryMesh *mesh) const {
+void P4estClassDim::prepare_integration_mesh(IntegrationMesh *mesh) const {
    p4est_quadrant_t node;
    p4est_locidx_t quad_idx = 0;
    p4est_quadrant_t *quad;
    p4est_topidx_t tree;
-   Element element;
+   IntegrationCell integration_cell;
    vector<double> other_point;
 
    mesh->clear();
 
    for_all_quads_with_tree(p4est, tree, quad_idx, quad) {
-      element.clear();
+      integration_cell.clear();
       p4est_quadrant_corner_node (quad, 0, &node);
-      get_node_coords(tree, node, &element.position);
+      get_node_coords(tree, node, &integration_cell.position);
 
       p4est_quadrant_corner_node (quad, nodes_in_axes_dirs[0], &node);
       get_node_coords(tree, node, &other_point);
-      element.size = other_point[0] - element.position[0];
+      integration_cell.size = other_point[0] - integration_cell.position[0];
 
       for(int i = 1; i < num_dim; i++) {
          p4est_quadrant_corner_node (quad, nodes_in_axes_dirs[i], &node);
          get_node_coords(tree, node, &other_point);
-         assert(element.size - (other_point[i] - element.position[i]) < tolerance * element.size);
+         assert(integration_cell.size - (other_point[i] - integration_cell.position[i]) < tolerance * integration_cell.size);
       }
 
-      mesh->elements.push_back(element);
+      mesh->cells.push_back(integration_cell);
    }
    end_for_all_quads
 }
 
 //****************************************************************************************
 
+void P4estClassDim::prepare_nodal_mesh(int ncomponents, const IntegrationMesh &integration_mesh,
+                                const ReferenceElement &reference_element,
+                                NodalElementMesh *nodal_mesh) const {
+
+   p4est_locidx_t quad_idx = 0;
+   p4est_quadrant_t *quad;
+   p4est_topidx_t tree;
+
+   for_all_quads_with_tree(p4est, tree, quad_idx, quad) {
+      NodalElement nodal_element(ncomponents, integration_mesh.cells[quad_idx], reference_element);
+      for (int lnode = 0; lnode < Def::num_element_nodes; ++lnode) {
+         p4est_locidx_t node_idx = lnodes()->element_nodes[Def::num_element_nodes * quad_idx + lnode];
+         nodal_element.nodes.push_back(node_idx);
+      }
+
+      nodal_mesh->elements.push_back(nodal_element);
+   }
+   end_for_all_quads
+}
+
+//****************************************************************************************
 
 void P4estClassDim::init_definitions()
 {

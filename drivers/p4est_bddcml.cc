@@ -7,7 +7,7 @@
 #include "bddcml/bddcml_femspace.h"
 #include "p4est/my_p4est_interface.h"
 #include "assemble.h"
-#include "geometry_mesh.h"
+#include "integration_cell.h"
 
 using namespace std;
 
@@ -88,8 +88,8 @@ void run(int argc, char **argv)
    femsp.prepare_subdomain_fem_space(physicsType);
    //print_bddcml_fem_space(&femsp, &mesh, print_rank_l);
 
-   GeometryMesh geometry_mesh;
-   p4est_class->prepare_subdomain_geometry_mesh(&geometry_mesh);
+   IntegrationMesh integration_mesh;
+   p4est_class->prepare_integration_mesh(&integration_mesh);
 
    p4est_class->plot_solution(bddcml_mesh.subdomain_dims->n_node_dofs, NULL, NULL, NULL);
 
@@ -127,7 +127,7 @@ void run(int argc, char **argv)
    allocate_sparse_matrix(extra_space_for_hanging_nodes * subdomain_dims.n_elems * lelm, matrix_type, &matrix);
    zero_matrix(&matrix);
 
-   assemble_matrix_rhs(*p4est_class, geometry_mesh, bddcml_mesh, femsp, &matrix, &rhss, &rhs_fn, params);
+   assemble_matrix_rhs(*p4est_class, integration_mesh, bddcml_mesh, femsp, &matrix, &rhss, &rhs_fn, params);
    //print_complete_matrix_rhs(&femsp, &global_dims, &matrix, &rhss, mpicomm);
 
    // user constraints - not really used here

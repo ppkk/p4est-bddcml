@@ -31,8 +31,6 @@ public:
 
    IdxArray elem_global_map;
    IdxArray node_global_map;
-
-   RealArray element_lengths;
 };
 
 // **************************

@@ -28,7 +28,7 @@ public:
    static int num_corner_edges;
 
    static int order;   // this actually should not be here...
-   static int num_loc_dofs;
+   static int num_element_nodes;
 
    static std::vector<std::vector<int> > edge_corners;
    static std::vector<std::vector<int> > face_corners;

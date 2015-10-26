@@ -3,7 +3,7 @@
 
 #include <vector>
 
-class Element;
+class IntegrationCell;
 class LevelSet;
 
 /*
@@ -38,7 +38,7 @@ public:
    void print() const;
    void clear();
 
-   void transform_to_physical(const Element &element, Quadrature *transformed) const;
+   void transform_to_physical(const IntegrationCell &element, Quadrature *transformed) const;
 
 protected:
    void tensor_product(const Quadrature &quad1, const Quadrature &quad2);

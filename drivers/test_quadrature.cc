@@ -1,7 +1,7 @@
 #include <iostream>
 #include "math.h"
 
-#include "element.h"
+#include "integration_cell.h"
 #include "quadrature.h"
 #include "level_set.h"
 
@@ -22,11 +22,11 @@ double level_set_fn_circle(vector<double> point)
    return 1 - rr;
 }
 
-double integrate_element(const Quadrature &quadrature, const LevelSet &level_set, const Element &element)
+double integrate_element(const Quadrature &quadrature, const LevelSet &level_set, const IntegrationCell &cell)
 {
    double result = 0.0;
    Quadrature quad_trans(dimension);
-   quadrature.transform_to_physical(element, &quad_trans);
+   quadrature.transform_to_physical(cell, &quad_trans);
    for(unsigned qi = 0; qi < quad_trans.np(); qi++)
    {
       if(level_set.apply(quad_trans.coords[qi]) == LevelSetValue::Inside)
@@ -39,10 +39,10 @@ double integrate_element(const Quadrature &quadrature, const LevelSet &level_set
    return result;
 }
 
-double integrate(const Quadrature &quadrature, const LevelSet &level_set, const vector<Element> &elements)
+double integrate(const Quadrature &quadrature, const LevelSet &level_set, const vector<IntegrationCell> &cells)
 {
    double result = 0.0;
-   for(const Element &element : elements)
+   for(const IntegrationCell &element : cells)
    {
       result += integrate_element(quadrature, level_set, element);
    }
@@ -51,7 +51,7 @@ double integrate(const Quadrature &quadrature, const LevelSet &level_set, const 
 }
 
 
-void generate_elements(int num_in_dir, vector<Element> *elements)
+void generate_elements(int num_in_dir, vector<IntegrationCell> *cells)
 {
    double size = 2./num_in_dir;
    vector<double> coords;
@@ -67,7 +67,7 @@ void generate_elements(int num_in_dir, vector<Element> *elements)
             coords.clear();
             for(int i = 0; i < dimension; i++)
                coords.push_back(-1. + offsets[i] * size);
-            elements->push_back(Element(coords, size));
+            cells->push_back(IntegrationCell(coords, size));
          }
       }
 #ifdef P4_TO_P8
@@ -84,7 +84,7 @@ int main()
 
    LevelSet level_set(level_set_fn_circle);
 
-   vector<Element> elements;
+   vector<IntegrationCell> elements;
 
    generate_elements(elems_in_dir, &elements);
 

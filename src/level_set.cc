@@ -1,7 +1,7 @@
 #include <assert.h>
 
 #include "level_set.h"
-#include "element.h"
+#include "integration_cell.h"
 
 using namespace std;
 
@@ -16,10 +16,10 @@ LevelSetValue LevelSet::apply(const std::vector<double> point) const {
       assert(0);
 }
 
-LevelSetValue LevelSet::apply(const Element* element) const {
+LevelSetValue LevelSet::apply(const IntegrationCell* cell) const {
    LevelSetValue result = LevelSetValue::Border;
 
-   for (auto node : element->nodes()) {
+   for (auto node : cell->corners()) {
       LevelSetValue node_result = apply(node);
       if(result == LevelSetValue::Border) {
          // first node or the previous were also on the Border

@@ -3,7 +3,7 @@
 
 #include <vector>
 
-class Element;
+class IntegrationCell;
 
 typedef double (*LevelSetFunctionPtr)(std::vector<double> point);
 
@@ -24,7 +24,7 @@ public:
    LevelSetValue apply(const std::vector<double> point) const;
 
    // it is done in element nodes only!
-   LevelSetValue apply(const Element* element) const;
+   LevelSetValue apply(const IntegrationCell* cell) const;
 
 private:
    LevelSetFunctionPtr fn;

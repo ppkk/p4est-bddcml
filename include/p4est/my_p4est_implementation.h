@@ -37,7 +37,9 @@ public:
 
    virtual void prepare_dimmensions(BddcmlDimensions *subdomain_dims, BddcmlDimensions *global_dims) const;
    virtual void prepare_subdomain_bddcml_mesh(BddcmlMesh *mesh) const;
-   virtual void prepare_subdomain_geometry_mesh(GeometryMesh *mesh) const;
+   virtual void prepare_integration_mesh(IntegrationMesh *mesh) const;
+   virtual void prepare_nodal_mesh(int ncomponents, const IntegrationMesh &integration_mesh,
+                                   const ReferenceElement &reference_element, NodalElementMesh *nodal_mesh) const;
 
    virtual bool get_hanging_info(int quad_idx, HangingInfo *hanging_info) const;
 

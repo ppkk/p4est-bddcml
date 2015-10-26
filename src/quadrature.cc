@@ -3,7 +3,7 @@
 #include <iostream>
 
 #include "quadrature.h"
-#include "element.h"
+#include "integration_cell.h"
 
 using namespace std;
 
@@ -33,15 +33,15 @@ void Quadrature::print() const {
    cout << "sum of weights " << sum << endl;
 }
 
-void Quadrature::transform_to_physical(const Element &element, Quadrature *transformed) const {
+void Quadrature::transform_to_physical(const IntegrationCell &integration_cell, Quadrature *transformed) const {
    transformed->clear();
    transformed->weights.resize(np(), 0.0);
    transformed->coords.resize(np(), vector<double>(dimension, 0.0));
-   double scale_coeff = pow(element.size * 0.5, dimension);
+   double scale_coeff = pow(integration_cell.size * 0.5, dimension);
    for(unsigned qi = 0; qi < np(); qi++) {
       transformed->weights[qi] = weights[qi] * scale_coeff;
       for(int dim_idx = 0; dim_idx < dimension; dim_idx++) {
-         transformed->coords[qi][dim_idx] = element.position[dim_idx] + 0.5 * (coords[qi][dim_idx] + 1) * element.size;
+         transformed->coords[qi][dim_idx] = integration_cell.position[dim_idx] + 0.5 * (coords[qi][dim_idx] + 1) * integration_cell.size;
       }
    }
 }

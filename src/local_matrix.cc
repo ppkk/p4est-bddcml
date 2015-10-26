@@ -73,7 +73,7 @@ HangingInfo::HangingInfo(const P4estClass &p4est) : p4est(p4est){
    faces.resize(Def::num_faces, 0.0);
    edges.resize(Def::num_edges, 0.0);
 
-   coefs.resize(Def::num_loc_dofs, vector<double>(Def::num_loc_dofs, 0.0));
+   coefs.resize(Def::num_element_nodes, vector<double>(Def::num_element_nodes, 0.0));
 }
 
 
@@ -86,8 +86,8 @@ void HangingInfo::init_coefs(int elem_idx)
    if(elem_idx == active_elem_idx)
       return;
 
-   for(int i = 0; i < Def::num_loc_dofs; i++) {
-      for(int j = 0; j < Def::num_loc_dofs; j++) {
+   for(int i = 0; i < Def::num_element_nodes; i++) {
+      for(int j = 0; j < Def::num_element_nodes; j++) {
          coefs[i][j] = (i == j) ? 1.0 : 0.0;
       }
    }
@@ -170,6 +170,7 @@ void HangingInfo::init_coefs(int elem_idx)
    else {
       assert(0);
    }
+   active_elem_idx = elem_idx;
 }
 
 void HangingInfo::apply_constraints(int elem_idx, const LocalMatrixComponent &in, LocalMatrixComponent *out)

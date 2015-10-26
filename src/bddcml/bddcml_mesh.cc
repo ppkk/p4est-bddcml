@@ -22,7 +22,6 @@ void BddcmlMesh::init(const BddcmlDimensions *subdomain_dims) {
    allocate_idx_array(subdomain_dims->n_elems, &num_nodes_of_elem);
    allocate_idx_array(subdomain_dims->n_elems, &elem_global_map);
    allocate_idx_array(subdomain_dims->n_nodes, &node_global_map);
-   allocate_real_array(subdomain_dims->n_elems, &element_lengths);
    allocate_real_2D_array(subdomain_dims->n_nodes, subdomain_dims->n_problem_dims, &coords);
 }
 
@@ -31,7 +30,6 @@ void BddcmlMesh::free() {
    free_idx_array(&num_nodes_of_elem);
    free_idx_array(&elem_global_map);
    free_idx_array(&node_global_map);
-   free_real_array(&element_lengths);
    free_real_2D_array(&coords);
 }
 

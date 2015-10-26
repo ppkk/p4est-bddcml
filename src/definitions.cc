@@ -19,7 +19,7 @@ void Def::init(int num_dim, int order)
       num_edge_corners = -1;
       num_corner_edges = -1;
 
-      num_loc_dofs = (order + 1) * (order + 1);
+      num_element_nodes = (order + 1) * (order + 1);
    }
    else if(num_dim == 3) {
       num_children = 8;
@@ -33,7 +33,7 @@ void Def::init(int num_dim, int order)
       num_edge_corners = 2;
       num_corner_edges = 3;
 
-      num_loc_dofs = (order + 1) * (order + 1) * (order + 1);
+      num_element_nodes = (order + 1) * (order + 1) * (order + 1);
    }
    else {
       assert(0);
@@ -50,7 +50,7 @@ int Def::num_children;
 int Def::num_corners;
 int Def::num_edges;
 int Def::num_faces;
-int Def::num_loc_dofs;
+int Def::num_element_nodes;
 
 int Def::num_face_corners;
 int Def::num_corner_faces;

@@ -6,8 +6,10 @@
 
 class BddcmlMesh;
 class BddcmlDimensions;
-class GeometryMesh;
+class IntegrationMesh;
+class NodalElementMesh;
 class HangingInfo;
+class ReferenceElement;
 
 enum class RefineType
 {
@@ -32,7 +34,12 @@ public:
 
    virtual void prepare_dimmensions(BddcmlDimensions *subdomain_dims, BddcmlDimensions *global_dims) const = 0;
    virtual void prepare_subdomain_bddcml_mesh(BddcmlMesh* mesh) const = 0;
-   virtual void prepare_subdomain_geometry_mesh(GeometryMesh *mesh) const = 0;
+   virtual void prepare_integration_mesh(IntegrationMesh *mesh) const = 0;
+
+   // todo: rather then ncomponents, it should take vector of ReferenceElements to allow different (velocity + pressure)
+   // todo: consider const ref -> (smart) pointers...
+   virtual void prepare_nodal_mesh(int ncomponents, const IntegrationMesh &integration_mesh,
+                                   const ReferenceElement &reference_element, NodalElementMesh *nodal_mesh) const = 0;
 
    virtual bool get_hanging_info(int quad_idx, HangingInfo *hanging_info) const = 0;
 
