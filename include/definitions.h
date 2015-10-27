@@ -27,11 +27,60 @@ public:
    static int num_edge_corners;
    static int num_corner_edges;
 
+   static int num_edge_faces;
+   static int num_face_edges;
+
    static int order;   // this actually should not be here...
    static int num_element_nodes;
+   static int num_face_nodes;
+   static int num_edge_nodes;
+   static int num_corner_nodes;
+   static int num_element_interior_nodes;
+   static int num_face_interior_nodes;
+   static int num_edge_interior_nodes;
 
    static std::vector<std::vector<int> > edge_corners;
    static std::vector<std::vector<int> > face_corners;
+
+   static std::vector<std::vector<int> > corner_edges;
+   static std::vector<std::vector<int> > corner_faces;
+
+   static std::vector<std::vector<int> > face_edges;
+   static std::vector<std::vector<int> > edge_faces;
+
+private:
+
+   static const int num_children_2D = 4;
+   static const int num_corners_2D = 4;
+   static const int num_edges_2D = 0;
+   static const int num_faces_2D = 4;
+
+   static const int num_face_corners_2D = 2;
+   static const int num_corner_faces_2D = 2;
+
+   static const int num_edge_corners_2D = -1;
+   static const int num_corner_edges_2D = -1;
+
+   static const int num_edge_faces_2D = -1;
+   static const int num_face_edges_2D = -1;
+
+
+   static const int num_children_3D = 8;
+   static const int num_corners_3D = 8;
+   static const int num_edges_3D = 12;
+   static const int num_faces_3D = 6;
+
+   static const int num_face_corners_3D = 4;
+   static const int num_corner_faces_3D = 3;
+
+   static const int num_edge_corners_3D = 2;
+   static const int num_corner_edges_3D = 3;
+
+   static const int num_edge_faces_3D = 2;
+   static const int num_face_edges_3D = 4;
+
+   friend class P4estClass2D;
+   friend class P4estClass3D;
 };
 
 

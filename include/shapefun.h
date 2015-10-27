@@ -17,6 +17,8 @@ public:
    void find_node_coords(const std::vector<double> &start, double element_len,
                          std::vector<std::vector<double> > *coords) const;
 
+   void print_node_types() const;
+
 public:      
    int num_dim;
    int order;
@@ -32,7 +34,9 @@ public:
    std::vector<int> corner_nodes;
    std::vector<std::vector<int> > edge_nodes;
    std::vector<std::vector<int> > face_nodes;
-   std::vector<int> interior_nodes;
+   std::vector<std::vector<int> > edge_interior_nodes;
+   std::vector<std::vector<int> > face_interior_nodes;
+   std::vector<int> element_interior_nodes;
 };
 
 //void ref_value_1D(int loc_id_1d, double x, double elem_len, double *value, double *der);

@@ -761,22 +761,29 @@ void P4estClassDim::prepare_nodal_mesh(int ncomponents, const IntegrationMesh &i
 
 //****************************************************************************************
 
+// transfers p4est 2D array to vector<vector<int> > format
+template<int dim1, int dim2>
+void transfer_2D_array(const int p4est_array[dim1][dim2], vector<vector<int> > *result)
+{
+   result->resize(dim1, vector<int>(dim2, -1));
+   for(int i1 = 0; i1 < dim1; i1++) {
+      for(int i2 = 0; i2 < dim2; i2++) {
+         (*result)[i1][i2] = p4est_array[i1][i2];
+      }
+   }
+}
+
 void P4estClassDim::init_definitions()
 {
-   Def::face_corners.resize(Def::num_faces, vector<int>(Def::num_face_corners, -1));
-   for(int face_idx = 0; face_idx < Def::num_faces; face_idx++) {
-      for(int corner_idx = 0; corner_idx < Def::num_face_corners; corner_idx++) {
-         Def::face_corners[face_idx][corner_idx] = p4est_face_corners[face_idx][corner_idx];
-      }
-   }
-
-#ifdef P4_TO_P8
-   Def::edge_corners.resize(Def::num_edges, vector<int>(Def::num_edge_corners, -1));
-   for(int edge_idx = 0; edge_idx < Def::num_edges; edge_idx++) {
-      for(int corner_idx = 0; corner_idx < Def::num_edge_corners; corner_idx++) {
-         Def::edge_corners[edge_idx][corner_idx] = p8est_edge_corners[edge_idx][corner_idx];
-      }
-   }
+#ifndef P4_TO_P8
+   transfer_2D_array<Def::num_faces_2D, Def::num_face_corners_2D>(p4est_face_corners, &Def::face_corners);
+   transfer_2D_array<Def::num_corners_2D, Def::num_corner_faces_2D>(p4est_corner_faces, &Def::corner_faces);
+#else
+   transfer_2D_array<Def::num_faces_3D, Def::num_face_corners_3D>(p4est_face_corners, &Def::face_corners);
+   transfer_2D_array<Def::num_edges_3D, Def::num_edge_corners_3D>(p8est_edge_corners, &Def::edge_corners);
+   transfer_2D_array<Def::num_corners_3D, Def::num_corner_faces_3D>(p4est_corner_faces, &Def::corner_faces);
+   transfer_2D_array<Def::num_corners_3D, Def::num_corner_edges_3D>(p8est_corner_edges, &Def::corner_edges);
+   transfer_2D_array<Def::num_faces_3D, Def::num_face_edges_3D>(p8est_face_edges, &Def::face_edges);
+   transfer_2D_array<Def::num_edges_3D, Def::num_edge_faces_3D>(p8est_edge_faces, &Def::edge_faces);
 #endif
-
 }

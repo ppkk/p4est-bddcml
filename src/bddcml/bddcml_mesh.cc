@@ -3,7 +3,6 @@
 #include <stdbool.h>
 #include <assert.h>
 
-//#include "bddcml/bddcml_structs.h"
 #include "bddcml/bddcml_mesh.h"
 
 using namespace std;
@@ -25,6 +24,8 @@ void BddcmlMesh::init(const BddcmlDimensions *subdomain_dims) {
    allocate_real_2D_array(subdomain_dims->n_nodes, subdomain_dims->n_problem_dims, &coords);
 }
 
+/**********************************************************************************************************/
+
 void BddcmlMesh::free() {
    free_idx_array(&elem_node_indices);
    free_idx_array(&num_nodes_of_elem);
@@ -32,6 +33,8 @@ void BddcmlMesh::free() {
    free_idx_array(&node_global_map);
    free_real_2D_array(&coords);
 }
+
+/**********************************************************************************************************/
 
 void BddcmlMesh::print(int which_rank) const {
    print_rank = which_rank;
@@ -54,6 +57,15 @@ void BddcmlMesh::print(int which_rank) const {
    PPP printf("*************** END BDDCML MESH ************************\n\n");
 }
 
+/**********************************************************************************************************/
+
+void BddcmlMesh::fill_nodes_info(const NodalElementMesh &nodal_mesh) {
+   
+}
+
+/**********************************************************************************************************/
+/**********************************************************************************************************/
+
 BddcmlDimensions::BddcmlDimensions(int mesh_dim, PhysicsType physicsType) {
    n_problem_dims = mesh_dim;
    n_mesh_dims = mesh_dim;
@@ -75,5 +87,6 @@ BddcmlDimensions::BddcmlDimensions(int mesh_dim, PhysicsType physicsType) {
    else
       assert(0);
 }
+
 
 
