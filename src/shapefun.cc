@@ -169,6 +169,21 @@ ReferenceElement::ReferenceElement(int num_dim, int order) : num_dim(num_dim), o
    else {
       assert(0);
    }
+
+   // find element interior nodes (all minus faces)
+   for(int node = 0; node < Def::num_element_nodes; node++) {
+      bool contained_inside = true;
+      for(int face = 0; face < Def::num_faces; face++) {
+         if(find(face_nodes[face].begin(), face_nodes[face].end(), node) != face_nodes[face].end()) {
+            contained_inside = false;
+         }
+      }
+      if(contained_inside) {
+         element_interior_nodes.push_back(node);
+      }
+   }
+   assert((int)element_interior_nodes.size() == Def::num_element_interior_nodes);
+
 }
 
 void ReferenceElement::print_node_types() const
@@ -208,6 +223,12 @@ void ReferenceElement::print_node_types() const
    for(int corner = 0; corner < Def::num_corners; corner++) {
       cout << "Corner " << corner << ": " << corner_nodes[corner] << endl;
    }
+   cout << "element interior: ";
+   for(int node : element_interior_nodes) {
+      cout << node << ", ";
+   }
+   cout << endl;
+   assert(0);
 }
 
 void ReferenceElement::shape_fun_1d(int idx, double x, double *value, double* der) const {
