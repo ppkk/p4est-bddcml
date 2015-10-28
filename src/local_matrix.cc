@@ -1,5 +1,3 @@
-#include <assert.h>
-
 #include "local_matrix.h"
 #include "p4est/my_p4est_interface.h"
 

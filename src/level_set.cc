@@ -1,5 +1,3 @@
-#include <assert.h>
-
 #include "level_set.h"
 #include "integration_cell.h"
 

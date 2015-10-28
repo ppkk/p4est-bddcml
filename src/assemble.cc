@@ -1,7 +1,6 @@
 #include <string.h>
 #include <stdlib.h>
 #include <stdbool.h>
-#include <assert.h>
 
 #include "assemble.h"
 #include "bddcml/bddcml_mesh.h"

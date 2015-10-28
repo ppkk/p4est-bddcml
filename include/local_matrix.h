@@ -1,8 +1,6 @@
 #ifndef LOCAL_MATRIX_H
 #define LOCAL_MATRIX_H
 
-#include <vector>
-
 #include "definitions.h"
 
 class P4estClass;
@@ -67,6 +65,9 @@ public:
 
    void apply_constraints(int elem_idx, const LocalVectorComponent &in, LocalVectorComponent *out);
    void apply_constraints(int elem_idx, const LocalVector &in, LocalVector *out);
+
+   bool inline is_face_hanging(int face) const {return faces[face] != -1; }
+   bool inline is_edge_hanging(int edge) const {return edges[edge] != -1; }
 
 private:
    void init_coefs(int elem_idx);

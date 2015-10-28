@@ -1,8 +1,6 @@
 #ifndef P4EST_BDDCML_INTERACTION_H
 #define P4EST_BDDCML_INTERACTION_H
 
-#include <vector>
-
 #include "definitions.h"
 #include "bddcml/bddcml_structs.h"
 

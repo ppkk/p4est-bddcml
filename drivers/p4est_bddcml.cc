@@ -8,6 +8,8 @@
 #include "p4est/my_p4est_interface.h"
 #include "assemble.h"
 #include "integration_cell.h"
+#include "element.h"
+#include "shapefun.h"
 
 using namespace std;
 
@@ -35,8 +37,9 @@ sc_MPI_Comm mpicomm = sc_MPI_COMM_WORLD;
 void run(int argc, char **argv)
 {
    int mpiret = 0, num_levels;
-   Def::init(num_dim, order);
+   Def::init(num_dim, order, physicsType);
    P4estClass* p4est_class = P4estClass::create(num_dim, order, mpicomm);
+
 
    // 2D
 //   p4est_class->refine_and_partition(4, RefineType::UNIFORM);
@@ -80,16 +83,24 @@ void run(int argc, char **argv)
    p4est_class->prepare_dimmensions(&subdomain_dims, &global_dims);
    //print_p4est_mesh(p4est, lnodes, print_rank_l);
 
+   ReferenceElement ref_elem(num_dim, order);
+
+   IntegrationMesh integration_mesh;
+   p4est_class->prepare_integration_mesh(&integration_mesh);
+
+   NodalElementMesh nodal_mesh;
+   p4est_class->prepare_nodal_mesh(Def::num_components, integration_mesh, ref_elem, &nodal_mesh);
+
    BddcmlMesh bddcml_mesh(&subdomain_dims);
-   p4est_class->prepare_subdomain_bddcml_mesh(&bddcml_mesh);
+   p4est_class->prepare_bddcml_mesh_global_mappings(&bddcml_mesh);
+//   p4est_class->prepare_bddcml_mesh_nodes_old(&bddcml_mesh);
+   bddcml_mesh.fill_nodes_info(*p4est_class, nodal_mesh);
+
    //print_bddcml_mesh(&mesh, print_rank_l);
 
    BddcmlFemSpace femsp(&bddcml_mesh);
    femsp.prepare_subdomain_fem_space(physicsType);
    //print_bddcml_fem_space(&femsp, &mesh, print_rank_l);
-
-   IntegrationMesh integration_mesh;
-   p4est_class->prepare_integration_mesh(&integration_mesh);
 
    p4est_class->plot_solution(bddcml_mesh.subdomain_dims->n_node_dofs, NULL, NULL, NULL);
 

@@ -1,7 +1,7 @@
 #ifndef QUADRATURE_H
 #define QUADRATURE_H
 
-#include <vector>
+#include "definitions.h"
 
 class IntegrationCell;
 class LevelSet;

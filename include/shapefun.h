@@ -1,9 +1,10 @@
 #ifndef SHAPEFUN_H
 #define SHAPEFUN_H
 
-#include <vector>
+#include "definitions.h"
 
 class Quadrature;
+class IntegrationCell;
 
 class ReferenceElement
 {
@@ -14,10 +15,14 @@ public:
    void prepare_transformed_values(const Quadrature &q, double element_length,
                                    std::vector<std::vector<double> > *values,
                                    std::vector<std::vector<std::vector<double> > > *gradients) const;
-   void find_node_coords(const std::vector<double> &start, double element_len,
+   void find_nodes_coords(const std::vector<double> &start, double element_len,
                          std::vector<std::vector<double> > *coords) const;
+   void find_nodes_coords(const IntegrationCell &cell, std::vector<std::vector<double> > *coords) const;
 
    void print_node_types() const;
+
+   bool face_contains(int face, int node) const;
+   bool edge_contains(int face, int node) const;
 
 public:      
    int num_dim;
@@ -31,6 +36,8 @@ public:
 
    std::vector<std::vector<double> > node_coords;
 
+   // nodes in those arrays are sorted by construction
+   // this is important : allowes to use std::find
    std::vector<int> corner_nodes;
    std::vector<std::vector<int> > edge_nodes;
    std::vector<std::vector<int> > face_nodes;

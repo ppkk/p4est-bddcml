@@ -415,12 +415,18 @@ void P4estClassDim::print_p4est_mesh(int which_rank) const {
 
 bool P4estClassDim::get_hanging_info(int quad_idx, HangingInfo *hanging_info) const {
    assert(sizeof(p4est_locidx_t) == sizeof(int));
-   return (bool) p4est_lnodes_decode(lnodes()->face_code[quad_idx],
+   bool is_constraint = (bool) p4est_lnodes_decode(lnodes()->face_code[quad_idx],
                               &hanging_info->faces[0]
 #ifdef P4_TO_P8
                               , &hanging_info->edges[0]
 #endif
                               );
+   if(! is_constraint) {
+      std::fill(hanging_info->faces.begin(), hanging_info->faces.end(), -1);
+      std::fill(hanging_info->edges.begin(), hanging_info->edges.end(), -1);
+   }
+
+   return is_constraint;
 }
 
 //****************************************************************************************
@@ -641,22 +647,31 @@ void P4estClassDim::get_node_coords(p4est_topidx_t tree, const p4est_quadrant_t 
 
 //****************************************************************************************
 
-void P4estClassDim::prepare_subdomain_bddcml_mesh(BddcmlMesh* mesh) const {
-   vector<double> coords;
-   p4est_quadrant_t   sp, node;
-
+void P4estClassDim::prepare_bddcml_mesh_global_mappings(BddcmlMesh* mesh) const {
    for(int lnode = 0; lnode < lnodes()->num_local_nodes; lnode++) {
       mesh->node_global_map.val[lnode] = node_loc_to_glob(lnode);
    }
-   //p4est->global_first_quadrant
-   /* Loop over local quadrants to apply the element matrices. */
+   p4est_locidx_t quad_idx = 0;
+   p4est_quadrant_t *quad;
+
+   for_all_quads(p4est, quad_idx, quad) {
+      // element local to global mapping -- obtained by adding the offset from p4est
+      mesh->elem_global_map.val[quad_idx] = (int)p4est->global_first_quadrant[p4est->mpirank] + quad_idx;
+   }
+   end_for_all_quads
+}
+
+//****************************************************************************************
+
+void P4estClassDim::prepare_bddcml_mesh_nodes_old(BddcmlMesh* mesh) const {
+   vector<double> coords;
+   p4est_quadrant_t   sp, node;
+
    p4est_locidx_t quad_idx = 0;
    p4est_quadrant_t *quad;
    p4est_topidx_t tree;
 
    for_all_quads_with_tree(p4est, tree, quad_idx, quad) {
-      // element local to global mapping -- obtained by adding the offset from p4est
-      mesh->elem_global_map.val[quad_idx] = (int)p4est->global_first_quadrant[p4est->mpirank] + quad_idx;
       mesh->num_nodes_of_elem.val[quad_idx] = Def::num_element_nodes;
 
       for (int lnode = 0; lnode < Def::num_element_nodes; ++lnode) {
@@ -707,31 +722,41 @@ void P4estClassDim::prepare_subdomain_bddcml_mesh(BddcmlMesh* mesh) const {
 const int nodes_in_axes_dirs[3] = {1,2,4};
 const double tolerance = 1e-10;
 
-void P4estClassDim::prepare_integration_mesh(IntegrationMesh *mesh) const {
+void P4estClassDim::fill_integration_cell(const p4est_quadrant_t *quad, p4est_topidx_t tree,
+                                          IntegrationCell *integration_cell) const
+{
    p4est_quadrant_t node;
+   vector<double> other_point;
+
+   integration_cell->clear();
+   p4est_quadrant_corner_node (quad, 0, &node);
+   get_node_coords(tree, node, &integration_cell->position);
+
+   integration_cell->child_position = p4est_quadrant_child_id(quad);
+
+   p4est_quadrant_corner_node (quad, nodes_in_axes_dirs[0], &node);
+   get_node_coords(tree, node, &other_point);
+   integration_cell->size = other_point[0] - integration_cell->position[0];
+
+   for(int i = 1; i < num_dim; i++) {
+      p4est_quadrant_corner_node (quad, nodes_in_axes_dirs[i], &node);
+      get_node_coords(tree, node, &other_point);
+      assert(integration_cell->size - (other_point[i] - integration_cell->position[i]) < tolerance * integration_cell->size);
+   }
+}
+
+//****************************************************************************************
+
+void P4estClassDim::prepare_integration_mesh(IntegrationMesh *mesh) const {
    p4est_locidx_t quad_idx = 0;
    p4est_quadrant_t *quad;
    p4est_topidx_t tree;
    IntegrationCell integration_cell;
-   vector<double> other_point;
 
    mesh->clear();
 
    for_all_quads_with_tree(p4est, tree, quad_idx, quad) {
-      integration_cell.clear();
-      p4est_quadrant_corner_node (quad, 0, &node);
-      get_node_coords(tree, node, &integration_cell.position);
-
-      p4est_quadrant_corner_node (quad, nodes_in_axes_dirs[0], &node);
-      get_node_coords(tree, node, &other_point);
-      integration_cell.size = other_point[0] - integration_cell.position[0];
-
-      for(int i = 1; i < num_dim; i++) {
-         p4est_quadrant_corner_node (quad, nodes_in_axes_dirs[i], &node);
-         get_node_coords(tree, node, &other_point);
-         assert(integration_cell.size - (other_point[i] - integration_cell.position[i]) < tolerance * integration_cell.size);
-      }
-
+      fill_integration_cell(quad, tree, &integration_cell);
       mesh->cells.push_back(integration_cell);
    }
    end_for_all_quads

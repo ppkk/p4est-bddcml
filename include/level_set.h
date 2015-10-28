@@ -1,7 +1,7 @@
 #ifndef LEVEL_SET_H
 #define LEVEL_SET_H
 
-#include <vector>
+#include "definitions.h"
 
 class IntegrationCell;
 

@@ -1,11 +1,7 @@
 #ifndef INTEGRATION_CELL_H
 #define INTEGRATION_CELL_H
 
-#include <assert.h>
-#include <vector>
-
-//struct p4est;
-//struct p4est_lnodes;
+#include "definitions.h"
 
 class IntegrationCell
 {
@@ -23,9 +19,12 @@ public:
    int n_dimensions() const  {assert(! position.empty()); return position.size();}
    std::vector<std::vector<double> > corners() const;
 
+   void fill_parent_cell(IntegrationCell *parent) const;
+
 public:
    std::vector<double> position;
    double size;
+   int child_position;
 };
 
 

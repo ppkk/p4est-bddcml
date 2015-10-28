@@ -1,3 +1,4 @@
+
 #ifndef MY_P4EST_IMPLEMENTATION_H
 #define MY_P4EST_IMPLEMENTATION_H
 
@@ -36,7 +37,8 @@ public:
    virtual void print_p4est_mesh (int which_rank) const;
 
    virtual void prepare_dimmensions(BddcmlDimensions *subdomain_dims, BddcmlDimensions *global_dims) const;
-   virtual void prepare_subdomain_bddcml_mesh(BddcmlMesh *mesh) const;
+   virtual void prepare_bddcml_mesh_global_mappings(BddcmlMesh *mesh) const;
+   virtual void prepare_bddcml_mesh_nodes_old(BddcmlMesh *mesh) const;
    virtual void prepare_integration_mesh(IntegrationMesh *mesh) const;
    virtual void prepare_nodal_mesh(int ncomponents, const IntegrationMesh &integration_mesh,
                                    const ReferenceElement &reference_element, NodalElementMesh *nodal_mesh) const;
@@ -50,6 +52,8 @@ public:
 protected:
    p4est_gloidx_t node_loc_to_glob(p4est_locidx_t loc_idx) const;
    void get_node_coords(p4est_topidx_t tree, const p4est_quadrant_t &node, std::vector<double> *coords) const;
+
+   void fill_integration_cell(const p4est_quadrant_t *quad, p4est_topidx_t tree, IntegrationCell *cell) const;
 
    // should be called at the beginning of each function, which uses lnodes
    void update_lnodes() const ;

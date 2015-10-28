@@ -1,11 +1,9 @@
-#include <assert.h>
-
 #include "definitions.h"
 #include "p4est/my_p4est_interface.h"
 
 using namespace std;
 
-void Def::init(int num_dim, int order)
+void Def::init(int num_dim, int order, PhysicsType physicsType)
 {
    Def::num_dim = num_dim;
    Def::order = order;
@@ -59,6 +57,13 @@ void Def::init(int num_dim, int order)
       assert(0);
    }
 
+   if(physicsType == PhysicsType::LAPLACE)
+      num_components = 1;
+   else if (physicsType == PhysicsType::ELASTICITY)
+      num_components = num_dim;
+   else
+      assert(0);
+
    // copy important connectivity information froma p4est
    // has to be done in my_p4est_implementation to distinguish 2D and 3D
    P4estClass::init_definitions();
@@ -66,6 +71,7 @@ void Def::init(int num_dim, int order)
 
 int Def::num_dim;
 int Def::order;
+int Def::num_components;
 int Def::num_children;
 int Def::num_corners;
 int Def::num_edges;

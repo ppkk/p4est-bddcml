@@ -1,6 +1,4 @@
 #include <math.h>
-#include <assert.h>
-#include <iostream>
 
 #include "quadrature.h"
 #include "integration_cell.h"

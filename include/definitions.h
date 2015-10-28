@@ -1,7 +1,9 @@
 #ifndef DEFINITIONS_H
 #define DEFINITIONS_H
 
+#include <assert.h>
 #include <vector>
+#include <iostream>
 
 // type used for floating point
 typedef double real;
@@ -12,9 +14,34 @@ extern int print_rank;
 
 #define PPP if(mpi_rank == print_rank)
 
+
+enum class MatrixType{
+   GENERAL,      // general (full storage)
+   SPD,          //symmetric positive definite (only triangle stored)
+   SYM_GENERAL  // symmetric general (only triangle stored)
+};
+
+enum class PhysicsType{
+   LAPLACE = 0,
+   ELASTICITY = 1
+};
+
+struct Parameters
+{
+   real mu;
+   real lambda;
+
+   Parameters(real young_mod, real poisson_num)
+   {
+      this->lambda = (young_mod * poisson_num) / ((1 + poisson_num) * (1 - 2 * poisson_num));
+      this->mu = young_mod / (2 * (1 + poisson_num));
+   }
+};
+
+
 class Def {
 public:
-   static void init(int num_dim, int order);
+   static void init(int num_dim, int order, PhysicsType physicsType);
    static int num_dim;
    static int num_children;
    static int num_corners;
@@ -29,6 +56,8 @@ public:
 
    static int num_edge_faces;
    static int num_face_edges;
+
+   static int num_components;
 
    static int order;   // this actually should not be here...
    static int num_element_nodes;
@@ -81,37 +110,6 @@ private:
 
    friend class P4estClass2D;
    friend class P4estClass3D;
-};
-
-
-enum class MatrixType{
-   GENERAL,      // general (full storage)
-   SPD,          //symmetric positive definite (only triangle stored)
-   SYM_GENERAL  // symmetric general (only triangle stored)
-};
-
-enum class PhysicsType{
-   LAPLACE = 0,
-   ELASTICITY = 1
-};
-
-struct Parameters
-{
-   real mu;
-   real lambda;
-
-//   set_params(real mu, real lambda)
-//   {
-//      this->mu = mu;
-//      this->lambda = lambda;
-//   }
-
-
-   Parameters(real young_mod, real poisson_num)
-   {
-      this->lambda = (young_mod * poisson_num) / ((1 + poisson_num) * (1 - 2 * poisson_num));
-      this->mu = young_mod / (2 * (1 + poisson_num));
-   }
 };
 
 

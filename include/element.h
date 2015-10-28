@@ -2,7 +2,8 @@
 #define ELEMENT_H
 
 #include <assert.h>
-#include <vector>
+
+#include "definitions.h"
 
 class IntegrationCell;
 class ReferenceElement;

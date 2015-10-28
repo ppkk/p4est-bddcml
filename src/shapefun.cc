@@ -1,10 +1,9 @@
-#include <assert.h>
-#include <iostream>
 #include <algorithm>
 
 #include "shapefun.h"
 #include "p4est/my_p4est_interface.h"
 #include "quadrature.h"
+#include "integration_cell.h"
 
 using namespace std;
 
@@ -22,8 +21,9 @@ using namespace std;
 //   }
 //}
 
-void ReferenceElement::find_node_coords(const std::vector<double> &start, double element_len,
+void ReferenceElement::find_nodes_coords(const std::vector<double> &start, double element_len,
                                    std::vector<std::vector<double> > *coords) const {
+   coords->clear();
    int num_points_1d = order + 1;
    double node_distance = element_len / order;
    vector<double> node(num_dim, 0.0);
@@ -32,7 +32,6 @@ void ReferenceElement::find_node_coords(const std::vector<double> &start, double
       for(difs[1] = 0; difs[1] < num_points_1d; difs[1]++) {
          for(difs[0] = 0; difs[0] < num_points_1d; difs[0]++) {
             // now we know which of the dim^(order+1) points we want, construct its coordinates
-            cout << difs[0] << ", " << difs[1] << ", " << difs[2] << endl;
             for(int dim = 0; dim < num_dim; dim++) {
                node[dim] = start[dim] + difs[dim] * node_distance;
             }
@@ -40,15 +39,19 @@ void ReferenceElement::find_node_coords(const std::vector<double> &start, double
          }
       }
    }
-
 }
+
+void ReferenceElement::find_nodes_coords(const IntegrationCell &cell, std::vector<std::vector<double> > *coords) const {
+   find_nodes_coords(cell.position, cell.size, coords);
+}
+
 
 ReferenceElement::ReferenceElement(int num_dim, int order) : num_dim(num_dim), order(order)
 {
    int num_points_1d = order + 1;
    vector<double> starting_corner(num_dim, -1.0);
    // use for reference element [-1,1]^dim
-   find_node_coords(starting_corner, 2., &node_coords);
+   find_nodes_coords(starting_corner, 2., &node_coords);
 
    // order of faces in my difs[] ordering...
    int face_ids[3][2] = {{0,1}, {2,3}, {4,5}};
@@ -229,6 +232,14 @@ void ReferenceElement::print_node_types() const
    }
    cout << endl;
    assert(0);
+}
+
+bool ReferenceElement::face_contains(int face, int node) const {
+   return std::find(face_nodes[face].begin(), face_nodes[face].end(), node) != face_nodes[face].end();
+}
+
+bool ReferenceElement::edge_contains(int edge, int node) const {
+   return std::find(edge_nodes[edge].begin(), edge_nodes[edge].end(), node) != edge_nodes[edge].end();
 }
 
 void ReferenceElement::shape_fun_1d(int idx, double x, double *value, double* der) const {

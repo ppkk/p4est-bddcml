@@ -15,6 +15,7 @@ IntegrationCell::IntegrationCell(double x, double y, double z, double size) : In
 void IntegrationCell::clear() {
    position.clear();
    size = 0.0;
+   child_position = -1;
 }
 
 vector<vector<double> > IntegrationCell::corners() const {
@@ -36,4 +37,18 @@ vector<vector<double> > IntegrationCell::corners() const {
    return corners_tmp;
 }
 
+void IntegrationCell::fill_parent_cell(IntegrationCell *parent) const {
+   parent->clear();
+   int child_position_tmp = child_position;
 
+   for(int dim = 0; dim < n_dimensions(); dim++) {
+      if(child_position_tmp % 2 == 0) {
+         parent->position.push_back(position[dim]);
+      }
+      else {
+         parent->position.push_back(position[dim] - size);
+      }
+      child_position_tmp /= 2;
+   }
+   parent->size = 2 * size;
+}
