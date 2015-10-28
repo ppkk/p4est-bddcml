@@ -288,7 +288,7 @@ void ReferenceElement::prepare_transformed_values(const Quadrature &q, double el
 
    // todo pass order and do not use Def::order
 
-   for(int node = 0; node < Def::num_children; node++) {
+   for(int node = 0; node < Def::num_element_nodes; node++) {
       int node_tmp = node;
       int ids_1D[Def::num_dim];
       for(int dim = 0; dim < Def::num_dim; dim++) {

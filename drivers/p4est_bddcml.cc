@@ -14,8 +14,8 @@
 using namespace std;
 
 const int num_dim = 2;
-const int order = 1;
-const PhysicsType physicsType = PhysicsType::ELASTICITY;
+const int order = 2;
+const PhysicsType physicsType = PhysicsType::LAPLACE;
 
 vector<double> rhs_fn(vector<double>)
 {
@@ -40,8 +40,8 @@ void run(int argc, char **argv)
    Def::init(num_dim, order, physicsType);
    P4estClass* p4est_class = P4estClass::create(num_dim, order, mpicomm);
 
-   //p4est_class->refine_and_partition(4, RefineType::UNIFORM);
-  // p4est_class->refine_and_partition(3, RefineType::SQUARE);
+//   p4est_class->refine_and_partition(4, RefineType::UNIFORM);
+//   p4est_class->refine_and_partition(3, RefineType::SQUARE);
 
 
    // 2D
@@ -131,7 +131,7 @@ void run(int argc, char **argv)
    zero_real_array(&sols);
 
    SparseMatrix matrix;
-   int ndof_per_element = Def::num_children * femsp.subdomain_dims->n_node_dofs;
+   int ndof_per_element = Def::num_element_nodes * femsp.subdomain_dims->n_node_dofs;
    // how much space the upper triangle of the element matrix occupies
    int lelm = ndof_per_element * (ndof_per_element + 1) / 2;
 
