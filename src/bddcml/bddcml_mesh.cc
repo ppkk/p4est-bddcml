@@ -13,16 +13,8 @@
 using namespace std;
 
 void BddcmlMesh::init(const BddcmlDimensions *subdomain_dims) {
-   int nnodes_per_elem;
-   if(subdomain_dims->n_mesh_dims == 2)
-      nnodes_per_elem = 4;
-   else if(subdomain_dims->n_mesh_dims == 3)
-      nnodes_per_elem = 8;
-   else
-      assert(0);
-
    this->subdomain_dims = subdomain_dims;
-   allocate_idx_array(subdomain_dims->n_elems * nnodes_per_elem, &elem_node_indices);
+   allocate_idx_array(subdomain_dims->n_elems * Def::num_element_nodes, &elem_node_indices);
    allocate_idx_array(subdomain_dims->n_elems, &num_nodes_of_elem);
    allocate_idx_array(subdomain_dims->n_elems, &elem_global_map);
    allocate_idx_array(subdomain_dims->n_nodes, &node_global_map);

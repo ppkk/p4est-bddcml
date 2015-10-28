@@ -283,50 +283,43 @@ void ReferenceElement::shape_fun_1d(int idx, double x, double *value, double* de
 
 void ReferenceElement::prepare_transformed_values(const Quadrature &q, double element_length,
                                 vector<vector<double> > *values, vector<vector<vector<double> > > *gradients) const {
-   *values = vector<vector<double> >(Def::num_children);
-   *gradients = vector<vector<vector<double> > >(Def::num_children);
+   *values = vector<vector<double> >(Def::num_element_nodes);
+   *gradients = vector<vector<vector<double> > >(Def::num_element_nodes);
+
+   // todo pass order and do not use Def::order
 
    for(int node = 0; node < Def::num_children; node++) {
-      int x_id_1D = node % 2;
-      int y_id_1D = (node % 4) / 2;
-      int z_id_1D = node / 4;
+      int node_tmp = node;
+      int ids_1D[Def::num_dim];
+      for(int dim = 0; dim < Def::num_dim; dim++) {
+         ids_1D[dim] = node_tmp % (Def::order + 1);
+         node_tmp /= (Def::order + 1);
+      }
 
       for(unsigned int q_idx = 0; q_idx < q.np(); q_idx++) {
-         double value_x, der_x, value_y, der_y, value_z, der_z;
-         shape_fun_1d(x_id_1D, q.coords[q_idx][0], &value_x, &der_x);
-         der_x /= element_length;
-         shape_fun_1d(y_id_1D, q.coords[q_idx][1], &value_y, &der_y);
-         der_y /= element_length;
+         double values_1D[Def::num_dim], derivatives_1D[Def::num_dim];
 
-         if(Def::num_dim == 3) {
-            shape_fun_1d(z_id_1D, (q.coords[q_idx])[2], &value_z, &der_z);
-            der_z /= element_length;
+         for(int dim = 0; dim < Def::num_dim; dim++) {
+            shape_fun_1d(ids_1D[dim], q.coords[q_idx][dim], &values_1D[dim], &derivatives_1D[dim]);
+            // partial transformation
+            // todo: should it be here?
+            derivatives_1D[dim] /= element_length;
          }
 
-         double value = value_x * value_y;
-         double grad_1 = der_x * value_y;
-         double grad_2 = value_x * der_y;
+         double value = 1.;
+         vector<double> grad(Def::num_dim, 1.);
 
-         if(Def::num_dim == 3) {
-            value *= value_z;
-            grad_1 *= value_z;
-            grad_2 *= value_z;
-            double grad_3 = value_x * value_y * der_z;
-            vector<double> aux1;
-            aux1.push_back(grad_1);
-            aux1.push_back(grad_2);
-            aux1.push_back(grad_3);
-            //gradients[node].push_back(vector<double>({grad_1, grad_2, grad_3}));
-            (*gradients)[node].push_back(aux1);
-         }
-         else {
-            vector<double> aux1;
-            aux1.push_back(grad_1);
-            aux1.push_back(grad_2);
-            //gradients[node].push_back(vector<double>({grad_1, grad_2}));
-            (*gradients)[node].push_back(aux1);
+         for(int dim_out = 0; dim_out < Def::num_dim; dim_out++) {
+            value *= values_1D[dim_out];
+            for(int dim_in = 0; dim_in < Def::num_dim; dim_in++) {
+               if(dim_out == dim_in)
+                  grad[dim_out] *= derivatives_1D[dim_in];
+               else
+                  grad[dim_out] *= values_1D[dim_in];
+            }
          }
          (*values)[node].push_back(value);
+         (*gradients)[node].push_back(grad);
       }
    }
 }

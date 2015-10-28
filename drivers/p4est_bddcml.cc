@@ -40,6 +40,9 @@ void run(int argc, char **argv)
    Def::init(num_dim, order, physicsType);
    P4estClass* p4est_class = P4estClass::create(num_dim, order, mpicomm);
 
+   //p4est_class->refine_and_partition(4, RefineType::UNIFORM);
+  // p4est_class->refine_and_partition(3, RefineType::SQUARE);
+
 
    // 2D
 //   p4est_class->refine_and_partition(4, RefineType::UNIFORM);
