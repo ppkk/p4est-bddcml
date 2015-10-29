@@ -20,23 +20,16 @@ void IntegrationCell::clear() {
 
 vector<vector<double> > IntegrationCell::nodes_coords(int num_nodes_1d) const {
    assert(num_nodes_1d >= 2);
-   vector<vector<double> > corners_tmp;
-   vector<double> corner(n_dimensions(), 0.0);
+   vector<vector<double> > nodes_coords_ret;
+   vector<double> node_coord(n_dimensions(), 0.0);
    double nodes_distance = size / (num_nodes_1d - 1);
-   int difs[n_dimensions()];
-   for(difs[2] = 0; difs[2] < ((n_dimensions() == 3) ? num_nodes_1d : 1); difs[2]++) {
-      for(difs[1] = 0; difs[1] < num_nodes_1d; difs[1]++) {
-         for(difs[0] = 0; difs[0] < num_nodes_1d; difs[0]++) {
-            // now we know which of the 4/8 points we want, construct its coordinates
-            for(int dim = 0; dim < n_dimensions(); dim++) {
-               corner[dim] = corner[dim] + difs[dim] * nodes_distance;
-            }
-            corners_tmp.push_back(corner);
-         }
+   for(auto difs : Def::d()->cartesian_ids_nodes) {
+      for(int dim = 0; dim < n_dimensions(); dim++) {
+         node_coord[dim] = node_coord[dim] + difs[dim] * nodes_distance;
       }
+      nodes_coords_ret.push_back(node_coord);
    }
-
-   return corners_tmp;
+   return nodes_coords_ret;
 }
 
 vector<vector<double> > IntegrationCell::corners_coords() const {

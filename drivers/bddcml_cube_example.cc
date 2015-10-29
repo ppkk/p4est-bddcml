@@ -249,7 +249,7 @@ void prepare_subdomain_data(int isub, // global subdomain index
 
 int main(int argc, char **argv)
 {
-   Def::init(3, 1, PhysicsType::LAPLACE);
+   Def::init(3, 1, PhysicsType::LAPLACE, nullptr);
    int num_levels;
    BddcmlGeneralParams general_params;
    BddcmlKrylovParams krylov_params;

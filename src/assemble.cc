@@ -69,9 +69,9 @@ void print_complete_matrix_rhs(const BddcmlFemSpace &femsp, const BddcmlDimensio
 
 void print_matrix_rhs(const vector<vector<vector<vector<real> > > > &matrix, const vector<vector<real> > &rhs, int num_comp) {
    cout << "LOCAL MATRIX:" << endl;
-   for(int i_node = 0; i_node < Def::num_element_nodes; i_node++) {
+   for(int i_node = 0; i_node < Def::d()->num_element_nodes; i_node++) {
       for(int i_comp = 0; i_comp < num_comp; i_comp++) {
-         for(int j_node = 0; j_node < Def::num_element_nodes; j_node++) {
+         for(int j_node = 0; j_node < Def::d()->num_element_nodes; j_node++) {
             for(int j_comp = 0; j_comp < num_comp; j_comp++) {
                cout << "nodes (" << i_node << ", " << j_node << "), comp (" << i_comp << ", " << j_comp << ") -> " <<
                        matrix[i_node][i_comp][j_node][j_comp] << endl;
@@ -89,19 +89,19 @@ void assemble_local_laplace(const IntegrationCell &cell, const ReferenceElement 
 
    ref_elem.fill_transformed_values(q, cell.size, &vals, &grads);
 
-   Quadrature q_transformed(Def::num_dim);
+   Quadrature q_transformed(Def::d()->num_dim);
    q.transform_to_physical(cell, &q_transformed);
 
    matrix->clear();
    rhs->clear();
 
    for(unsigned int q_idx = 0; q_idx < q_transformed.np(); q_idx++) {
-      for(int i_node = 0; i_node < Def::num_element_nodes; i_node++) {
+      for(int i_node = 0; i_node < Def::d()->num_element_nodes; i_node++) {
 
          rhs->comps[0].vec[i_node] += q_transformed.weights[q_idx] * vals[i_node][q_idx] * rhs_ptr(q_transformed.coords[q_idx])[0];
 
-         for(int j_node = 0; j_node < Def::num_element_nodes; j_node++) {
-            for(int idx_dim = 0; idx_dim < Def::num_dim; idx_dim++) {
+         for(int j_node = 0; j_node < Def::d()->num_element_nodes; j_node++) {
+            for(int idx_dim = 0; idx_dim < Def::d()->num_dim; idx_dim++) {
                matrix->comps[0][0].mat[i_node][j_node] += q_transformed.weights[q_idx] * grads[i_node][q_idx][idx_dim] * grads[j_node][q_idx][idx_dim];
             }
          }
@@ -112,24 +112,24 @@ void assemble_local_laplace(const IntegrationCell &cell, const ReferenceElement 
 
 void assemble_local_elasticity(const IntegrationCell &integ_cell, const ReferenceElement &ref_elem, const GaussQuadrature &q, RhsPtr rhs_ptr, Parameters p,
                                LocalMatrix *matrix, LocalVector *rhs) {
-   int num_comp = Def::num_dim;
+   int num_comp = Def::d()->num_dim;
    vector<vector<double> > vals; //[node][quadrature_pt]
    vector<vector<vector<double> > > grads;//[node][quadrature_pt][component]
 
    ref_elem.fill_transformed_values(q, integ_cell.size, &vals, &grads);
 
-   Quadrature q_transformed(Def::num_dim);
+   Quadrature q_transformed(Def::d()->num_dim);
    q.transform_to_physical(integ_cell, &q_transformed);
 
    matrix->clear();
    rhs->clear();
 
    for(unsigned int q_idx = 0; q_idx < q_transformed.np(); q_idx++) {
-      for(int i_node = 0; i_node < Def::num_element_nodes; i_node++) {
+      for(int i_node = 0; i_node < Def::d()->num_element_nodes; i_node++) {
          for(int i_comp = 0; i_comp < num_comp; i_comp++) {
             rhs->comps[i_comp].vec[i_node] += q_transformed.weights[q_idx] * vals[i_node][q_idx] * rhs_ptr(q_transformed.coords[q_idx])[i_comp];
 
-            for(int j_node = 0; j_node < Def::num_element_nodes; j_node++) {
+            for(int j_node = 0; j_node < Def::d()->num_element_nodes; j_node++) {
                for(int j_comp = 0; j_comp < num_comp; j_comp++) {
                   double contrib = 0.0;
 
@@ -161,19 +161,19 @@ void assemble_matrix_rhs(const P4estClass &p4est, const IntegrationMesh &integra
                          SparseMatrix *matrix, RealArray *rhss, RhsPtr rhs_ptr, Parameters params) {
    assert(integration_mesh.num_elements() == bddcml_mesh.subdomain_dims->n_elems);
 
-   GaussQuadrature q(Def::num_dim, 2*Def::order);
-   ReferenceElement ref_elem(Def::num_dim, Def::order);
+   GaussQuadrature q(Def::d()->num_dim, 2*Def::d()->order);
+   ReferenceElement ref_elem(Def::d()->num_dim, Def::d()->order);
 
    HangingInfo hanging_info(p4est);
    int n_components = bddcml_mesh.subdomain_dims->n_node_dofs;
 
-   LocalMatrix element_matrix_nohang(n_components, Def::num_element_nodes), element_matrix(n_components, Def::num_element_nodes);
-   LocalVector element_rhs_nohang(n_components, Def::num_element_nodes), element_rhs(n_components, Def::num_element_nodes);
-   //vector<vector<real> > element_rhs(Def::num_element_nodes, vector<real>(n_components, 0.0));
+   LocalMatrix element_matrix_nohang(n_components, Def::d()->num_element_nodes), element_matrix(n_components, Def::d()->num_element_nodes);
+   LocalVector element_rhs_nohang(n_components, Def::d()->num_element_nodes), element_rhs(n_components, Def::d()->num_element_nodes);
+   //vector<vector<real> > element_rhs(Def::d()->num_element_nodes, vector<real>(n_components, 0.0));
 
    int element_offset = 0;
    for(int elem_idx = 0; elem_idx < bddcml_mesh.subdomain_dims->n_elems; elem_idx++) {
-      assert(bddcml_mesh.num_nodes_of_elem.val[elem_idx] == Def::num_element_nodes);
+      assert(bddcml_mesh.num_nodes_of_elem.val[elem_idx] == Def::d()->num_element_nodes);
 
       //mesh.get_element(elem_idx, &element);
 
@@ -189,12 +189,12 @@ void assemble_matrix_rhs(const P4estClass &p4est, const IntegrationMesh &integra
 
       //print_matrix_rhs(element_matrix, element_rhs, n_components);
 
-      for(int i_node_loc = 0; i_node_loc < Def::num_element_nodes; i_node_loc++) {
+      for(int i_node_loc = 0; i_node_loc < Def::d()->num_element_nodes; i_node_loc++) {
          int i_node = bddcml_mesh.elem_node_indices.val[element_offset + i_node_loc];
 
          for(int i_comp = 0; i_comp < n_components; i_comp++) {
             int i_dof = femsp.node_num_dofs.val[i_node] * i_node + i_comp;
-            for(int j_node_loc = 0; j_node_loc < Def::num_element_nodes; j_node_loc++) {
+            for(int j_node_loc = 0; j_node_loc < Def::d()->num_element_nodes; j_node_loc++) {
                //todo: dofs should be taken from femsp!
                int j_node = bddcml_mesh.elem_node_indices.val[element_offset + j_node_loc];
 
@@ -207,12 +207,12 @@ void assemble_matrix_rhs(const P4estClass &p4est, const IntegrationMesh &integra
                }
             }
 
-            //double rhs_value = i_coeffs * 1./(real)Def::num_children * elem_volume * 1;
+            //double rhs_value = i_coeffs * 1./(real)Def::d()->num_children * elem_volume * 1;
             double rhs_value = element_rhs.comps[i_comp].vec[i_node_loc];
             rhss->val[i_dof] += rhs_value;
          }
       }
-      element_offset += Def::num_element_nodes;
+      element_offset += Def::d()->num_element_nodes;
    }
 
 }

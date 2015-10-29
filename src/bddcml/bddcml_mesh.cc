@@ -14,7 +14,7 @@ using namespace std;
 
 void BddcmlMesh::init(const BddcmlDimensions *subdomain_dims) {
    this->subdomain_dims = subdomain_dims;
-   allocate_idx_array(subdomain_dims->n_elems * Def::num_element_nodes, &elem_node_indices);
+   allocate_idx_array(subdomain_dims->n_elems * Def::d()->d()->num_element_nodes, &elem_node_indices);
    allocate_idx_array(subdomain_dims->n_elems, &num_nodes_of_elem);
    allocate_idx_array(subdomain_dims->n_elems, &elem_global_map);
    allocate_idx_array(subdomain_dims->n_nodes, &node_global_map);
@@ -72,19 +72,19 @@ void BddcmlMesh::fill_nodes_info(const P4estClass &p4est, const NodalElementMesh
       }
    }
 
-   ReferenceElement ref_elem(Def::num_dim, Def::order);
+   ReferenceElement ref_elem(Def::d()->d()->num_dim, Def::d()->d()->order);
    HangingInfo hanging_info(p4est);
-   vector<vector<real> > nodes_coords(Def::num_element_nodes, vector<real>(Def::num_dim, 0.0));
-   vector<vector<real> > parent_nodes_coords(Def::num_element_nodes, vector<real>(Def::num_dim, 0.0));
+   vector<vector<real> > nodes_coords(Def::d()->num_element_nodes, vector<real>(Def::d()->num_dim, 0.0));
+   vector<vector<real> > parent_nodes_coords(Def::d()->num_element_nodes, vector<real>(Def::d()->num_dim, 0.0));
 
    for(unsigned elem_idx = 0; elem_idx < nodal_mesh.elements.size(); elem_idx++) {
       // first nodes number and indices
-      num_nodes_of_elem.val[elem_idx] = Def::num_element_nodes;
+      num_nodes_of_elem.val[elem_idx] = Def::d()->num_element_nodes;
       const NodalElement& nodal_element(nodal_mesh.elements[elem_idx]);
 //      cout << "elem start " << nodal_element.cell.position[0] << ", " << nodal_element.cell.position[1] << endl;
-      for (int lnode = 0; lnode < Def::num_element_nodes; ++lnode) {
+      for (int lnode = 0; lnode < Def::d()->num_element_nodes; ++lnode) {
          int node_idx = nodal_element.nodes[lnode];
-         elem_node_indices.val[Def::num_element_nodes * elem_idx + lnode] = node_idx;
+         elem_node_indices.val[Def::d()->num_element_nodes * elem_idx + lnode] = node_idx;
       }
 
       // now find information of nodes coordinates.
@@ -106,13 +106,13 @@ void BddcmlMesh::fill_nodes_info(const P4estClass &p4est, const NodalElementMesh
 //      cout << endl;
 
 
-      for(int lnode = 0; lnode < Def::num_element_nodes; lnode++)
+      for(int lnode = 0; lnode < Def::d()->num_element_nodes; lnode++)
       {
          int node_idx = nodal_element.nodes[lnode];
 //         cout << "node " << node_idx << endl;
          // first check, if this node is on hanging face or edge
          bool is_hanging = false;
-         for(int face = 0; face < Def::num_faces; face++) {
+         for(int face = 0; face < Def::d()->num_faces; face++) {
             if(hanging_info.is_face_hanging(face) && ref_elem.face_contains(face, lnode)) {
 //               cout << "is hanging face " << face << endl;
                is_hanging = true;
@@ -120,7 +120,7 @@ void BddcmlMesh::fill_nodes_info(const P4estClass &p4est, const NodalElementMesh
             }
          }
          if(! is_hanging) {
-            for(int edge = 0; edge < Def::num_edges; edge++) {
+            for(int edge = 0; edge < Def::d()->num_edges; edge++) {
                if(hanging_info.is_edge_hanging(edge) && ref_elem.edge_contains(edge, lnode)) {
 //                  cout << "is hanging edge " << edge << endl;
                   is_hanging = true;
@@ -129,7 +129,7 @@ void BddcmlMesh::fill_nodes_info(const P4estClass &p4est, const NodalElementMesh
             }
          }
          // this node is not hanging, use its coordinates
-         for(int dim = 0; dim < Def::num_dim; dim++) {
+         for(int dim = 0; dim < Def::d()->num_dim; dim++) {
             double coord;
             if (is_hanging)
                coord = parent_nodes_coords[lnode][dim];

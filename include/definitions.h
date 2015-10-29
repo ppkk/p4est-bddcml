@@ -5,6 +5,8 @@
 #include <vector>
 #include <iostream>
 
+class P4estClass;
+
 // type used for floating point
 typedef double real;
 
@@ -38,46 +40,57 @@ struct Parameters
    }
 };
 
+extern int neco_mimo;
 
 class Def {
 public:
-   static void init(int num_dim, int order, PhysicsType physicsType);
-   static int num_dim;
-   static int num_children;
-   static int num_corners;
-   static int num_edges;
-   static int num_faces;
+   static void init(int num_dim, int order, PhysicsType physicsType, const P4estClass *p4est);
+   static const Def *d() {return singleton; }
 
-   static int num_face_corners;
-   static int num_corner_faces;
+   static int neco;
 
-   static int num_edge_corners;
-   static int num_corner_edges;
+   int num_dim;
+   int num_children;
+   int num_corners;
+   int num_edges;
+   int num_faces;
 
-   static int num_edge_faces;
-   static int num_face_edges;
+   int num_face_corners;
+   int num_corner_faces;
 
-   static int num_components;
+   int num_edge_corners;
+   int num_corner_edges;
 
-   static int order;   // this actually should not be here...
-   static int num_element_nodes;
-   static int num_face_nodes;
-   static int num_edge_nodes;
-   static int num_corner_nodes;
-   static int num_element_interior_nodes;
-   static int num_face_interior_nodes;
-   static int num_edge_interior_nodes;
+   int num_edge_faces;
+   int num_face_edges;
 
-   static std::vector<std::vector<int> > edge_corners;
-   static std::vector<std::vector<int> > face_corners;
+   int num_components;
 
-   static std::vector<std::vector<int> > corner_edges;
-   static std::vector<std::vector<int> > corner_faces;
+   int order;   // this actually should not be here...
+   int num_element_nodes;
+   int num_face_nodes;
+   int num_edge_nodes;
+   int num_corner_nodes;
+   int num_element_interior_nodes;
+   int num_face_interior_nodes;
+   int num_edge_interior_nodes;
 
-   static std::vector<std::vector<int> > face_edges;
-   static std::vector<std::vector<int> > edge_faces;
+   std::vector<std::vector<int> > edge_corners;
+   std::vector<std::vector<int> > face_corners;
+
+   std::vector<std::vector<int> > corner_edges;
+   std::vector<std::vector<int> > corner_faces;
+
+   std::vector<std::vector<int> > face_edges;
+   std::vector<std::vector<int> > edge_faces;
+
+   std::vector<std::vector<int> > cartesian_ids_corners;
+   std::vector<std::vector<int> > cartesian_ids_nodes;
 
 private:
+   static Def *singleton;
+
+   void prepare_cartesian_ids(int num_points_1d, std::vector<std::vector<int> > *ids) const;
 
    static const int num_children_2D = 4;
    static const int num_corners_2D = 4;
@@ -111,6 +124,8 @@ private:
    friend class P4estClass2D;
    friend class P4estClass3D;
 };
+
+
 
 
 #endif // DEFINITIONS_H

@@ -672,14 +672,14 @@ void P4estClassDim::prepare_bddcml_mesh_nodes_old(BddcmlMesh* mesh) const {
    p4est_topidx_t tree;
 
    for_all_quads_with_tree(p4est, tree, quad_idx, quad) {
-      mesh->num_nodes_of_elem.val[quad_idx] = Def::num_element_nodes;
+      mesh->num_nodes_of_elem.val[quad_idx] = Def::d()->num_element_nodes;
 
-      for (int lnode = 0; lnode < Def::num_element_nodes; ++lnode) {
+      for (int lnode = 0; lnode < Def::d()->num_element_nodes; ++lnode) {
          /* Cache some information on corner nodes. */
-         p4est_locidx_t node_idx = lnodes()->element_nodes[Def::num_element_nodes * quad_idx + lnode];
+         p4est_locidx_t node_idx = lnodes()->element_nodes[Def::d()->num_element_nodes * quad_idx + lnode];
          //      isboundary[i] = (bc == NULL ? 0 : bc[lni]);
          //       inloc[i] = !isboundary[i] ? in[lni] : 0.;
-         mesh->elem_node_indices.val[Def::num_element_nodes * quad_idx + lnode] = node_idx;
+         mesh->elem_node_indices.val[Def::d()->num_element_nodes * quad_idx + lnode] = node_idx;
       }
 
       /* Figure out the hanging corners on this element, if any. */
@@ -774,8 +774,8 @@ void P4estClassDim::prepare_nodal_mesh(int ncomponents, const IntegrationMesh &i
 
    for_all_quads_with_tree(p4est, tree, quad_idx, quad) {
       NodalElement nodal_element(ncomponents, integration_mesh.cells[quad_idx], reference_element);
-      for (int lnode = 0; lnode < Def::num_element_nodes; ++lnode) {
-         p4est_locidx_t node_idx = lnodes()->element_nodes[Def::num_element_nodes * quad_idx + lnode];
+      for (int lnode = 0; lnode < Def::d()->num_element_nodes; ++lnode) {
+         p4est_locidx_t node_idx = lnodes()->element_nodes[Def::d()->num_element_nodes * quad_idx + lnode];
          nodal_element.nodes.push_back(node_idx);
       }
 
@@ -798,17 +798,17 @@ void transfer_2D_array(const int p4est_array[dim1][dim2], vector<vector<int> > *
    }
 }
 
-void P4estClassDim::init_definitions()
+void P4estClassDim::init_definitions(Def *def) const
 {
 #ifndef P4_TO_P8
-   transfer_2D_array<Def::num_faces_2D, Def::num_face_corners_2D>(p4est_face_corners, &Def::face_corners);
-   transfer_2D_array<Def::num_corners_2D, Def::num_corner_faces_2D>(p4est_corner_faces, &Def::corner_faces);
+   transfer_2D_array<def->num_faces_2D, def->num_face_corners_2D>(p4est_face_corners, &def->face_corners);
+   transfer_2D_array<def->num_corners_2D, def->num_corner_faces_2D>(p4est_corner_faces, &def->corner_faces);
 #else
-   transfer_2D_array<Def::num_faces_3D, Def::num_face_corners_3D>(p4est_face_corners, &Def::face_corners);
-   transfer_2D_array<Def::num_edges_3D, Def::num_edge_corners_3D>(p8est_edge_corners, &Def::edge_corners);
-   transfer_2D_array<Def::num_corners_3D, Def::num_corner_faces_3D>(p4est_corner_faces, &Def::corner_faces);
-   transfer_2D_array<Def::num_corners_3D, Def::num_corner_edges_3D>(p8est_corner_edges, &Def::corner_edges);
-   transfer_2D_array<Def::num_faces_3D, Def::num_face_edges_3D>(p8est_face_edges, &Def::face_edges);
-   transfer_2D_array<Def::num_edges_3D, Def::num_edge_faces_3D>(p8est_edge_faces, &Def::edge_faces);
+   transfer_2D_array<def->num_faces_3D, def->num_face_corners_3D>(p4est_face_corners, &def->face_corners);
+   transfer_2D_array<def->num_edges_3D, def->num_edge_corners_3D>(p8est_edge_corners, &def->edge_corners);
+   transfer_2D_array<def->num_corners_3D, def->num_corner_faces_3D>(p4est_corner_faces, &def->corner_faces);
+   transfer_2D_array<def->num_corners_3D, def->num_corner_edges_3D>(p8est_corner_edges, &def->corner_edges);
+   transfer_2D_array<def->num_faces_3D, def->num_face_edges_3D>(p8est_face_edges, &def->face_edges);
+   transfer_2D_array<def->num_edges_3D, def->num_edge_faces_3D>(p8est_edge_faces, &def->edge_faces);
 #endif
 }

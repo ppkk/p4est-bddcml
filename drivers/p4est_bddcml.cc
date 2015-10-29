@@ -37,8 +37,9 @@ sc_MPI_Comm mpicomm = sc_MPI_COMM_WORLD;
 void run(int argc, char **argv)
 {
    int mpiret = 0, num_levels;
-   Def::init(num_dim, order, physicsType);
+
    P4estClass* p4est_class = P4estClass::create(num_dim, order, mpicomm);
+   Def::d()->init(num_dim, order, physicsType, p4est_class);
 
 //   p4est_class->refine_and_partition(4, RefineType::UNIFORM);
 //   p4est_class->refine_and_partition(3, RefineType::SQUARE);
@@ -77,8 +78,8 @@ void run(int argc, char **argv)
    BddcmlKrylovParams krylov_params;
    BddcmlPreconditionerParams preconditioner_params;
 
-   BddcmlDimensions subdomain_dims(Def::num_dim, physicsType);
-   BddcmlDimensions global_dims(Def::num_dim, physicsType);
+   BddcmlDimensions subdomain_dims(Def::d()->num_dim, physicsType);
+   BddcmlDimensions global_dims(Def::d()->num_dim, physicsType);
 
    int print_rank_l = 3;
 
@@ -92,7 +93,7 @@ void run(int argc, char **argv)
    p4est_class->prepare_integration_mesh(&integration_mesh);
 
    NodalElementMesh nodal_mesh;
-   p4est_class->prepare_nodal_mesh(Def::num_components, integration_mesh, ref_elem, &nodal_mesh);
+   p4est_class->prepare_nodal_mesh(Def::d()->num_components, integration_mesh, ref_elem, &nodal_mesh);
 
    BddcmlMesh bddcml_mesh(&subdomain_dims);
    p4est_class->prepare_bddcml_mesh_global_mappings(&bddcml_mesh);
@@ -131,7 +132,7 @@ void run(int argc, char **argv)
    zero_real_array(&sols);
 
    SparseMatrix matrix;
-   int ndof_per_element = Def::num_element_nodes * femsp.subdomain_dims->n_node_dofs;
+   int ndof_per_element = Def::d()->num_element_nodes * femsp.subdomain_dims->n_node_dofs;
    // how much space the upper triangle of the element matrix occupies
    int lelm = ndof_per_element * (ndof_per_element + 1) / 2;
 

@@ -40,11 +40,11 @@ src/quadrature.cc
 src/gauss_quadrature.cc
 src/level_set.cc
 src/element.cc
+src/integration_cell.cc
 src/assemble.cc
 src/geometry_mesh.cc
 src/shapefun.cc
 src/local_matrix.cc
-src/integration_cell.cc
 )
 
 set(HEADERS

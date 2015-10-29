@@ -47,7 +47,7 @@ public:
 
    virtual void refine_and_partition(int num, RefineType type);
 
-   static void init_definitions();
+   virtual void init_definitions(Def* def) const;
 
 protected:
    p4est_gloidx_t node_loc_to_glob(p4est_locidx_t loc_idx) const;

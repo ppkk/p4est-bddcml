@@ -28,7 +28,7 @@ public:
    P4estClass(int degree, sc_MPI_Comm mpicomm) : degree(degree), mpicomm(mpicomm) {}
    virtual ~P4estClass() {}
 
-   void init();
+   static P4estClass *create(int num_dim, int degree, MPI_Comm mpicomm);
 
    virtual void plot_solution(int num_components, double* u_sol, double* u_exact, int *partition) const = 0;
    virtual void print_p4est_mesh (int which_rank) const = 0;
@@ -47,9 +47,7 @@ public:
 
    virtual void refine_and_partition(int num, RefineType type) = 0;
 
-   static P4estClass *create(int num_dim, int degree, MPI_Comm mpicomm);
-
-   static void init_definitions();
+   virtual void init_definitions(Def *def) const = 0;
 
    inline int get_num_dim() const {return num_dim; }
 
