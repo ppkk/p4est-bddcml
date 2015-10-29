@@ -11,8 +11,15 @@ class ReferenceElement
 public:
    ReferenceElement(int num_dim, int order);
 
-   void shape_fun_1d(int idx, double x, double *value, double* der) const;
-   void prepare_transformed_values(const Quadrature &q, double element_length,
+   // 1D lagrange basis function, 0 <= idx_1d < order + 1
+   void shape_fun_1d(int idx_1d, double x, double *value, double* der) const;
+   double shape_fun_1d(int idx_1d, double x) const;
+
+   // value of 2D/3D basis function corresponding to node_idx on reference domain [-1,1]^dim
+   // 0 <= node_idx < (order+1)^dim
+   double shape_value(int node_idx, std::vector<double> coords) const;
+
+   void fill_transformed_values(const Quadrature &q, double element_length,
                                    std::vector<std::vector<double> > *values,
                                    std::vector<std::vector<std::vector<double> > > *gradients) const;
    void find_nodes_coords(const std::vector<double> &start, double element_len,
@@ -23,6 +30,10 @@ public:
 
    bool face_contains(int face, int node) const;
    bool edge_contains(int face, int node) const;
+
+private:
+   void prepare_node_categories();
+   void prepare_children_nodes_values();
 
 public:      
    int num_dim;
@@ -44,6 +55,8 @@ public:
    std::vector<std::vector<int> > edge_interior_nodes;
    std::vector<std::vector<int> > face_interior_nodes;
    std::vector<int> element_interior_nodes;
+
+   std::vector<std::vector<std::vector<double> > > children_nodes_parent_basis_values;
 };
 
 //void ref_value_1D(int loc_id_1d, double x, double elem_len, double *value, double *der);

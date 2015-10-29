@@ -82,12 +82,12 @@ void print_matrix_rhs(const vector<vector<vector<vector<real> > > > &matrix, con
    cout << "END LOCAL MATRIX:" << endl;
 }
 
-void assemble_local_laplace(const IntegrationCell &cell, const ReferenceElement &ref_elem, RhsPtr rhs_ptr, LocalMatrix *matrix, LocalVector *rhs) {
-   GaussQuadrature q(Def::num_dim, QUAD_ORDER);
+void assemble_local_laplace(const IntegrationCell &cell, const ReferenceElement &ref_elem, const GaussQuadrature &q, RhsPtr rhs_ptr,
+                            LocalMatrix *matrix, LocalVector *rhs) {
    vector<vector<double> > vals;
    vector<vector<vector<double> > > grads;
 
-   ref_elem.prepare_transformed_values(q, cell.size, &vals, &grads);
+   ref_elem.fill_transformed_values(q, cell.size, &vals, &grads);
 
    Quadrature q_transformed(Def::num_dim);
    q.transform_to_physical(cell, &q_transformed);
@@ -110,15 +110,13 @@ void assemble_local_laplace(const IntegrationCell &cell, const ReferenceElement 
 
 }
 
-void assemble_local_elasticity(const IntegrationCell &integ_cell, const ReferenceElement &ref_elem, RhsPtr rhs_ptr, Parameters p,
+void assemble_local_elasticity(const IntegrationCell &integ_cell, const ReferenceElement &ref_elem, const GaussQuadrature &q, RhsPtr rhs_ptr, Parameters p,
                                LocalMatrix *matrix, LocalVector *rhs) {
-   GaussQuadrature q(Def::num_dim, QUAD_ORDER);
-
    int num_comp = Def::num_dim;
    vector<vector<double> > vals; //[node][quadrature_pt]
    vector<vector<vector<double> > > grads;//[node][quadrature_pt][component]
 
-   ref_elem.prepare_transformed_values(q, integ_cell.size, &vals, &grads);
+   ref_elem.fill_transformed_values(q, integ_cell.size, &vals, &grads);
 
    Quadrature q_transformed(Def::num_dim);
    q.transform_to_physical(integ_cell, &q_transformed);
@@ -163,6 +161,7 @@ void assemble_matrix_rhs(const P4estClass &p4est, const IntegrationMesh &integra
                          SparseMatrix *matrix, RealArray *rhss, RhsPtr rhs_ptr, Parameters params) {
    assert(integration_mesh.num_elements() == bddcml_mesh.subdomain_dims->n_elems);
 
+   GaussQuadrature q(Def::num_dim, 2*Def::order);
    ReferenceElement ref_elem(Def::num_dim, Def::order);
 
    HangingInfo hanging_info(p4est);
@@ -179,9 +178,9 @@ void assemble_matrix_rhs(const P4estClass &p4est, const IntegrationMesh &integra
       //mesh.get_element(elem_idx, &element);
 
       if(femsp.physicsType == PhysicsType::LAPLACE)
-         assemble_local_laplace(integration_mesh.cells[elem_idx], ref_elem, rhs_ptr, &element_matrix_nohang, &element_rhs_nohang);
+         assemble_local_laplace(integration_mesh.cells[elem_idx], ref_elem, q, rhs_ptr, &element_matrix_nohang, &element_rhs_nohang);
       else if(femsp.physicsType == PhysicsType::ELASTICITY)
-         assemble_local_elasticity(integration_mesh.cells[elem_idx], ref_elem, rhs_ptr, params, &element_matrix_nohang, &element_rhs_nohang);
+         assemble_local_elasticity(integration_mesh.cells[elem_idx], ref_elem, q, rhs_ptr, params, &element_matrix_nohang, &element_rhs_nohang);
       else
          assert(0);
 

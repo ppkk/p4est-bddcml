@@ -17,7 +17,7 @@ LevelSetValue LevelSet::apply(const std::vector<double> point) const {
 LevelSetValue LevelSet::apply(const IntegrationCell* cell) const {
    LevelSetValue result = LevelSetValue::Border;
 
-   for (auto node : cell->corners()) {
+   for (auto node : cell->corners_coords()) {
       LevelSetValue node_result = apply(node);
       if(result == LevelSetValue::Border) {
          // first node or the previous were also on the Border

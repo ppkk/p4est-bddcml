@@ -7,8 +7,6 @@
 class P4estClass;
 class IntegrationMesh;
 
-#define QUAD_ORDER 2
-
 typedef std::vector<double> (*RhsPtr)(std::vector<double>);
 
 void print_complete_matrix_rhs(const BddcmlFemSpace &femsp, const BddcmlDimensions &global_dims, const SparseMatrix &matrix, const RealArray &rhss, MPI_Comm mpicomm);

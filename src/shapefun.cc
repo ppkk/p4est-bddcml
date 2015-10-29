@@ -48,6 +48,12 @@ void ReferenceElement::find_nodes_coords(const IntegrationCell &cell, std::vecto
 
 ReferenceElement::ReferenceElement(int num_dim, int order) : num_dim(num_dim), order(order)
 {
+   prepare_node_categories();
+   prepare_children_nodes_values();
+}
+
+void ReferenceElement::prepare_node_categories()
+{
    int num_points_1d = order + 1;
    vector<double> starting_corner(num_dim, -1.0);
    // use for reference element [-1,1]^dim
@@ -186,6 +192,10 @@ ReferenceElement::ReferenceElement(int num_dim, int order) : num_dim(num_dim), o
       }
    }
    assert((int)element_interior_nodes.size() == Def::num_element_interior_nodes);
+}
+
+void ReferenceElement::prepare_children_nodes_values()
+{
 
 }
 
@@ -242,9 +252,9 @@ bool ReferenceElement::edge_contains(int edge, int node) const {
    return std::find(edge_nodes[edge].begin(), edge_nodes[edge].end(), node) != edge_nodes[edge].end();
 }
 
-void ReferenceElement::shape_fun_1d(int idx, double x, double *value, double* der) const {
+void ReferenceElement::shape_fun_1d(int idx_1d, double x, double *value, double* der) const {
    int n_nodes = order + 1;
-   assert((idx >= 0) && (idx < n_nodes));
+   assert((idx_1d >= 0) && (idx_1d < n_nodes));
 
    double distance = 2./order;
    vector<double> nodes;
@@ -259,11 +269,11 @@ void ReferenceElement::shape_fun_1d(int idx, double x, double *value, double* de
    vector<double> derivative_terms(n_nodes, 1.0);
 
    for(int i = 0; i < n_nodes; i++) {
-      if(i != idx) {
-         denominator *= (nodes[idx] - nodes[i]);
+      if(i != idx_1d) {
+         denominator *= (nodes[idx_1d] - nodes[i]);
          nominator *= (x - nodes[i]);
          for(int j = 0; j < n_nodes; j++) {
-            if((j != idx) && (j != i)) {
+            if((j != idx_1d) && (j != i)) {
                derivative_terms[j] *= (x - nodes[i]);
             }
          }
@@ -273,15 +283,31 @@ void ReferenceElement::shape_fun_1d(int idx, double x, double *value, double* de
    *value = nominator / denominator;
    *der = 0.0;
    for(int i = 0; i < n_nodes; i++) {
-      if(i != idx) {
+      if(i != idx_1d) {
          *der += derivative_terms[i];
       }
    }
    *der /= denominator;
 }
 
+double ReferenceElement::shape_fun_1d(int idx_1d, double x) const {
+   double value, derivative;
+   shape_fun_1d(idx_1d, x, &value, &derivative);
+   return value;
+}
 
-void ReferenceElement::prepare_transformed_values(const Quadrature &q, double element_length,
+double ReferenceElement::shape_value(int node_idx, vector<double> coords) const {
+   assert((node_idx >= 0) && (node_idx < Def::num_element_nodes));
+   assert((int)coords.size() == num_dim);
+   double value = 1.;
+   for (int dim = 0; dim < num_dim; dim++) {
+      value *= shape_fun_1d(node_idx % (order + 1), coords[dim]);
+      node_idx /= (order + 1);
+   }
+   return value;
+}
+
+void ReferenceElement::fill_transformed_values(const Quadrature &q, double element_length,
                                 vector<vector<double> > *values, vector<vector<vector<double> > > *gradients) const {
    *values = vector<vector<double> >(Def::num_element_nodes);
    *gradients = vector<vector<vector<double> > >(Def::num_element_nodes);

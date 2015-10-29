@@ -17,7 +17,8 @@ public:
    void clear();
 
    int n_dimensions() const  {assert(! position.empty()); return position.size();}
-   std::vector<std::vector<double> > corners() const;
+   std::vector<std::vector<double> > corners_coords() const;
+   std::vector<std::vector<double> > nodes_coords(int num_nodes_1d) const;
 
    void fill_parent_cell(IntegrationCell *parent) const;
 

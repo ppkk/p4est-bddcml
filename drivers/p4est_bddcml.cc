@@ -14,8 +14,8 @@
 using namespace std;
 
 const int num_dim = 2;
-const int order = 2;
-const PhysicsType physicsType = PhysicsType::LAPLACE;
+const int order = 1;
+const PhysicsType physicsType = PhysicsType::ELASTICITY;
 
 vector<double> rhs_fn(vector<double>)
 {
