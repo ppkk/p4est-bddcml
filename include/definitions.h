@@ -40,14 +40,10 @@ struct Parameters
    }
 };
 
-extern int neco_mimo;
-
 class Def {
 public:
    static void init(int num_dim, int order, PhysicsType physicsType, const P4estClass *p4est);
    static const Def *d() {return singleton; }
-
-   static int neco;
 
    int num_dim;
    int num_children;
@@ -84,7 +80,12 @@ public:
    std::vector<std::vector<int> > face_edges;
    std::vector<std::vector<int> > edge_faces;
 
+   // when going through corners of square/cube in order first x, than y, than z
+   // this gives the vector [[0,0], [1,0], [0,1], .. ] or its 3D version
    std::vector<std::vector<int> > cartesian_ids_corners;
+
+   // like cartesian_ids_corners, but for nodes
+   // gives [[0,0], [1,0], ... [order,0], [0,1], ... ] or its 3D version
    std::vector<std::vector<int> > cartesian_ids_nodes;
 
 private:
@@ -126,6 +127,42 @@ private:
 };
 
 
+template <typename number>
+class PrintVec
+{
+public:
+   PrintVec<number>(const std::vector<number> &vec) : vec(vec) {}
+   const std::vector<number> &vec;
+};
 
+template <typename number>
+std::ostream& operator<<(std::ostream& os, const PrintVec<number>& pv)
+{
+    for(auto x : pv.vec)
+       os << x << ", ";
+    os << std::endl;
+    return os;
+}
+
+template <typename number>
+class PrintVec2D
+{
+public:
+   PrintVec2D<number>(const std::vector<std::vector<number> > &vec) : vec(vec) {}
+   const std::vector<std::vector<number> > &vec;
+};
+
+template <typename number>
+std::ostream& operator<<(std::ostream& os, const PrintVec2D<number>& pv)
+{
+   for(auto row : pv.vec) {
+      for(auto x : row) {
+         os << x << ", ";
+      }
+      os << std::endl;
+   }
+   //os << std::endl;
+   return os;
+}
 
 #endif // DEFINITIONS_H

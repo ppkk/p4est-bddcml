@@ -1,5 +1,9 @@
+#include <set>
+
 #include "local_matrix.h"
 #include "p4est/my_p4est_interface.h"
+#include "shapefun.h"
+#include "integration_cell.h"
 
 using namespace std;
 
@@ -78,9 +82,7 @@ HangingInfo::HangingInfo(const P4estClass &p4est) : p4est(p4est){
 // coefs[local_dof][independent_dof]
 // independent_dof is actually \sum_ld coefs[id][ld] * shape_ld
 
-
-void HangingInfo::init_coefs(int elem_idx)
-{
+void HangingInfo::init_coefs(int elem_idx, const IntegrationCell &cell) {
    if(elem_idx == active_elem_idx)
       return;
 
@@ -93,88 +95,43 @@ void HangingInfo::init_coefs(int elem_idx)
    std::fill(faces.begin(), faces.end(), 0.0);
    std::fill(edges.begin(), edges.end(), 0.0);
    active_elem_anyhang = p4est.get_hanging_info(elem_idx, this);
+   active_elem_idx = elem_idx;
 
    if(!active_elem_anyhang)
       return;
 
-   int indep_node, hanging_node;
-   vector<int> indep_nodes;
+   ReferenceElement ref_elem(Def::d()->num_dim, Def::d()->order);
+   std::set<int> hanging_nodes;
 
-   if(p4est.get_num_dim() == 2) {
-      for(int face_idx = 0; face_idx < Def::d()->num_faces; face_idx++) {
-         if(faces[face_idx] == -1)
-            continue;
-
-         if(faces[face_idx] == 0) {
-            // it is a first part of a larger face
-            indep_node = Def::d()->face_corners[face_idx][0];
-            hanging_node = Def::d()->face_corners[face_idx][1];
-         }
-         else if (faces[face_idx] == 1) {
-            // it is a first part of a larger face
-            indep_node = Def::d()->face_corners[face_idx][1];
-            hanging_node = Def::d()->face_corners[face_idx][0];
-         }
-         else {
-            assert(0);
-         }
-
-         coefs[hanging_node][hanging_node] = 0.5;
-         coefs[hanging_node][indep_node] = 0.5;
-      }
-
-   }
-   else if(p4est.get_num_dim() == 3) {
-      for(int edge_idx = 0; edge_idx < Def::d()->num_edges; edge_idx++) {
-         if(edges[edge_idx] == -1)
-            continue;
-
-         if((edges[edge_idx] == 0) || (edges[edge_idx] == 2)) {
-            indep_node = Def::d()->edge_corners[edge_idx][0];
-            hanging_node = Def::d()->edge_corners[edge_idx][1];
-         }
-         else if((edges[edge_idx] == 1) || (edges[edge_idx] == 3)) {
-            indep_node = Def::d()->edge_corners[edge_idx][1];
-            hanging_node = Def::d()->edge_corners[edge_idx][0];
-         }
-         else {
-            assert(edges[edge_idx] == 4); // inner edge, will be dealt with using faces
-            continue;
-         }
-
-         coefs[hanging_node][hanging_node] = 0.5;
-         coefs[hanging_node][indep_node] = 0.5;
-      }
-      for(int face_idx = 0; face_idx < Def::d()->num_faces; face_idx++) {
-         if(faces[face_idx] == -1)
-            continue;
-
-         indep_nodes.clear();
-         for(int loc_face_corner = 0; loc_face_corner < Def::d()->num_face_corners; loc_face_corner++) {
-            // finding the hanging for this situation
-            if(loc_face_corner == 3 - faces[face_idx]) {
-               hanging_node = Def::d()->face_corners[face_idx][loc_face_corner];
-            }
-            else {
-               indep_nodes.push_back(Def::d()->face_corners[face_idx][loc_face_corner]);
-            }
-         }
-
-         coefs[hanging_node][hanging_node] = 0.25;
-         for(int indep_node : indep_nodes) {
-            coefs[hanging_node][indep_node] = 0.25;
+   for(int face_idx = 0; face_idx < Def::d()->num_faces; face_idx++) {
+      if(faces[face_idx] != -1) {
+         // it is hanging. find all its nodes
+         for(int face_node : ref_elem.face_nodes[face_idx]) {
+            hanging_nodes.insert(face_node);
          }
       }
    }
-   else {
-      assert(0);
+
+   for(int edge_idx = 0; edge_idx < Def::d()->num_edges; edge_idx++) {
+      if(edges[edge_idx] != -1) {
+         // it is hanging. find all its nodes
+         for(int edge_node : ref_elem.edge_nodes[edge_idx]) {
+            hanging_nodes.insert(edge_node);
+         }
+      }
    }
-   active_elem_idx = elem_idx;
+
+   for(int hanging_node : hanging_nodes) {
+//      cout << PrintVec<double>(ref_elem.children_nodes_parent_basis_values[cell.child_position][hanging_node]) << endl;
+      coefs[hanging_node] = ref_elem.children_nodes_parent_basis_values[cell.child_position][hanging_node];
+   }
+
 }
 
-void HangingInfo::apply_constraints(int elem_idx, const LocalMatrixComponent &in, LocalMatrixComponent *out)
+void HangingInfo::apply_constraints(int elem_idx, const IntegrationCell &cell,
+                                    const LocalMatrixComponent &in, LocalMatrixComponent *out)
 {
-   init_coefs(elem_idx);
+   init_coefs(elem_idx, cell);
 
    if(!active_elem_anyhang) {
       out->copy(in);
@@ -199,9 +156,10 @@ void HangingInfo::apply_constraints(int elem_idx, const LocalMatrixComponent &in
    }
 }
 
-void HangingInfo::apply_constraints(int elem_idx, const LocalVectorComponent &in, LocalVectorComponent *out)
+void HangingInfo::apply_constraints(int elem_idx, const IntegrationCell &cell,
+                                    const LocalVectorComponent &in, LocalVectorComponent *out)
 {
-   init_coefs(elem_idx);
+   init_coefs(elem_idx, cell);
 
    if(!active_elem_anyhang) {
       out->copy(in);
@@ -219,23 +177,25 @@ void HangingInfo::apply_constraints(int elem_idx, const LocalVectorComponent &in
    }
 }
 
-void HangingInfo::apply_constraints(int elem_idx, const LocalMatrix &in, LocalMatrix *out)
+void HangingInfo::apply_constraints(int elem_idx, const IntegrationCell &cell,
+                                    const LocalMatrix &in, LocalMatrix *out)
 {
    assert(in.ncomponents == out->ncomponents);
    assert(in.ndofs == out->ndofs);
    for(int i_comp = 0; i_comp < in.ncomponents; i_comp++) {
       for(int j_comp = 0; j_comp < in.ncomponents; j_comp++) {
-         apply_constraints(elem_idx, in.comps[i_comp][j_comp], &out->comps[i_comp][j_comp]);
+         apply_constraints(elem_idx, cell, in.comps[i_comp][j_comp], &out->comps[i_comp][j_comp]);
       }
    }
 }
 
-void HangingInfo::apply_constraints(int elem_idx, const LocalVector &in, LocalVector *out)
+void HangingInfo::apply_constraints(int elem_idx, const IntegrationCell &cell,
+                                    const LocalVector &in, LocalVector *out)
 {
    assert(in.ncomponents == out->ncomponents);
    assert(in.ndofs == out->ndofs);
    for(int i_comp = 0; i_comp < in.ncomponents; i_comp++) {
-      apply_constraints(elem_idx, in.comps[i_comp], &out->comps[i_comp]);
+      apply_constraints(elem_idx, cell, in.comps[i_comp], &out->comps[i_comp]);
    }
 }
 

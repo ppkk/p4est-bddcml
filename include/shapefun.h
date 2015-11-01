@@ -39,12 +39,6 @@ public:
    int num_dim;
    int order;
 
-   int num_nodes;
-   int num_corner_nodes;
-   int num_edge_nodes;
-   int num_face_nodes;
-   int num_interior_nodes;
-
    std::vector<std::vector<double> > node_coords;
 
    // nodes in those arrays are sorted by construction
@@ -56,6 +50,8 @@ public:
    std::vector<std::vector<int> > face_interior_nodes;
    std::vector<int> element_interior_nodes;
 
+   // [child_type][child_node_id][parent_node(shapefn)_id]
+   // child_type is 0..3 or 0..7 for 2D or 3D
    std::vector<std::vector<std::vector<double> > > children_nodes_parent_basis_values;
 };
 

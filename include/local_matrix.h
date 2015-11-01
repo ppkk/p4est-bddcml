@@ -3,7 +3,7 @@
 
 #include "definitions.h"
 
-class P4estClass;
+class IntegrationCell;
 
 // todo: in the future, it could be rectangular (pressure has less dofs than velocity)
 // todo: -> ndofs1, ndofs2
@@ -60,17 +60,21 @@ class HangingInfo
 public:
    HangingInfo(const P4estClass &p4est);
 
-   void apply_constraints(int elem_idx, const LocalMatrixComponent &in, LocalMatrixComponent *out);
-   void apply_constraints(int elem_idx, const LocalMatrix &in, LocalMatrix *out);
+   void apply_constraints(int elem_idx, const IntegrationCell &cell,
+                          const LocalMatrixComponent &in, LocalMatrixComponent *out);
+   void apply_constraints(int elem_idx, const IntegrationCell &cell,
+                          const LocalMatrix &in, LocalMatrix *out);
 
-   void apply_constraints(int elem_idx, const LocalVectorComponent &in, LocalVectorComponent *out);
-   void apply_constraints(int elem_idx, const LocalVector &in, LocalVector *out);
+   void apply_constraints(int elem_idx, const IntegrationCell &cell,
+                          const LocalVectorComponent &in, LocalVectorComponent *out);
+   void apply_constraints(int elem_idx, const IntegrationCell &cell,
+                          const LocalVector &in, LocalVector *out);
 
    bool inline is_face_hanging(int face) const {return faces[face] != -1; }
    bool inline is_edge_hanging(int edge) const {return edges[edge] != -1; }
 
 private:
-   void init_coefs(int elem_idx);
+   void init_coefs(int elem_idx, const IntegrationCell &cell);
 
 private:
    int active_elem_idx;

@@ -47,7 +47,7 @@ void ReferenceElement::find_nodes_coords(const IntegrationCell &cell, std::vecto
 
 
 ReferenceElement::ReferenceElement(int num_dim, int order) : num_dim(num_dim), order(order)
-{
+{   
    prepare_node_categories();
    prepare_children_nodes_values();
 }
@@ -192,16 +192,26 @@ void ReferenceElement::prepare_node_categories()
 
 void ReferenceElement::prepare_children_nodes_values()
 {
-//   const double child_elem_size = 1.;
-//   for(auto difs : Def::d()->cartesian_ids_corners) {
-//      vector<double> child_begining;
-//      assert(child_begining.empty());
-//      for(int dim = 0; dim < Def::d()->num_dim; dim++) {
-//         child_begining.push_back(-1 + difs[dim]);
-//      }
-//      IntegrationCell cell(child_begining, child_elem_size);
-//      cell.nodes_coords()
-//   }
+   const int num_nodes_1D = order + 1;
+   const double child_elem_size = 1.;
+   for(auto difs : Def::d()->cartesian_ids_corners) {
+      vector<double> child_begining;
+      assert(child_begining.empty());
+      vector<vector<double> > table(Def::d()->num_element_nodes, vector<double>(Def::d()->num_element_nodes));
+      for(int dim = 0; dim < Def::d()->num_dim; dim++) {
+         child_begining.push_back(-1 + difs[dim]);
+      }
+      IntegrationCell cell(child_begining, child_elem_size);
+      vector<vector<double> > nodes_coords = cell.nodes_coords(num_nodes_1D);
+
+      for(int child_node = 0; child_node < Def::d()->num_element_nodes; child_node++) {
+         for(int parent_node = 0; parent_node < Def::d()->num_element_nodes; parent_node++) {
+            table[child_node][parent_node] = shape_value(parent_node, nodes_coords[child_node]);
+         }
+      }
+
+      children_nodes_parent_basis_values.push_back(table);
+   }
 }
 
 void ReferenceElement::print_node_types() const

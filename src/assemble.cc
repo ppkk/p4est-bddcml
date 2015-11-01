@@ -173,19 +173,20 @@ void assemble_matrix_rhs(const P4estClass &p4est, const IntegrationMesh &integra
 
    int element_offset = 0;
    for(int elem_idx = 0; elem_idx < bddcml_mesh.subdomain_dims->n_elems; elem_idx++) {
+      const IntegrationCell& cell = integration_mesh.cells[elem_idx];
       assert(bddcml_mesh.num_nodes_of_elem.val[elem_idx] == Def::d()->num_element_nodes);
 
       //mesh.get_element(elem_idx, &element);
 
       if(femsp.physicsType == PhysicsType::LAPLACE)
-         assemble_local_laplace(integration_mesh.cells[elem_idx], ref_elem, q, rhs_ptr, &element_matrix_nohang, &element_rhs_nohang);
+         assemble_local_laplace(cell, ref_elem, q, rhs_ptr, &element_matrix_nohang, &element_rhs_nohang);
       else if(femsp.physicsType == PhysicsType::ELASTICITY)
-         assemble_local_elasticity(integration_mesh.cells[elem_idx], ref_elem, q, rhs_ptr, params, &element_matrix_nohang, &element_rhs_nohang);
+         assemble_local_elasticity(cell, ref_elem, q, rhs_ptr, params, &element_matrix_nohang, &element_rhs_nohang);
       else
          assert(0);
 
-      hanging_info.apply_constraints(elem_idx, element_matrix_nohang, &element_matrix);
-      hanging_info.apply_constraints(elem_idx, element_rhs_nohang, &element_rhs);
+      hanging_info.apply_constraints(elem_idx, cell, element_matrix_nohang, &element_matrix);
+      hanging_info.apply_constraints(elem_idx, cell, element_rhs_nohang, &element_rhs);
 
       //print_matrix_rhs(element_matrix, element_rhs, n_components);
 

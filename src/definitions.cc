@@ -94,5 +94,3 @@ void Def::prepare_cartesian_ids(int num_points_1d, std::vector<std::vector<int> 
 }
 
 Def* Def::singleton;
-int Def::neco;
-int neco_mimo;

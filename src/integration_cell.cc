@@ -25,7 +25,7 @@ vector<vector<double> > IntegrationCell::nodes_coords(int num_nodes_1d) const {
    double nodes_distance = size / (num_nodes_1d - 1);
    for(auto difs : Def::d()->cartesian_ids_nodes) {
       for(int dim = 0; dim < n_dimensions(); dim++) {
-         node_coord[dim] = node_coord[dim] + difs[dim] * nodes_distance;
+         node_coord[dim] = position[dim] + difs[dim] * nodes_distance;
       }
       nodes_coords_ret.push_back(node_coord);
    }
