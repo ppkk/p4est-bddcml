@@ -23,7 +23,13 @@ vector<vector<double> > IntegrationCell::nodes_coords(int num_nodes_1d) const {
    vector<vector<double> > nodes_coords_ret;
    vector<double> node_coord(n_dimensions(), 0.0);
    double nodes_distance = size / (num_nodes_1d - 1);
-   for(auto difs : Def::d()->cartesian_ids_nodes) {
+
+   // if I want anything else, I have to extend cartesian_ids in Defs
+   assert((num_nodes_1d == 2) || (num_nodes_1d == Def::d()->order + 1));
+   const std::vector<std::vector<int> >& cartesian_ids =
+         ((num_nodes_1d == 2) ? Def::d()->cartesian_ids_corners : Def::d()->cartesian_ids_nodes);
+
+   for(auto difs : cartesian_ids) {
       for(int dim = 0; dim < n_dimensions(); dim++) {
          node_coord[dim] = position[dim] + difs[dim] * nodes_distance;
       }
