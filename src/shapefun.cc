@@ -24,20 +24,14 @@ using namespace std;
 void ReferenceElement::find_nodes_coords(const std::vector<double> &start, double element_len,
                                    std::vector<std::vector<double> > *coords) const {
    coords->clear();
-   int num_points_1d = order + 1;
    double node_distance = element_len / order;
    vector<double> node(num_dim, 0.0);
-   int difs[num_dim];
-   for(difs[2] = 0; difs[2] < ((num_dim == 3) ? num_points_1d : 1); difs[2]++) {
-      for(difs[1] = 0; difs[1] < num_points_1d; difs[1]++) {
-         for(difs[0] = 0; difs[0] < num_points_1d; difs[0]++) {
-            // now we know which of the dim^(order+1) points we want, construct its coordinates
-            for(int dim = 0; dim < num_dim; dim++) {
-               node[dim] = start[dim] + difs[dim] * node_distance;
-            }
-            coords->push_back(node);
-         }
+   for(auto difs : Def::d()->cartesian_ids_nodes) {
+      // now we know which of the dim^(order+1) points we want, construct its coordinates
+      for(int dim = 0; dim < num_dim; dim++) {
+         node[dim] = start[dim] + difs[dim] * node_distance;
       }
+      coords->push_back(node);
    }
 }
 

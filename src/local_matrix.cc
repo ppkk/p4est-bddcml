@@ -15,12 +15,12 @@ LocalVectorComponent::LocalVectorComponent(int ndofs) : ndofs(ndofs){
    vec.resize(ndofs, 0.0);
 }
 
-LocalMatrix::LocalMatrix(int ncomponents, int ndofs) : ncomponents(ncomponents), ndofs(ndofs) {
-   comps.resize(ncomponents, vector<LocalMatrixComponent>(ncomponents, LocalMatrixComponent(ndofs)));
+LocalMatrix::LocalMatrix(int ncomponents, int nnodes) : ncomponents(ncomponents), nnodes(nnodes) {
+   comps.resize(ncomponents, vector<LocalMatrixComponent>(ncomponents, LocalMatrixComponent(nnodes)));
 }
 
-LocalVector::LocalVector(int ncomponents, int ndofs) : ncomponents(ncomponents), ndofs(ndofs) {
-   comps.resize(ncomponents, LocalVectorComponent(ndofs));
+LocalVector::LocalVector(int ncomponents, int nnodes) : ncomponents(ncomponents), nnodes(nnodes) {
+   comps.resize(ncomponents, LocalVectorComponent(nnodes));
 }
 
 void LocalMatrixComponent::copy(const LocalMatrixComponent &copy_from)
@@ -156,7 +156,7 @@ void HangingInfo::apply_constraints(int elem_idx, const IntegrationCell &cell,
    }
 }
 
-void HangingInfo::apply_constraints(int elem_idx, const IntegrationCell &cell,
+void HangingInfo::apply_constraints(int elem_idx, const IntegrationCell &cell, bool inverse,
                                     const LocalVectorComponent &in, LocalVectorComponent *out)
 {
    init_coefs(elem_idx, cell);
@@ -169,10 +169,11 @@ void HangingInfo::apply_constraints(int elem_idx, const IntegrationCell &cell,
    out->clear();
    for(int i_loc = 0; i_loc < in.ndofs; i_loc++) {
       for(int i_glob = 0; i_glob < in.ndofs; i_glob++) {
-         if(coefs[i_loc][i_glob] == 0.0)
-            continue;
 
-         out->vec[i_glob] += in.vec[i_loc] * coefs[i_loc][i_glob];
+         if(inverse)
+            out->vec[i_glob] += in.vec[i_loc] * coefs[i_glob][i_loc];
+         else
+            out->vec[i_glob] += in.vec[i_loc] * coefs[i_loc][i_glob];
       }
    }
 }
@@ -181,7 +182,7 @@ void HangingInfo::apply_constraints(int elem_idx, const IntegrationCell &cell,
                                     const LocalMatrix &in, LocalMatrix *out)
 {
    assert(in.ncomponents == out->ncomponents);
-   assert(in.ndofs == out->ndofs);
+   assert(in.nnodes == out->nnodes);
    for(int i_comp = 0; i_comp < in.ncomponents; i_comp++) {
       for(int j_comp = 0; j_comp < in.ncomponents; j_comp++) {
          apply_constraints(elem_idx, cell, in.comps[i_comp][j_comp], &out->comps[i_comp][j_comp]);
@@ -193,9 +194,19 @@ void HangingInfo::apply_constraints(int elem_idx, const IntegrationCell &cell,
                                     const LocalVector &in, LocalVector *out)
 {
    assert(in.ncomponents == out->ncomponents);
-   assert(in.ndofs == out->ndofs);
+   assert(in.nnodes == out->nnodes);
    for(int i_comp = 0; i_comp < in.ncomponents; i_comp++) {
-      apply_constraints(elem_idx, cell, in.comps[i_comp], &out->comps[i_comp]);
+      apply_constraints(elem_idx, cell, false, in.comps[i_comp], &out->comps[i_comp]);
+   }
+}
+
+void HangingInfo::apply_constraints_inverse(int elem_idx, const IntegrationCell &cell,
+                                    const LocalVector &in, LocalVector *out)
+{
+   assert(in.ncomponents == out->ncomponents);
+   assert(in.nnodes == out->nnodes);
+   for(int i_comp = 0; i_comp < in.ncomponents; i_comp++) {
+      apply_constraints(elem_idx, cell, true, in.comps[i_comp], &out->comps[i_comp]);
    }
 }
 

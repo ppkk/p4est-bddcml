@@ -241,98 +241,6 @@ p4est_gloidx_t P4estClassDim::node_loc_to_glob(p4est_locidx_t loc_idx) const {
       return lnodes()->nonlocal_nodes[loc_idx - lnodes()->owned_count];
 }
 
-//****************************************************************************************
-
-void P4estClassDim::plot_solution(int num_comp, double* u_sol, double* u_exact, int* partition) const {
-   p4est_locidx_t      quad_idx, node_total = 0;  /* Process-local counters have this type. */
-   double              loc_vertex_values_sol[num_comp][P4EST_CHILDREN], loc_vertex_values_exact[P4EST_CHILDREN];
-   p4est_quadrant_t *quad;
-
-   /* Write the forest to disk for visualization, one file per processor. */
-   double *u_interp_sol[num_comp];
-   double *u_interp_exact = NULL;
-   double *interp_partition = NULL;
-   if(u_sol)
-      for(int comp = 0; comp < num_comp; comp++)
-         u_interp_sol[comp] = P4EST_ALLOC (double, p4est->local_num_quadrants * P4EST_CHILDREN);
-   if(u_exact)
-      u_interp_exact = P4EST_ALLOC (double, p4est->local_num_quadrants * P4EST_CHILDREN);
-   if(partition)
-      interp_partition = P4EST_ALLOC (double, p4est->local_num_quadrants * P4EST_CHILDREN);
-
-   for_all_quads(p4est, quad_idx, quad){
-      for (int i = 0; i < P4EST_CHILDREN; ++i) {
-         int node = lnodes()->element_nodes[P4EST_CHILDREN * quad_idx + i];
-         if(u_sol) {
-            for(int comp = 0; comp < num_comp; comp++) {
-               int dof = num_comp * node + comp;
-               loc_vertex_values_sol[comp][i] = u_sol[dof];
-            }
-         }
-         if(u_exact)
-            loc_vertex_values_exact[i] = u_exact[node];
-      }
-
-      if(u_sol) {
-         for(int comp = 0; comp < num_comp; comp++) {
-            P4estNamespaceDim::interpolate_hanging_nodes (lnodes()->face_code[quad_idx], loc_vertex_values_sol[comp]);
-         }
-      }
-      if(u_exact)
-         P4estNamespaceDim::interpolate_hanging_nodes (lnodes()->face_code[quad_idx], loc_vertex_values_exact);
-
-      for (int i = 0; i < P4EST_CHILDREN; ++i) {
-         if(u_sol) {
-            for(int comp = 0; comp < num_comp; comp++) {
-               u_interp_sol[comp][node_total]   = loc_vertex_values_sol[comp][i];
-            }
-         }
-         if(u_exact)
-            u_interp_exact[node_total] = loc_vertex_values_exact[i];
-         if(partition)
-            interp_partition[node_total] = partition[quad_idx];
-         ++node_total;
-      }
-   }
-   end_for_all_quads
-
-   if(u_sol) {
-      if(u_exact) {
-         p4est_vtk_write_all (p4est, NULL, 0.99999, 1, 1, 1, 0, 2, 0, "output",
-                              "solution", u_interp_sol, "exact", u_interp_exact);
-      }
-      else {
-         if(num_comp == 1)
-            p4est_vtk_write_all (p4est, NULL, 0.99999, 1, 1, 1, 0, 1, 0, "output",
-                                 "solution", u_interp_sol[0]);
-         else if(num_comp == 2)
-            p4est_vtk_write_all (p4est, NULL, 0.99999, 1, 1, 1, 0, 2, 0, "output",
-                                 "solution_1", u_interp_sol[0], "solution_2", u_interp_sol[1]);
-         else if(num_comp == 3)
-            p4est_vtk_write_all (p4est, NULL, 0.99999, 1, 1, 1, 0, 3, 0, "output",
-                                 "solution_1", u_interp_sol[0], "solution_2", u_interp_sol[1], "solution_3", u_interp_sol[2]);
-         else
-            assert(0);
-      }
-   }
-   else {
-      if(partition) {
-         p4est_vtk_write_all (p4est, NULL, 0.99999, 1, 1, 1, 0, 1, 0, "output",
-                              "metis_part", interp_partition);
-      }
-      else {
-         p4est_vtk_write_all (p4est, NULL, 0.99999, 1, 1, 1, 0, 0, 0, "output");
-      }
-   }
-
-   if(u_sol)
-      for(int comp = 0; comp < num_comp; comp++)
-         P4EST_FREE (u_interp_sol[comp]);
-   if(u_exact)
-      P4EST_FREE (u_interp_exact);
-   if(partition)
-      P4EST_FREE (interp_partition);
-}
 
 //****************************************************************************************
 
@@ -663,6 +571,107 @@ void P4estClassDim::prepare_bddcml_mesh_global_mappings(BddcmlMesh* mesh) const 
 
 //****************************************************************************************
 
+const int nodes_in_axes_dirs[3] = {1,2,4};
+const double tolerance = 1e-10;
+
+void P4estClassDim::fill_integration_cell(const p4est_quadrant_t *quad, p4est_topidx_t tree,
+                                          IntegrationCell *integration_cell) const
+{
+   p4est_quadrant_t node;
+   vector<double> other_point;
+
+   integration_cell->clear();
+   integration_cell->refinement_level = quad->level;
+   p4est_quadrant_corner_node (quad, 0, &node);
+   get_node_coords(tree, node, &integration_cell->position);
+
+   integration_cell->child_position = p4est_quadrant_child_id(quad);
+
+   p4est_quadrant_corner_node (quad, nodes_in_axes_dirs[0], &node);
+   get_node_coords(tree, node, &other_point);
+   integration_cell->size = other_point[0] - integration_cell->position[0];
+
+   for(int i = 1; i < num_dim; i++) {
+      p4est_quadrant_corner_node (quad, nodes_in_axes_dirs[i], &node);
+      get_node_coords(tree, node, &other_point);
+      assert(integration_cell->size - (other_point[i] - integration_cell->position[i]) < tolerance * integration_cell->size);
+   }
+}
+
+//****************************************************************************************
+
+void P4estClassDim::prepare_integration_mesh(IntegrationMesh *mesh) const {
+   p4est_locidx_t quad_idx = 0;
+   p4est_quadrant_t *quad;
+   p4est_topidx_t tree;
+   IntegrationCell integration_cell;
+
+   mesh->clear();
+
+   for_all_quads_with_tree(p4est, tree, quad_idx, quad) {
+      fill_integration_cell(quad, tree, &integration_cell);
+      mesh->cells.push_back(integration_cell);
+   }
+   end_for_all_quads
+}
+
+//****************************************************************************************
+
+void P4estClassDim::prepare_nodal_mesh(int ncomponents, const IntegrationMesh &integration_mesh,
+                                const ReferenceElement &reference_element,
+                                NodalElementMesh *nodal_mesh) const {
+
+   p4est_locidx_t quad_idx = 0;
+   p4est_quadrant_t *quad;
+   p4est_topidx_t tree;
+
+   for_all_quads_with_tree(p4est, tree, quad_idx, quad) {
+      NodalElement nodal_element(quad_idx, ncomponents, integration_mesh.cells[quad_idx], reference_element);
+      for (int lnode = 0; lnode < Def::d()->num_element_nodes; ++lnode) {
+         p4est_locidx_t node_idx = lnodes()->element_nodes[Def::d()->num_element_nodes * quad_idx + lnode];
+         //nodal_element.nodes.push_back(node_idx);
+         nodal_element.add_node_and_dofs(node_idx);
+      }
+
+      nodal_mesh->elements.push_back(nodal_element);
+   }
+   end_for_all_quads
+}
+
+//****************************************************************************************
+
+// transfers p4est 2D array to vector<vector<int> > format
+template<int dim1, int dim2>
+void transfer_2D_array(const int p4est_array[dim1][dim2], vector<vector<int> > *result)
+{
+   result->resize(dim1, vector<int>(dim2, -1));
+   for(int i1 = 0; i1 < dim1; i1++) {
+      for(int i2 = 0; i2 < dim2; i2++) {
+         (*result)[i1][i2] = p4est_array[i1][i2];
+      }
+   }
+}
+
+void P4estClassDim::init_definitions(Def *def) const
+{
+#ifndef P4_TO_P8
+   transfer_2D_array<def->num_faces_2D, def->num_face_corners_2D>(p4est_face_corners, &def->face_corners);
+   transfer_2D_array<def->num_corners_2D, def->num_corner_faces_2D>(p4est_corner_faces, &def->corner_faces);
+#else
+   transfer_2D_array<def->num_faces_3D, def->num_face_corners_3D>(p4est_face_corners, &def->face_corners);
+   transfer_2D_array<def->num_edges_3D, def->num_edge_corners_3D>(p8est_edge_corners, &def->edge_corners);
+   transfer_2D_array<def->num_corners_3D, def->num_corner_faces_3D>(p4est_corner_faces, &def->corner_faces);
+   transfer_2D_array<def->num_corners_3D, def->num_corner_edges_3D>(p8est_corner_edges, &def->corner_edges);
+   transfer_2D_array<def->num_faces_3D, def->num_face_edges_3D>(p8est_face_edges, &def->face_edges);
+   transfer_2D_array<def->num_edges_3D, def->num_edge_faces_3D>(p8est_edge_faces, &def->edge_faces);
+#endif
+}
+
+//****************************************************************************************
+// NO LONGER USED
+//****************************************************************************************
+
+/*@unused@*/
 void P4estClassDim::prepare_bddcml_mesh_nodes_old(BddcmlMesh* mesh) const {
    vector<double> coords;
    p4est_quadrant_t   sp, node;
@@ -719,96 +728,94 @@ void P4estClassDim::prepare_bddcml_mesh_nodes_old(BddcmlMesh* mesh) const {
 
 //****************************************************************************************
 
-const int nodes_in_axes_dirs[3] = {1,2,4};
-const double tolerance = 1e-10;
-
-void P4estClassDim::fill_integration_cell(const p4est_quadrant_t *quad, p4est_topidx_t tree,
-                                          IntegrationCell *integration_cell) const
-{
-   p4est_quadrant_t node;
-   vector<double> other_point;
-
-   integration_cell->clear();
-   p4est_quadrant_corner_node (quad, 0, &node);
-   get_node_coords(tree, node, &integration_cell->position);
-
-   integration_cell->child_position = p4est_quadrant_child_id(quad);
-
-   p4est_quadrant_corner_node (quad, nodes_in_axes_dirs[0], &node);
-   get_node_coords(tree, node, &other_point);
-   integration_cell->size = other_point[0] - integration_cell->position[0];
-
-   for(int i = 1; i < num_dim; i++) {
-      p4est_quadrant_corner_node (quad, nodes_in_axes_dirs[i], &node);
-      get_node_coords(tree, node, &other_point);
-      assert(integration_cell->size - (other_point[i] - integration_cell->position[i]) < tolerance * integration_cell->size);
-   }
-}
-
-//****************************************************************************************
-
-void P4estClassDim::prepare_integration_mesh(IntegrationMesh *mesh) const {
-   p4est_locidx_t quad_idx = 0;
+/*@unused@*/
+void P4estClassDim::plot_solution(int num_comp, double* u_sol, double* u_exact, int* partition) const {
+   p4est_locidx_t      quad_idx, node_total = 0;  /* Process-local counters have this type. */
+   double              loc_vertex_values_sol[num_comp][P4EST_CHILDREN], loc_vertex_values_exact[P4EST_CHILDREN];
    p4est_quadrant_t *quad;
-   p4est_topidx_t tree;
-   IntegrationCell integration_cell;
 
-   mesh->clear();
+   /* Write the forest to disk for visualization, one file per processor. */
+   double *u_interp_sol[num_comp];
+   double *u_interp_exact = NULL;
+   double *interp_partition = NULL;
+   if(u_sol)
+      for(int comp = 0; comp < num_comp; comp++)
+         u_interp_sol[comp] = P4EST_ALLOC (double, p4est->local_num_quadrants * P4EST_CHILDREN);
+   if(u_exact)
+      u_interp_exact = P4EST_ALLOC (double, p4est->local_num_quadrants * P4EST_CHILDREN);
+   if(partition)
+      interp_partition = P4EST_ALLOC (double, p4est->local_num_quadrants * P4EST_CHILDREN);
 
-   for_all_quads_with_tree(p4est, tree, quad_idx, quad) {
-      fill_integration_cell(quad, tree, &integration_cell);
-      mesh->cells.push_back(integration_cell);
-   }
-   end_for_all_quads
-}
-
-//****************************************************************************************
-
-void P4estClassDim::prepare_nodal_mesh(int ncomponents, const IntegrationMesh &integration_mesh,
-                                const ReferenceElement &reference_element,
-                                NodalElementMesh *nodal_mesh) const {
-
-   p4est_locidx_t quad_idx = 0;
-   p4est_quadrant_t *quad;
-   p4est_topidx_t tree;
-
-   for_all_quads_with_tree(p4est, tree, quad_idx, quad) {
-      NodalElement nodal_element(ncomponents, integration_mesh.cells[quad_idx], reference_element);
-      for (int lnode = 0; lnode < Def::d()->num_element_nodes; ++lnode) {
-         p4est_locidx_t node_idx = lnodes()->element_nodes[Def::d()->num_element_nodes * quad_idx + lnode];
-         nodal_element.nodes.push_back(node_idx);
+   for_all_quads(p4est, quad_idx, quad){
+      for (int i = 0; i < P4EST_CHILDREN; ++i) {
+         int node = lnodes()->element_nodes[P4EST_CHILDREN * quad_idx + i];
+         if(u_sol) {
+            for(int comp = 0; comp < num_comp; comp++) {
+               int dof = num_comp * node + comp;
+               loc_vertex_values_sol[comp][i] = u_sol[dof];
+            }
+         }
+         if(u_exact)
+            loc_vertex_values_exact[i] = u_exact[node];
       }
 
-      nodal_mesh->elements.push_back(nodal_element);
-   }
-   end_for_all_quads
-}
+      if(u_sol) {
+         for(int comp = 0; comp < num_comp; comp++) {
+            P4estNamespaceDim::interpolate_hanging_nodes (lnodes()->face_code[quad_idx], loc_vertex_values_sol[comp]);
+         }
+      }
+      if(u_exact)
+         P4estNamespaceDim::interpolate_hanging_nodes (lnodes()->face_code[quad_idx], loc_vertex_values_exact);
 
-//****************************************************************************************
-
-// transfers p4est 2D array to vector<vector<int> > format
-template<int dim1, int dim2>
-void transfer_2D_array(const int p4est_array[dim1][dim2], vector<vector<int> > *result)
-{
-   result->resize(dim1, vector<int>(dim2, -1));
-   for(int i1 = 0; i1 < dim1; i1++) {
-      for(int i2 = 0; i2 < dim2; i2++) {
-         (*result)[i1][i2] = p4est_array[i1][i2];
+      for (int i = 0; i < P4EST_CHILDREN; ++i) {
+         if(u_sol) {
+            for(int comp = 0; comp < num_comp; comp++) {
+               u_interp_sol[comp][node_total]   = loc_vertex_values_sol[comp][i];
+            }
+         }
+         if(u_exact)
+            u_interp_exact[node_total] = loc_vertex_values_exact[i];
+         if(partition)
+            interp_partition[node_total] = partition[quad_idx];
+         ++node_total;
       }
    }
-}
+   end_for_all_quads
 
-void P4estClassDim::init_definitions(Def *def) const
-{
-#ifndef P4_TO_P8
-   transfer_2D_array<def->num_faces_2D, def->num_face_corners_2D>(p4est_face_corners, &def->face_corners);
-   transfer_2D_array<def->num_corners_2D, def->num_corner_faces_2D>(p4est_corner_faces, &def->corner_faces);
-#else
-   transfer_2D_array<def->num_faces_3D, def->num_face_corners_3D>(p4est_face_corners, &def->face_corners);
-   transfer_2D_array<def->num_edges_3D, def->num_edge_corners_3D>(p8est_edge_corners, &def->edge_corners);
-   transfer_2D_array<def->num_corners_3D, def->num_corner_faces_3D>(p4est_corner_faces, &def->corner_faces);
-   transfer_2D_array<def->num_corners_3D, def->num_corner_edges_3D>(p8est_corner_edges, &def->corner_edges);
-   transfer_2D_array<def->num_faces_3D, def->num_face_edges_3D>(p8est_face_edges, &def->face_edges);
-   transfer_2D_array<def->num_edges_3D, def->num_edge_faces_3D>(p8est_edge_faces, &def->edge_faces);
-#endif
+   if(u_sol) {
+      if(u_exact) {
+         p4est_vtk_write_all (p4est, NULL, 0.99999, 1, 1, 1, 0, 2, 0, "output",
+                              "solution", u_interp_sol, "exact", u_interp_exact);
+      }
+      else {
+         if(num_comp == 1)
+            p4est_vtk_write_all (p4est, NULL, 0.99999, 1, 1, 1, 0, 1, 0, "output",
+                                 "solution", u_interp_sol[0]);
+         else if(num_comp == 2)
+            p4est_vtk_write_all (p4est, NULL, 0.99999, 1, 1, 1, 0, 2, 0, "output",
+                                 "solution_1", u_interp_sol[0], "solution_2", u_interp_sol[1]);
+         else if(num_comp == 3)
+            p4est_vtk_write_all (p4est, NULL, 0.99999, 1, 1, 1, 0, 3, 0, "output",
+                                 "solution_1", u_interp_sol[0], "solution_2", u_interp_sol[1], "solution_3", u_interp_sol[2]);
+         else
+            assert(0);
+      }
+   }
+   else {
+      if(partition) {
+         p4est_vtk_write_all (p4est, NULL, 0.99999, 1, 1, 1, 0, 1, 0, "output",
+                              "metis_part", interp_partition);
+      }
+      else {
+         p4est_vtk_write_all (p4est, NULL, 0.99999, 1, 1, 1, 0, 0, 0, "output");
+      }
+   }
+
+   if(u_sol)
+      for(int comp = 0; comp < num_comp; comp++)
+         P4EST_FREE (u_interp_sol[comp]);
+   if(u_exact)
+      P4EST_FREE (u_interp_exact);
+   if(partition)
+      P4EST_FREE (interp_partition);
 }

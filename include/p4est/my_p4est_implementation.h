@@ -33,12 +33,11 @@ public:
    virtual ~P4estClassDim();
    void init();
 
-   virtual void plot_solution(int num_components, double* u_sol, double* u_exact, int *partition) const;
-   virtual void print_p4est_mesh (int which_rank) const;
 
    virtual void prepare_dimmensions(BddcmlDimensions *subdomain_dims, BddcmlDimensions *global_dims) const;
    virtual void prepare_bddcml_mesh_global_mappings(BddcmlMesh *mesh) const;
-   virtual void prepare_bddcml_mesh_nodes_old(BddcmlMesh *mesh) const;
+
+
    virtual void prepare_integration_mesh(IntegrationMesh *mesh) const;
    virtual void prepare_nodal_mesh(int ncomponents, const IntegrationMesh &integration_mesh,
                                    const ReferenceElement &reference_element, NodalElementMesh *nodal_mesh) const;
@@ -48,6 +47,14 @@ public:
    virtual void refine_and_partition(int num, RefineType type);
 
    virtual void init_definitions(Def* def) const;
+
+   virtual void print_p4est_mesh (int which_rank) const;
+
+   /*@unused@*/
+   virtual void plot_solution(int num_components, double* u_sol, double* u_exact, int *partition) const;
+
+   /*@unused@*/
+   virtual void prepare_bddcml_mesh_nodes_old(BddcmlMesh *mesh) const;
 
 protected:
    p4est_gloidx_t node_loc_to_glob(p4est_locidx_t loc_idx) const;

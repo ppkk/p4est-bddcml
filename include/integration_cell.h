@@ -27,6 +27,7 @@ public:
 public:
    std::vector<double> position;
    double size;
+   int refinement_level;
    int child_position;
 };
 

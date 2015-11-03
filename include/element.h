@@ -20,6 +20,7 @@ class NodalElementComponent
 public:
    NodalElementComponent(const IntegrationCell &cell, const ReferenceElement &reference_element);
    int order() const;
+   int ndofs() const {return dofs.size(); }
 public:
    // nodal element corresponds to 1 integration cell
    const IntegrationCell &cell;
@@ -33,12 +34,16 @@ class NodalElement
 public:
    // constructor which creates Nodal element with ncomponents SAME components
    // there might be different constructors later (think of velocity + pressure for flow)
-   NodalElement(int ncomponents, const IntegrationCell &cell, const ReferenceElement &reference_element);
+   NodalElement(int elem_idx, int ncomponents, const IntegrationCell &cell, const ReferenceElement &reference_element);
    int ncomponents() const {return components.size(); }
+
+   void add_node_and_dofs(int subdomain_node_idx);
+
 public:
    const IntegrationCell &cell;
    std::vector<NodalElementComponent> components;
 
+   int elem_idx;
    std::vector<int> nodes;
 };
 

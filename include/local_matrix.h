@@ -34,24 +34,24 @@ public:
 class LocalMatrix
 {
 public:
-   LocalMatrix(int ncomponents, int ndofs);
+   LocalMatrix(int ncomponents, int nnodes);
    void clear();
 
 public:
    int ncomponents;
-   int ndofs;
+   int nnodes;
    std::vector<std::vector<LocalMatrixComponent> > comps;
 };
 
 class LocalVector
 {
 public:
-   LocalVector(int ncomponents, int ndofs);
+   LocalVector(int ncomponents, int nnodes   );
    void clear();
 
 public:
    int ncomponents;
-   int ndofs;
+   int nnodes;
    std::vector<LocalVectorComponent> comps;
 };
 
@@ -61,13 +61,12 @@ public:
    HangingInfo(const P4estClass &p4est);
 
    void apply_constraints(int elem_idx, const IntegrationCell &cell,
-                          const LocalMatrixComponent &in, LocalMatrixComponent *out);
-   void apply_constraints(int elem_idx, const IntegrationCell &cell,
                           const LocalMatrix &in, LocalMatrix *out);
 
    void apply_constraints(int elem_idx, const IntegrationCell &cell,
-                          const LocalVectorComponent &in, LocalVectorComponent *out);
-   void apply_constraints(int elem_idx, const IntegrationCell &cell,
+                          const LocalVector &in, LocalVector *out);
+
+   void apply_constraints_inverse(int elem_idx, const IntegrationCell &cell,
                           const LocalVector &in, LocalVector *out);
 
    bool inline is_face_hanging(int face) const {return faces[face] != -1; }
@@ -76,6 +75,10 @@ public:
 private:
    void init_coefs(int elem_idx, const IntegrationCell &cell);
 
+   void apply_constraints(int elem_idx, const IntegrationCell &cell, bool inverse,
+                          const LocalVectorComponent &in, LocalVectorComponent *out);
+   void apply_constraints(int elem_idx, const IntegrationCell &cell,
+                          const LocalMatrixComponent &in, LocalMatrixComponent *out);
 private:
    int active_elem_idx;
    bool active_elem_anyhang;

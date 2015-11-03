@@ -10,6 +10,7 @@
 #include "integration_cell.h"
 #include "element.h"
 #include "shapefun.h"
+#include "vtk_output.h"
 
 using namespace std;
 
@@ -41,8 +42,8 @@ void run(int argc, char **argv)
    P4estClass* p4est_class = P4estClass::create(num_dim, order, mpicomm);
    Def::d()->init(num_dim, order, physicsType, p4est_class);
 
-//   p4est_class->refine_and_partition(4, RefineType::UNIFORM);
-//   p4est_class->refine_and_partition(3, RefineType::SQUARE);
+//   p4est_class->refine_and_partition(2, RefineType::UNIFORM);
+//   p4est_class->refine_and_partition(2, RefineType::SQUARE);
 
 
    // 2D
@@ -105,8 +106,6 @@ void run(int argc, char **argv)
    BddcmlFemSpace femsp(&bddcml_mesh);
    femsp.prepare_subdomain_fem_space(physicsType);
    //print_bddcml_fem_space(&femsp, &mesh, print_rank_l);
-
-   p4est_class->plot_solution(bddcml_mesh.subdomain_dims->n_node_dofs, NULL, NULL, NULL);
 
    print_rank = print_rank_l;
    print_basic_properties(global_dims, mpi_size, level_info, krylov_params);
@@ -214,7 +213,8 @@ void run(int argc, char **argv)
 
    bddcml_download_local_solution(subdomain_idx, &sols);
 
-   p4est_class->plot_solution(bddcml_mesh.subdomain_dims->n_node_dofs, sols.val, NULL, NULL); //uexact_eval, NULL);
+   VtkOutput vtk(*p4est_class, nodal_mesh, sols);
+   vtk.output("out");
 
    free_real_array(&rhss);
    free_real_array(&sols);

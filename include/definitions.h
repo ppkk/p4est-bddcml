@@ -131,16 +131,18 @@ template <typename number>
 class PrintVec
 {
 public:
-   PrintVec<number>(const std::vector<number> &vec) : vec(vec) {}
+   PrintVec<number>(const std::vector<number> &vec, std::string separator = ", ", std::string prefix = "")
+      : vec(vec), separator(separator), prefix(prefix) {}
    const std::vector<number> &vec;
+   std::string separator, prefix;
 };
 
 template <typename number>
 std::ostream& operator<<(std::ostream& os, const PrintVec<number>& pv)
 {
     for(auto x : pv.vec)
-       os << x << ", ";
-    os << std::endl;
+       os << pv.prefix << x << pv.separator;
+//    os << std::endl;
     return os;
 }
 
@@ -148,16 +150,19 @@ template <typename number>
 class PrintVec2D
 {
 public:
-   PrintVec2D<number>(const std::vector<std::vector<number> > &vec) : vec(vec) {}
+   PrintVec2D<number>(const std::vector<std::vector<number> > &vec, std::string separator = ", ", std::string prefix = "")
+                      : vec(vec), separator(separator), prefix(prefix) {}
    const std::vector<std::vector<number> > &vec;
+   std::string separator, prefix;
 };
 
 template <typename number>
 std::ostream& operator<<(std::ostream& os, const PrintVec2D<number>& pv)
 {
    for(auto row : pv.vec) {
+      os << pv.prefix;
       for(auto x : row) {
-         os << x << ", ";
+         os << x << pv.separator;
       }
       os << std::endl;
    }

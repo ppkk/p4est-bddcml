@@ -55,6 +55,7 @@ void BddcmlFemSpace::prepare_subdomain_fem_space(PhysicsType physicsType) {
 
       node_num_dofs.val[node] = num_dofs_per_node;
 
+      // todo: this should be alligned with NodalElementMesh creation...
       for(int local_dof_idx = 0; local_dof_idx < num_dofs_per_node; local_dof_idx++) {
          int subdomain_dof = num_dofs_per_node * node + local_dof_idx;
          int global_dof = num_dofs_per_node * mesh->node_global_map.val[node] + local_dof_idx;
