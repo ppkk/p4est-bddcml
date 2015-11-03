@@ -11,6 +11,7 @@ void Def::init(int num_dim, int order, PhysicsType physicsType, const P4estClass
 
    singleton->prepare_cartesian_ids(2, &singleton->cartesian_ids_corners);
    singleton->prepare_cartesian_ids(order + 1, &singleton->cartesian_ids_nodes);
+   singleton->prepare_cartesian_ids(order, &singleton->cartesian_ids_plot_subelements);
 
    if(num_dim == 2) {
       singleton->num_children = num_children_2D;

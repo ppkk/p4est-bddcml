@@ -196,7 +196,8 @@ void ReferenceElement::prepare_children_nodes_values()
          child_begining.push_back(-1 + difs[dim]);
       }
       IntegrationCell cell(child_begining, child_elem_size);
-      vector<vector<double> > nodes_coords = cell.nodes_coords(num_nodes_1D);
+      vector<vector<double> > nodes_coords;
+      cell.nodes_coords(num_nodes_1D, &nodes_coords);
 
       for(int child_node = 0; child_node < Def::d()->num_element_nodes; child_node++) {
          for(int parent_node = 0; parent_node < Def::d()->num_element_nodes; parent_node++) {

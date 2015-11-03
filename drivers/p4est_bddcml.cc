@@ -14,7 +14,7 @@
 
 using namespace std;
 
-const int num_dim = 2;
+const int num_dim = 3;
 const int order = 3;
 const PhysicsType physicsType = PhysicsType::LAPLACE;
 
@@ -42,8 +42,8 @@ void run(int argc, char **argv)
    P4estClass* p4est_class = P4estClass::create(num_dim, order, mpicomm);
    Def::d()->init(num_dim, order, physicsType, p4est_class);
 
-//   p4est_class->refine_and_partition(2, RefineType::UNIFORM);
-//   p4est_class->refine_and_partition(2, RefineType::SQUARE);
+   p4est_class->refine_and_partition(2, RefineType::UNIFORM);
+   p4est_class->refine_and_partition(2, RefineType::SQUARE);
 
 
    // 2D
@@ -52,9 +52,9 @@ void run(int argc, char **argv)
 //   p4est_class->refine_and_partition(6, RefineType::SQUARE);
 
    // 2D elasticity on 4 procs gives 11 PCG iterations and condition number 0.433169186E+01
-   p4est_class->refine_and_partition(4, RefineType::UNIFORM);
-   p4est_class->refine_and_partition(3, RefineType::CIRCLE);
-   p4est_class->refine_and_partition(3, RefineType::SQUARE);
+//   p4est_class->refine_and_partition(4, RefineType::UNIFORM);
+//   p4est_class->refine_and_partition(3, RefineType::CIRCLE);
+//   p4est_class->refine_and_partition(3, RefineType::SQUARE);
 
    // 3D elasticity on 4 procs gives 19 iterations and condition number 0.190076921E+02
 //   p4est_class->refine_and_partition(2, RefineType::UNIFORM);
@@ -214,7 +214,8 @@ void run(int argc, char **argv)
    bddcml_download_local_solution(subdomain_idx, &sols);
 
    VtkOutput vtk(*p4est_class, nodal_mesh, sols);
-   vtk.output("out");
+   vtk.output_in_corners("out_corners");
+   vtk.output_in_nodes("out_nodes");
 
    free_real_array(&rhss);
    free_real_array(&sols);

@@ -19,8 +19,8 @@ public:
    void pokus();
 
    int n_dimensions() const  {assert(! position.empty()); return position.size();}
-   std::vector<std::vector<double> > corners_coords() const;
-   std::vector<std::vector<double> > nodes_coords(int num_nodes_1d) const;
+   void corners_coords(std::vector<std::vector<double> > *coords) const;
+   void nodes_coords(int num_nodes_1d, std::vector<std::vector<double> > *coords) const;
 
    void fill_parent_cell(IntegrationCell *parent) const;
 

@@ -18,9 +18,9 @@ void IntegrationCell::clear() {
    child_position = -1;
 }
 
-vector<vector<double> > IntegrationCell::nodes_coords(int num_nodes_1d) const {
+void IntegrationCell::nodes_coords(int num_nodes_1d, vector<vector<double> > *coords) const {
    assert(num_nodes_1d >= 2);
-   vector<vector<double> > nodes_coords_ret;
+   coords->clear();
    vector<double> node_coord(n_dimensions(), 0.0);
    double nodes_distance = size / (num_nodes_1d - 1);
 
@@ -33,13 +33,12 @@ vector<vector<double> > IntegrationCell::nodes_coords(int num_nodes_1d) const {
       for(int dim = 0; dim < n_dimensions(); dim++) {
          node_coord[dim] = position[dim] + difs[dim] * nodes_distance;
       }
-      nodes_coords_ret.push_back(node_coord);
+      coords->push_back(node_coord);
    }
-   return nodes_coords_ret;
 }
 
-vector<vector<double> > IntegrationCell::corners_coords() const {
-   return nodes_coords(2);
+void IntegrationCell::corners_coords(vector<vector<double> > *coords) const {
+   nodes_coords(2, coords);
 }
 
 void IntegrationCell::fill_parent_cell(IntegrationCell *parent) const {

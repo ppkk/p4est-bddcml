@@ -13,13 +13,18 @@ class VtkOutput
 public:
    VtkOutput(const P4estClass &p4est, const NodalElementMesh &mesh, const RealArray &solutions);
 
-   void output(const std::string &filename);
+   void output_in_corners(const std::string &filename);
+   void output_in_nodes(const std::string &filename);
 
 private:
    void clear_arrays();
-   void init_arrays();
-   void prepeare_arrays();
+   void init_arrays(int num_displayed_elems_in_each_elem);
+   void prepare_arrays_corners();
+   void prepare_arrays_nodes();
    void output_pvtu(const std::string &filename);
+   void output(const std::string &filename);
+
+   int num_displayed_elements;
 
    std::vector<std::vector<double> > coords;
    std::vector<std::vector<int> > conectivity;

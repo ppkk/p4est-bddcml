@@ -80,13 +80,16 @@ public:
    std::vector<std::vector<int> > face_edges;
    std::vector<std::vector<int> > edge_faces;
 
-   // when going through corners of square/cube in order first x, than y, than z
+   // when going through corners of square/cube in order first x, than y, than z (2^dim)
    // this gives the vector [[0,0], [1,0], [0,1], .. ] or its 3D version
    std::vector<std::vector<int> > cartesian_ids_corners;
 
-   // like cartesian_ids_corners, but for nodes
+   // like cartesian_ids_corners, but for nodes (order^dim)
    // gives [[0,0], [1,0], ... [order,0], [0,1], ... ] or its 3D version
    std::vector<std::vector<int> > cartesian_ids_nodes;
+
+   // the same, but ((order-1)^dim)
+   std::vector<std::vector<int> > cartesian_ids_plot_subelements;
 
 private:
    static Def *singleton;
