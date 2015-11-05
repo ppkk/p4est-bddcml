@@ -12,7 +12,7 @@
 
 using namespace std;
 
-VtkOutput::VtkOutput(const P4estClass &p4est, const NodalElementMesh &mesh, const RealArray &solutions) :
+VtkOutput::VtkOutput(const P4estClass &p4est, const NodalElementMesh &mesh, const std::vector<double> &solutions) :
             p4est(p4est), mesh(mesh), solutions(solutions) {
 }
 
@@ -146,7 +146,8 @@ void VtkOutput::prepare_arrays_corners() {
          coords.push_back(corner_coords);
       }
 
-      LocalSolution loc_sol(p4est, elem, ref_elem, solutions.val);
+      // todo: pass vector<>
+      LocalSolution loc_sol(p4est, elem, ref_elem, solutions);
       // solution values
       for(int comp = 0; comp < Def::d()->num_components; comp++) {
          for(int corner_node : ref_elem.corner_nodes) {
@@ -162,7 +163,7 @@ void VtkOutput::prepare_arrays_nodes() {
 
    for(const NodalElement& elem : mesh.elements) {
       elem.cell.nodes_coords(Def::d()->order + 1, &elem_nodes_coords);
-      LocalSolution loc_sol(p4est, elem, ref_elem, solutions.val);
+      LocalSolution loc_sol(p4est, elem, ref_elem, solutions);
 
       for(auto subelement_start : Def::d()->cartesian_ids_plot_subelements) {
          for(auto corner_difs : Def::d()->cartesian_ids_corners) {

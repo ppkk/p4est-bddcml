@@ -11,7 +11,7 @@ class RealArray;
 class VtkOutput
 {
 public:
-   VtkOutput(const P4estClass &p4est, const NodalElementMesh &mesh, const RealArray &solutions);
+   VtkOutput(const P4estClass &p4est, const NodalElementMesh &mesh, const std::vector<double> &solutions);
 
    void output_in_corners(const std::string &filename);
    void output_in_nodes(const std::string &filename);
@@ -38,7 +38,7 @@ private:
 
    const P4estClass &p4est;
    const NodalElementMesh &mesh;
-   const RealArray &solutions;
+   const std::vector<double> &solutions;
 };
 
 #endif // VTK_OUTPUT_H

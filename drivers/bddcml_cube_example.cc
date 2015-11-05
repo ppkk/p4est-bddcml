@@ -439,11 +439,11 @@ int main(int argc, char **argv)
 //          print_f_array(la, a_sparse, "a");
 //       }
 
-      bddcml_upload_subdomain_data(&global_dims, &subdomain_dims,
-                                        isub, &mesh, &femsp,
-                                        &rhss, is_rhs_complete, &sols, &matrix,
-                                        &user_constraints, &element_data,
-                                        &dof_data, &preconditioner_params);
+//      bddcml_upload_subdomain_data(&global_dims, &subdomain_dims,
+//                                        isub, &mesh, &femsp,
+//                                        &(rhss[0]), is_rhs_complete, &sols, &matrix,
+//                                        &user_constraints, &element_data,
+//                                        &dof_data, &preconditioner_params);
 
 
       free_real_array(&rhss);

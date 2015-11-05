@@ -108,14 +108,14 @@ include_directories("include")
 
 add_library(mylib ${HEADERS} ${SOURCES})
 
-add_executable(bddcml_example drivers/bddcml_cube_example.cc)
+#add_executable(bddcml_example drivers/bddcml_cube_example.cc)
 add_executable(p4est_bddcml drivers/p4est_bddcml)
 #add_executable(metis_bddcml drivers/metis_bddcml.cc)
 #add_executable(p4est_experiment drivers/p4est_experiment.cc)
 #add_executable(p4est_migration drivers/p4est_migration.cc)
 add_executable(test_quadrature drivers/test_quadrature.cc)
 
-target_link_libraries(bddcml_example ${BLOPEX_OBJECTS} mylib ${LIBS})
+#target_link_libraries(bddcml_example ${BLOPEX_OBJECTS} mylib ${LIBS})
 target_link_libraries(p4est_bddcml ${BLOPEX_OBJECTS} mylib ${LIBS})
 #target_link_libraries(metis_bddcml ${BLOPEX_OBJECTS} mylib ${LIBS})
 #target_link_libraries(p4est_experiment ${BLOPEX_OBJECTS} mylib ${LIBS})

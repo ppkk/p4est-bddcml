@@ -145,12 +145,12 @@ void print_basic_properties(const ProblemDimensions &global_dims, int num_subdom
 void bddcml_init(BddcmlGeneralParams *general_params, BddcmlLevelInfo *level_info, MPI_Comm communicator);
 void bddcml_upload_subdomain_data(ProblemDimensions *global_dims, ProblemDimensions *subdomain_dims,
                                   int isub, BddcmlMesh *mesh, BddcmlFemSpace *femsp,
-                                  RealArray *rhss, int is_rhs_complete, RealArray *sols, SparseMatrix *matrix,
+                                  RealArray *rhss, int is_rhs_complete, std::vector<double> *sols, SparseMatrix *matrix,
                                   Real2DArray *user_constraints, Real2DArray *element_data,
                                   RealArray *dof_data, BddcmlPreconditionerParams* preconditioner_params);
 void bddcml_setup_preconditioner(MatrixType matrixtype, BddcmlPreconditionerParams *params);
 void bddcml_solve(BddcmlKrylovParams *krylov_params, BddcmlConvergenceInfo *convergence_info, MPI_Comm communicator);
-void bddcml_download_local_solution(int isub, RealArray *sols);
+void bddcml_download_local_solution(int isub, std::vector<double> *sols);
 void bddcml_dotprod_subdomain(int isub, RealArray *sols1, RealArray *sols2, real *normRn2_sub);
 void bddcml_finalize();
 

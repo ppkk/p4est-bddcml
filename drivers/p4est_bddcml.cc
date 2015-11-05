@@ -172,9 +172,7 @@ void run(int argc, char **argv)
    allocate_real_array(subdomain_dims.n_dofs, &rhss);
    zero_real_array(&rhss);
 
-   RealArray sols;
-   allocate_real_array(subdomain_dims.n_dofs, &sols);
-   zero_real_array(&sols);
+   vector<double> sols(subdomain_dims.n_dofs, 0.0);
 
    SparseMatrix matrix;
    int ndof_per_element = Def::d()->num_element_nodes * subdomain_dims.n_node_dofs;
@@ -197,7 +195,7 @@ void run(int argc, char **argv)
    vtk.output_in_corners("out_corners");
    vtk.output_in_nodes("out_nodes");
 
-   Integrator integrator(*p4est_class, nodal_mesh, ref_elem, sols.val);
+   Integrator integrator(*p4est_class, nodal_mesh, ref_elem, sols);
    double l2_norm = integrator.l2_norm(norm_order);
    double l2_error = integrator.l2_error(norm_order, exact_solution);
    PPP cout << "**************************************" << endl;
@@ -206,7 +204,6 @@ void run(int argc, char **argv)
    PPP cout << "**************************************" << endl;
 
    free_real_array(&rhss);
-   free_real_array(&sols);
    free_sparse_matrix(&matrix);
 
    delete p4est_class;

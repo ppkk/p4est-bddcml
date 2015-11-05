@@ -37,7 +37,7 @@ double l2_error_callback(const std::vector<double> &coords,
 
 
 Integrator::Integrator(const P4estClass &p4est, const NodalElementMesh &mesh,
-                       const ReferenceElement &ref_elem, const double * const sol)
+                       const ReferenceElement &ref_elem, const vector<double> &sol)
                : p4est(p4est), mesh(mesh), ref_elem(ref_elem), sol(sol) {
 
 }

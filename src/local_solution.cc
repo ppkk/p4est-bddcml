@@ -8,7 +8,7 @@
 using namespace std;
 
 LocalSolution::LocalSolution(const P4estClass &p4est, const NodalElement &nodal_elem,
-                             const ReferenceElement &ref_elem, const double * const sol) :
+                             const ReferenceElement &ref_elem, const vector<double> &sol) :
                loc_vec(Def::d()->num_components, Def::d()->num_element_nodes),
                ref_elem(ref_elem), nodal_elem(nodal_elem){
    LocalVector vec_before(Def::d()->num_components, Def::d()->num_element_nodes);
@@ -26,8 +26,8 @@ LocalSolution::LocalSolution(const P4estClass &p4est, const NodalElement &nodal_
    hanging_info.apply_constraints_inverse(nodal_elem.elem_idx, nodal_elem.cell, vec_before, &loc_vec);
 }
 
-void LocalSolution::get_value_reference_coords(const std::vector<double> &ref_coords,
-                                               std::vector<double> *values) const {
+void LocalSolution::get_value_reference_coords(const vector<double> &ref_coords,
+                                               vector<double> *values) const {
    //ref_elem.fill_transformed_values();
 }
 

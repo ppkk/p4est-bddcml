@@ -1,3 +1,4 @@
+#include <vector>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -12,6 +13,8 @@ extern "C"{
 #include "bddcml/bddcml_structs.h"
 #include "bddcml/bddcml_mesh.h"
 #include "bddcml/bddcml_femspace.h"
+
+using namespace std;
 
 BddcmlGeneralParams::BddcmlGeneralParams() {
    numbase = 0;
@@ -124,7 +127,7 @@ void bddcml_init(BddcmlGeneralParams *general_params, BddcmlLevelInfo *level_inf
 
 void bddcml_upload_subdomain_data(ProblemDimensions *global_dims, ProblemDimensions *subdomain_dims,
                                   int isub, BddcmlMesh *mesh, BddcmlFemSpace *femsp,
-                                  RealArray *rhss, int is_rhs_complete, RealArray *sols, SparseMatrix *matrix,
+                                  RealArray *rhss, int is_rhs_complete, vector<double> *sols, SparseMatrix *matrix,
                                   Real2DArray *user_constraints, Real2DArray *element_data,
                                   RealArray *dof_data, BddcmlPreconditionerParams* preconditioner_params) {
    bddcml_upload_subdomain_data_c(&global_dims->n_elems,
@@ -158,8 +161,8 @@ void bddcml_upload_subdomain_data(ProblemDimensions *global_dims, ProblemDimensi
                                   rhss->val,
                                   &rhss->len,
                                   &is_rhs_complete,
-                                  sols->val,
-                                  &sols->len,
+                                  &(*sols)[0],
+                                  &rhss->len,
                                   (int*) &matrix->type,
                                   matrix->i,
                                   matrix->j,
@@ -204,10 +207,11 @@ void bddcml_solve(BddcmlKrylovParams *krylov_params, BddcmlConvergenceInfo *conv
                   &convergence_info->condition_number);
 }
 
-void bddcml_download_local_solution(int isub, RealArray *sols) {
+void bddcml_download_local_solution(int isub, vector<double> *sols) {
+   int ndofs = sols->size();
    bddcml_download_local_solution_c(&isub,
-                                    sols->val,
-                                    &sols->len);
+                                    &(*sols)[0],
+                                    &ndofs);
 }
 
 void bddcml_dotprod_subdomain(int isub, RealArray *sols1, RealArray *sols2, real *normRn2_sub) {

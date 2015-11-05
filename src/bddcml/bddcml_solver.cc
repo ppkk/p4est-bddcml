@@ -7,6 +7,8 @@
 
 class BddcmlKrylovParams;
 
+using namespace std;
+
 BddcmlSolver::BddcmlSolver(ProblemDimensions &subdomain_dims, ProblemDimensions &global_dims,
                            BddcmlGeneralParams &general_params, BddcmlKrylovParams &krylov_params,
                            BddcmlPreconditionerParams &preconditioner_params, const P4estClass &p4est_class,
@@ -18,7 +20,7 @@ BddcmlSolver::BddcmlSolver(ProblemDimensions &subdomain_dims, ProblemDimensions 
 }
 
 
-void BddcmlSolver::solve(const NodalElementMesh &nodal_mesh, SparseMatrix *matrix, RealArray *rhss, RealArray *sols) {
+void BddcmlSolver::solve(const NodalElementMesh &nodal_mesh, SparseMatrix *matrix, RealArray *rhss, vector<double> *sols) {
    int mpiret = 0;
    // number of subdomains == mpi_size
    BddcmlLevelInfo level_info(num_levels, mpi_size);
@@ -46,9 +48,7 @@ void BddcmlSolver::solve(const NodalElementMesh &nodal_mesh, SparseMatrix *matri
    mpiret = MPI_Barrier(mpicomm);
    PPP printf("Initializing BDDCML done.\n");
 
-
    int is_rhs_complete = 0;
-
 
    // user constraints - not really used here
    Real2DArray user_constraints;
@@ -97,9 +97,6 @@ void BddcmlSolver::solve(const NodalElementMesh &nodal_mesh, SparseMatrix *matri
 
    BddcmlConvergenceInfo convergence_info;
 
-//   real normRn_sol, normRn2, normRn2_loc, normRn2_sub;
-//   real normL2_sol, normL2_loc, normL2_sub;
-//   real normLinf_sol, normLinf_loc;
 
    bddcml_solve(/*(BddcmlKrylovParams*)*/&krylov_params, &convergence_info, mpicomm);
    mpiret = MPI_Barrier(mpicomm);
@@ -118,5 +115,6 @@ void BddcmlSolver::solve(const NodalElementMesh &nodal_mesh, SparseMatrix *matri
 
 
    bddcml_download_local_solution(subdomain_idx, sols);
+   SC_CHECK_MPI (mpiret);
 
 }

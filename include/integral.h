@@ -21,7 +21,7 @@ typedef double (*integral_callback)(const std::vector<double> &coords,
 class Integrator
 {
 public:
-   Integrator(const P4estClass &p4est, const NodalElementMesh &mesh, const ReferenceElement & ref_elem, const double * const sol);
+   Integrator(const P4estClass &p4est, const NodalElementMesh &mesh, const ReferenceElement & ref_elem, const std::vector<double> &sol);
 
    double calculate(int quad_order, integral_callback callback, exact_fn function_callback) const;
    double l2_norm(int quad_order) const;
@@ -31,7 +31,7 @@ public:
    const P4estClass &p4est;
    const NodalElementMesh &mesh;
    const ReferenceElement & ref_elem;
-   const double * const sol;
+   const std::vector<double> &sol;
 };
 
 

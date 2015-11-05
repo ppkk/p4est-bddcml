@@ -13,7 +13,7 @@ class Quadrature;
 class LocalSolution
 {
 public:
-   LocalSolution(const P4estClass &p4est, const NodalElement &nodal_elem, const ReferenceElement &ref_elem, const double * const sol);
+   LocalSolution(const P4estClass &p4est, const NodalElement &nodal_elem, const ReferenceElement &ref_elem, const std::vector<double> &sol);
 
    void get_value_reference_coords(const std::vector<double> &ref_coords, std::vector<double> *values) const;
 

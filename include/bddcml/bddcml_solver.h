@@ -14,7 +14,7 @@ public:
                 BddcmlGeneralParams &general_params, BddcmlKrylovParams &krylov_params,
                 BddcmlPreconditionerParams &preconditioner_params, const P4estClass &p4est_class, int num_levels);
 
-   void solve(const NodalElementMesh &nodal_mesh, SparseMatrix *matrix, RealArray *rhs, RealArray *sols);
+   void solve(const NodalElementMesh &nodal_mesh, SparseMatrix *matrix, RealArray *rhs, std::vector<double> *sols);
    void clear();
 private:
    ProblemDimensions &subdomain_dims;
