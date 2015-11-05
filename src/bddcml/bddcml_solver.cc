@@ -1,6 +1,7 @@
 #include "definitions.h"
 #include "p4est/my_p4est_interface.h"
 #include "element.h"
+#include "assemble.h"
 #include "bddcml/bddcml_mesh.h"
 #include "bddcml/bddcml_femspace.h"
 #include "bddcml/bddcml_solver.h"
@@ -20,7 +21,7 @@ BddcmlSolver::BddcmlSolver(ProblemDimensions &subdomain_dims, ProblemDimensions 
 }
 
 
-void BddcmlSolver::solve(const NodalElementMesh &nodal_mesh, SparseMatrix *matrix, RealArray *rhss, vector<double> *sols) {
+void BddcmlSolver::solve(const NodalElementMesh &nodal_mesh, DiscreteSystem &system, vector<double> *sols) {
    int mpiret = 0;
    // number of subdomains == mpi_size
    BddcmlLevelInfo level_info(num_levels, mpi_size);
@@ -68,7 +69,7 @@ void BddcmlSolver::solve(const NodalElementMesh &nodal_mesh, SparseMatrix *matri
    int subdomain_idx = mpi_rank;
    bddcml_upload_subdomain_data(&global_dims, &subdomain_dims,
                                      subdomain_idx, &bddcml_mesh, &femsp,
-                                     rhss, is_rhs_complete, sols, matrix,
+                                     &system.rhss, is_rhs_complete, sols, &system.matrix,
                                      &user_constraints, &element_data,
                                      &dof_data, &preconditioner_params);
 
@@ -82,7 +83,7 @@ void BddcmlSolver::solve(const NodalElementMesh &nodal_mesh, SparseMatrix *matri
    // PRECONDITIONER SETUP
    mpiret = MPI_Barrier(mpicomm);
    // TODO: call time_start
-   bddcml_setup_preconditioner(matrix->type, &preconditioner_params);
+   bddcml_setup_preconditioner(system.matrix.type, &preconditioner_params);
 
    mpiret = MPI_Barrier(mpicomm);
    // TODO: call time_end(t_pc_setup)

@@ -168,28 +168,12 @@ void run(int argc, char **argv)
    NodalElementMesh nodal_mesh(physicsType);
    p4est_class->prepare_nodal_mesh(Def::d()->num_components, integration_mesh, ref_elem, &nodal_mesh);
 
-   RealArray rhss;
-   allocate_real_array(subdomain_dims.n_dofs, &rhss);
-   zero_real_array(&rhss);
 
    vector<double> sols(subdomain_dims.n_dofs, 0.0);
+   DiscreteSystem discrete_system(subdomain_dims, MatrixType::SPD);
+   discrete_system.assemble(*p4est_class, integration_mesh, nodal_mesh, subdomain_dims, &rhs_fn, params);
 
-   SparseMatrix matrix;
-   int ndof_per_element = Def::d()->num_element_nodes * subdomain_dims.n_node_dofs;
-   // how much space the upper triangle of the element matrix occupies
-   int lelm = ndof_per_element * (ndof_per_element + 1) / 2;
-
-   MatrixType matrix_type = MatrixType::SPD;
-   // todo: do it properly
-   const int extra_space_for_hanging_nodes = 4 * (matrix_type == MatrixType::GENERAL ? 2 : 1);
-   allocate_sparse_matrix(extra_space_for_hanging_nodes * subdomain_dims.n_elems * lelm, matrix_type, &matrix);
-   zero_matrix(&matrix);
-
-   assemble_matrix_rhs(*p4est_class, integration_mesh, nodal_mesh, subdomain_dims, &matrix, &rhss, &rhs_fn, params);
-   //print_complete_matrix_rhs(&femsp, &global_dims, &matrix, &rhss, mpicomm);
-
-
-   bddcml_solver.solve(nodal_mesh, &matrix, &rhss, &sols);
+   bddcml_solver.solve(nodal_mesh, discrete_system, &sols);
 
    VtkOutput vtk(*p4est_class, nodal_mesh, sols);
    vtk.output_in_corners("out_corners");
@@ -202,9 +186,6 @@ void run(int argc, char **argv)
    PPP cout << "L2 norm  " << l2_norm << endl;
    PPP cout << "L2 error " << l2_error << endl;
    PPP cout << "**************************************" << endl;
-
-   free_real_array(&rhss);
-   free_sparse_matrix(&matrix);
 
    delete p4est_class;
 

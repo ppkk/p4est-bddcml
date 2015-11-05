@@ -10,9 +10,26 @@
 #include "shapefun.h"
 #include "local_matrix.h"
 
-
-
 using namespace std;
+
+DiscreteSystem::DiscreteSystem(const ProblemDimensions &subdomain_dims, MatrixType matrix_type) {
+   allocate_real_array(subdomain_dims.n_dofs, &rhss);
+   zero_real_array(&rhss);
+
+   int ndof_per_element = Def::d()->num_element_nodes * subdomain_dims.n_node_dofs;
+   // how much space the upper triangle of the element matrix occupies
+   int lelm = ndof_per_element * (ndof_per_element + 1) / 2;
+
+   // todo: do it properly
+   const int extra_space_for_hanging_nodes = 4 * (matrix_type == MatrixType::GENERAL ? 2 : 1);
+   allocate_sparse_matrix(extra_space_for_hanging_nodes * subdomain_dims.n_elems * lelm, matrix_type, &matrix);
+   zero_matrix(&matrix);
+}
+
+void DiscreteSystem::free() {
+   free_real_array(&rhss);
+   free_sparse_matrix(&matrix);
+}
 
 //void print_complete_matrix_rhs(const BddcmlFemSpace &femsp, const ProblemDimensions &global_dims,
 //                               const SparseMatrix &matrix, const RealArray &rhss, MPI_Comm mpicomm) {
@@ -66,20 +83,6 @@ using namespace std;
 //   free(compl_mat);
 //}
 
-void print_matrix_rhs(const vector<vector<vector<vector<real> > > > &matrix, const vector<vector<real> > &rhs, int num_comp) {
-   cout << "LOCAL MATRIX:" << endl;
-   for(int i_node = 0; i_node < Def::d()->num_element_nodes; i_node++) {
-      for(int i_comp = 0; i_comp < num_comp; i_comp++) {
-         for(int j_node = 0; j_node < Def::d()->num_element_nodes; j_node++) {
-            for(int j_comp = 0; j_comp < num_comp; j_comp++) {
-               cout << "nodes (" << i_node << ", " << j_node << "), comp (" << i_comp << ", " << j_comp << ") -> " <<
-                       matrix[i_node][i_comp][j_node][j_comp] << endl;
-            }
-         }
-      }
-   }
-   cout << "END LOCAL MATRIX:" << endl;
-}
 
 void assemble_local_laplace(const IntegrationCell &cell, const ReferenceElement &ref_elem, const GaussQuadrature &q, RhsPtr rhs_ptr,
                             LocalMatrix *matrix, LocalVector *rhs) {
@@ -155,9 +158,9 @@ void assemble_local_elasticity(const IntegrationCell &integ_cell, const Referenc
 
 }
 
-void assemble_matrix_rhs(const P4estClass &p4est, const IntegrationMesh &integration_mesh,
+void DiscreteSystem::assemble(const P4estClass &p4est, const IntegrationMesh &integration_mesh,
                          const NodalElementMesh &nodal_mesh, const ProblemDimensions &subdomain_dims,
-                         SparseMatrix *matrix, RealArray *rhss, RhsPtr rhs_ptr, Parameters params) {
+                         RhsPtr rhs_ptr, Parameters params) {
    assert(integration_mesh.num_elements() == subdomain_dims.n_elems);
 
    GaussQuadrature q(Def::d()->num_dim, 2*Def::d()->order);
@@ -199,7 +202,7 @@ void assemble_matrix_rhs(const P4estClass &p4est, const IntegrationMesh &integra
                   int j_dof = nodal_element.components[j_comp].dofs[j_node_loc];
 
                   double matrix_value = element_matrix.comps[i_comp][j_comp].mat[i_node_loc][j_node_loc];
-                  add_matrix_entry(matrix, i_dof, j_dof, matrix_value);
+                  add_matrix_entry(&matrix, i_dof, j_dof, matrix_value);
                   //                        printf("adding entry loc (%d, %d), nodes orig (%d, %d), nodes indep (%d, %d), dofs (%d, %d), coefs (%3.2lf, %3.2lf), number indep (%d, %d), locstiff %lf, value %lf\n",
                   //                               i_node_loc, j_node_loc, i_node, j_node, i_indep_node, j_indep_node, i_dof, j_dof, i_coeffs, j_coeffs, i_nindep, j_nindep, element_matrix[i_node_loc][i_comp][j_node_loc][j_comp], matrix_value);
                }
@@ -207,10 +210,11 @@ void assemble_matrix_rhs(const P4estClass &p4est, const IntegrationMesh &integra
 
             //double rhs_value = i_coeffs * 1./(real)Def::d()->num_children * elem_volume * 1;
             double rhs_value = element_rhs.comps[i_comp].vec[i_node_loc];
-            rhss->val[i_dof] += rhs_value;
+            rhss.val[i_dof] += rhs_value;
          }
       }
       element_offset += Def::d()->num_element_nodes;
    }
 
 }
+
