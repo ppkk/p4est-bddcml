@@ -5,7 +5,7 @@
 #include "p4est_base.h"
 
 class BddcmlMesh;
-class BddcmlDimensions;
+class ProblemDimensions;
 class IntegrationMesh;
 class NodalElementMesh;
 class HangingInfo;
@@ -33,7 +33,7 @@ public:
    virtual void plot_solution(int num_components, double* u_sol, double* u_exact, int *partition) const = 0;
    virtual void print_p4est_mesh (int which_rank) const = 0;
 
-   virtual void prepare_dimmensions(BddcmlDimensions *subdomain_dims, BddcmlDimensions *global_dims) const = 0;
+   virtual void prepare_dimmensions(ProblemDimensions *subdomain_dims, ProblemDimensions *global_dims) const = 0;
    virtual void prepare_bddcml_mesh_global_mappings(BddcmlMesh *mesh) const = 0;
    virtual void prepare_bddcml_mesh_nodes_old(BddcmlMesh *mesh) const = 0;
    virtual void prepare_integration_mesh(IntegrationMesh *mesh) const = 0;

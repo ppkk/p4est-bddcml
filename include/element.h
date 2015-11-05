@@ -50,12 +50,13 @@ public:
 class NodalElementMesh
 {
 public:
-   //NodalElementMesh();
+   NodalElementMesh(PhysicsType physics_type) : physics_type(physics_type) {}
    void clear() {elements.clear(); }
    int num_elements() const {return elements.size(); }
 
 public:
    std::vector<NodalElement> elements;
+   PhysicsType physics_type;
 };
 
 #endif // ELEMENT_H

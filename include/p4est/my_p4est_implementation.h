@@ -34,7 +34,7 @@ public:
    void init();
 
 
-   virtual void prepare_dimmensions(BddcmlDimensions *subdomain_dims, BddcmlDimensions *global_dims) const;
+   virtual void prepare_dimmensions(ProblemDimensions *subdomain_dims, ProblemDimensions *global_dims) const;
    virtual void prepare_bddcml_mesh_global_mappings(BddcmlMesh *mesh) const;
 
 

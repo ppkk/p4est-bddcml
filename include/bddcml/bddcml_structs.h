@@ -5,7 +5,7 @@
 #include "definitions.h"
 #include "arrays.h"
 
-class BddcmlDimensions;
+class ProblemDimensions;
 class BddcmlMesh;
 class BddcmlFemSpace;
 
@@ -134,7 +134,7 @@ typedef struct BddcmlConvergenceInfo
 }
 BddcmlConvergenceInfo;
 
-void print_basic_properties(const BddcmlDimensions &global_dims, int num_subdomains,
+void print_basic_properties(const ProblemDimensions &global_dims, int num_subdomains,
                             const BddcmlLevelInfo &level_info, const BddcmlKrylovParams &krylov_params);
 
 
@@ -143,7 +143,7 @@ void print_basic_properties(const BddcmlDimensions &global_dims, int num_subdoma
 // **************************************************************
 // everything has to be passed as pointers, const ref would not do because of fortran interface
 void bddcml_init(BddcmlGeneralParams *general_params, BddcmlLevelInfo *level_info, MPI_Comm communicator);
-void bddcml_upload_subdomain_data(BddcmlDimensions *global_dims, BddcmlDimensions *subdomain_dims,
+void bddcml_upload_subdomain_data(ProblemDimensions *global_dims, ProblemDimensions *subdomain_dims,
                                   int isub, BddcmlMesh *mesh, BddcmlFemSpace *femsp,
                                   RealArray *rhss, int is_rhs_complete, RealArray *sols, SparseMatrix *matrix,
                                   Real2DArray *user_constraints, Real2DArray *element_data,

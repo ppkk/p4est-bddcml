@@ -32,6 +32,7 @@ src/bddcml/arrays.cc
 src/bddcml/bddcml_structs.cc
 src/bddcml/bddcml_mesh.cc
 src/bddcml/bddcml_femspace.cc
+src/bddcml/bddcml_solver.cc
 src/p4est/my_p4est_interface.cc
 src/p4est/my_p4est_implementation.cc
 src/p4est/my_p8est_implementation.cc
@@ -55,6 +56,7 @@ include/bddcml/arrays.h
 include/bddcml/bddcml_structs.h
 include/bddcml/bddcml_mesh.h
 include/bddcml/bddcml_femspace.h
+include/bddcml/bddcml_solver.h
 include/p4est/my_p4est_interface.h
 include/p4est/my_p4est_implementation.h
 include/definitions.h

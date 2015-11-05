@@ -255,8 +255,8 @@ int main(int argc, char **argv)
    BddcmlKrylovParams krylov_params;
    BddcmlPreconditionerParams preconditioner_params;
 
-   BddcmlDimensions global_dims(3, PhysicsType::LAPLACE);
-   BddcmlDimensions subdomain_dims(3, PhysicsType::LAPLACE);
+   ProblemDimensions global_dims(3, PhysicsType::LAPLACE);
+   ProblemDimensions subdomain_dims(3, PhysicsType::LAPLACE);
 
    // MPI initialization
 //***************************************************************PARALLEL

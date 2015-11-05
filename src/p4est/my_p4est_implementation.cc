@@ -513,7 +513,7 @@ void P4estClassDim::refine_and_partition(int num, RefineType type) {
 
 //****************************************************************************************
 
-void P4estClassDim::prepare_dimmensions(BddcmlDimensions *subdomain_dims, BddcmlDimensions *global_dims) const {
+void P4estClassDim::prepare_dimmensions(ProblemDimensions *subdomain_dims, ProblemDimensions *global_dims) const {
 #ifndef P4_TO_P8
    assert(num_dim == 2);
 #else

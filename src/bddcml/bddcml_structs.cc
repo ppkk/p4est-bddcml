@@ -82,7 +82,7 @@ BddcmlLevelInfo::BddcmlLevelInfo(int n_levels, int n_subdomains_first_level) {
 
 
 // Basic properties
-void print_basic_properties(const BddcmlDimensions &global_dims, int num_subdomains,
+void print_basic_properties(const ProblemDimensions &global_dims, int num_subdomains,
                             const BddcmlLevelInfo &level_info, const BddcmlKrylovParams &krylov_params) {
    if (mpi_rank == print_rank) {
       printf("Characteristics of the problem :\n");
@@ -122,7 +122,7 @@ void bddcml_init(BddcmlGeneralParams *general_params, BddcmlLevelInfo *level_inf
                  &general_params->just_direct_solve_int);
 }
 
-void bddcml_upload_subdomain_data(BddcmlDimensions *global_dims, BddcmlDimensions *subdomain_dims,
+void bddcml_upload_subdomain_data(ProblemDimensions *global_dims, ProblemDimensions *subdomain_dims,
                                   int isub, BddcmlMesh *mesh, BddcmlFemSpace *femsp,
                                   RealArray *rhss, int is_rhs_complete, RealArray *sols, SparseMatrix *matrix,
                                   Real2DArray *user_constraints, Real2DArray *element_data,

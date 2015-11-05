@@ -16,7 +16,7 @@ public:
    void print(int which_rank) const;
 
 public:
-   const BddcmlDimensions* subdomain_dims;
+   const ProblemDimensions* subdomain_dims;
 
    IdxArray node_num_dofs;
    IdxArray fixs_code;
