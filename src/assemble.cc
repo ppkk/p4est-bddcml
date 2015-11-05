@@ -22,13 +22,13 @@ DiscreteSystem::DiscreteSystem(const ProblemDimensions &subdomain_dims, MatrixTy
 
    // todo: do it properly
    const int extra_space_for_hanging_nodes = 4 * (matrix_type == MatrixType::GENERAL ? 2 : 1);
-   allocate_sparse_matrix(extra_space_for_hanging_nodes * subdomain_dims.n_elems * lelm, matrix_type, &matrix);
-   zero_matrix(&matrix);
+   matrix.allocate(extra_space_for_hanging_nodes * subdomain_dims.n_elems * lelm, matrix_type);
+   matrix.zero();
 }
 
 void DiscreteSystem::free() {
    free_real_array(&rhss);
-   free_sparse_matrix(&matrix);
+   matrix.free_matrix();
 }
 
 //void print_complete_matrix_rhs(const BddcmlFemSpace &femsp, const ProblemDimensions &global_dims,
@@ -202,7 +202,7 @@ void DiscreteSystem::assemble(const P4estClass &p4est, const IntegrationMesh &in
                   int j_dof = nodal_element.components[j_comp].dofs[j_node_loc];
 
                   double matrix_value = element_matrix.comps[i_comp][j_comp].mat[i_node_loc][j_node_loc];
-                  add_matrix_entry(&matrix, i_dof, j_dof, matrix_value);
+                  matrix.add_entry(i_dof, j_dof, matrix_value);
                   //                        printf("adding entry loc (%d, %d), nodes orig (%d, %d), nodes indep (%d, %d), dofs (%d, %d), coefs (%3.2lf, %3.2lf), number indep (%d, %d), locstiff %lf, value %lf\n",
                   //                               i_node_loc, j_node_loc, i_node, j_node, i_indep_node, j_indep_node, i_dof, j_dof, i_coeffs, j_coeffs, i_nindep, j_nindep, element_matrix[i_node_loc][i_comp][j_node_loc][j_comp], matrix_value);
                }

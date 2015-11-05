@@ -5,20 +5,29 @@
 
 
 // matrix in coordinate format - triplets (i,j,a_ij)
-typedef struct SparseMatrix
+class SparseMatrix
 {
+public:
+   ~SparseMatrix() {free_matrix(); }
+   void allocate(int length, MatrixType type);
+   void free_matrix();
+   void zero();
+
+   // if matrix type is symmetric, it will add the entry to the upper triangle
+   void add_entry(int i, int j, real value );
+
+public:
    // numerical properties of the matrix (MUMPS-like notation)
    MatrixType type;
 
    int len;
-   int *i;
-   int *j;
+   int *ii;
+   int *jj;
    real *val;
    int nnz;
 
    int is_assembled;
-}
-SparseMatrix;
+};
 
 typedef struct IdxArray
 {
@@ -42,13 +51,6 @@ typedef struct Real2DArray
    real *val_serialized;
 }
 Real2DArray;
-
-void allocate_sparse_matrix(int length, MatrixType type, SparseMatrix* matrix);
-void free_sparse_matrix(SparseMatrix* matrix);
-void zero_matrix(SparseMatrix* matrix);
-
-// if matrix type is symmetric, it will add the entry to the upper triangle
-void add_matrix_entry(SparseMatrix *matrix, int i, int j, real value );
 
 void allocate_idx_array(int length, IdxArray* array);
 void free_idx_array(IdxArray* array);

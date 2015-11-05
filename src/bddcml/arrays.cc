@@ -6,30 +6,30 @@
 
 static int num_allocations = 0;
 
-void allocate_sparse_matrix(int length, MatrixType type, SparseMatrix *matrix)
+void SparseMatrix::allocate(int length, MatrixType type)
 {
-   matrix->len = length;
-   matrix->type = type;
-   matrix->is_assembled = 0;
-   matrix->i = (int*) malloc(length * sizeof(int));
-   matrix->j = (int*) malloc(length * sizeof(int));
-   matrix->val = (real*) malloc(length * sizeof(real));
+   this->len = length;
+   this->type = type;
+   this->is_assembled = 0;
+   this->ii = (int*) malloc(length * sizeof(int));
+   this->jj = (int*) malloc(length * sizeof(int));
+   this->val = (real*) malloc(length * sizeof(real));
 
    num_allocations++;
 }
 
-void zero_matrix(SparseMatrix *matrix)
+void SparseMatrix::zero()
 {
-   matrix->nnz = 0;
-   memset(matrix->i, 0, matrix->len * sizeof(int));
-   memset(matrix->j, 0, matrix->len * sizeof(int));
-   memset(matrix->val, 0, matrix->len * sizeof(double));
+   nnz = 0;
+   memset(ii, 0, len * sizeof(int));
+   memset(jj, 0, len * sizeof(int));
+   memset(val, 0, len * sizeof(double));
 }
 
-void add_matrix_entry(SparseMatrix *matrix, int i, int j, real value)
+void SparseMatrix::add_entry(int i, int j, real value)
 {
-   assert(matrix->nnz < matrix->len);
-   if((matrix->type == MatrixType::SPD) || (matrix->type == MatrixType::SYM_GENERAL))
+   assert(nnz < len);
+   if((type == MatrixType::SPD) || (type == MatrixType::SYM_GENERAL))
    {
       if(i > j)
       {
@@ -40,11 +40,29 @@ void add_matrix_entry(SparseMatrix *matrix, int i, int j, real value)
       }
    }
 
-   matrix->i[matrix->nnz] = i;
-   matrix->j[matrix->nnz] = j;
-   matrix->val[matrix->nnz] = value;
-   matrix->nnz++;
+   ii[nnz] = i;
+   jj[nnz] = j;
+   val[nnz] = value;
+   nnz++;
 }
+
+
+void SparseMatrix::free_matrix()
+{
+   if((val == nullptr) && (ii == nullptr) && (jj == nullptr))
+      return;
+
+   free(val);
+   val = nullptr;
+   free(ii);
+   ii = nullptr;
+   free(jj);
+   jj = nullptr;
+   len = 0;
+
+   num_allocations--;
+}
+
 
 void allocate_idx_array(int length, IdxArray *array)
 {
@@ -56,7 +74,7 @@ void allocate_idx_array(int length, IdxArray *array)
    }
    else
    {
-      array->val = NULL;
+      array->val = nullptr;
    }
 }
 
@@ -70,7 +88,7 @@ void allocate_real_array(int length, RealArray *array)
    }
    else
    {
-      array->val = NULL;
+      array->val = nullptr;
    }
 }
 
@@ -90,28 +108,16 @@ void allocate_real_2D_array(int length1, int length2, Real2DArray *array)
    }
    else
    {
-      array->val = NULL;
-      array->val_serialized = NULL;
+      array->val = nullptr;
+      array->val_serialized = nullptr;
    }
 }
 
-void free_sparse_matrix(SparseMatrix *matrix)
-{
-   free(matrix->val);
-   matrix->val = NULL;
-   free(matrix->i);
-   matrix->i = NULL;
-   free(matrix->j);
-   matrix->j = NULL;
-   matrix->len = 0;
-
-   num_allocations--;
-}
 
 void free_idx_array(IdxArray *array)
 {
    free(array->val);
-   array->val = NULL;
+   array->val = nullptr;
    array->len = 0;
    num_allocations--;
 }
@@ -119,7 +125,7 @@ void free_idx_array(IdxArray *array)
 void free_real_array(RealArray *array)
 {
    free(array->val);
-   array->val = NULL;
+   array->val = nullptr;
    array->len = 0;
    num_allocations--;
 }
@@ -127,9 +133,9 @@ void free_real_array(RealArray *array)
 void free_real_2D_array(Real2DArray *array)
 {
    free(array->val);
-   array->val = NULL;
+   array->val = nullptr;
    free(array->val_serialized);
-   array->val = NULL;
+   array->val = nullptr;
    array->len1 = 0;
    array->len2 = 0;
    num_allocations--;
