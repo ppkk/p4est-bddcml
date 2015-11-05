@@ -4,10 +4,6 @@
 #include <stdio.h>
 #include "bddcml/arrays.h"
 
-int print_rank = 0;
-int mpi_rank;
-int mpi_size;
-
 static int num_allocations = 0;
 
 void allocate_sparse_matrix(int length, MatrixType type, SparseMatrix *matrix)

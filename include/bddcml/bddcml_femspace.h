@@ -4,12 +4,15 @@
 #include "arrays.h"
 #include "bddcml_structs.h"
 
+// todo this is here because of exact solution, remove it!
+#include "integral.h"
+
 class BddcmlFemSpace
 {
 public:
    BddcmlFemSpace(const BddcmlMesh* mesh);
    ~BddcmlFemSpace();
-   void prepare_subdomain_fem_space(PhysicsType physicsType);
+   void prepare_subdomain_fem_space(PhysicsType physicsType, exact_fn dirichlet_bc_exact);
    void print(int which_rank) const;
 
 public:

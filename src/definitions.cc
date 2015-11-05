@@ -95,3 +95,10 @@ void Def::prepare_cartesian_ids(int num_points_1d, std::vector<std::vector<int> 
 }
 
 Def* Def::singleton;
+
+// todo: move somewhere else
+int print_rank = 0;
+int mpi_rank;
+int mpi_size;
+MPI_Comm mpicomm = MPI_COMM_WORLD;
+

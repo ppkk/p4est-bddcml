@@ -13,6 +13,7 @@ public:
    LocalMatrixComponent(int ndofs);
    void copy(const LocalMatrixComponent &copy_from);
    void clear();
+   void print() const;
 
 public:
    int ndofs;
@@ -25,6 +26,7 @@ public:
    LocalVectorComponent(int ndofs);
    void copy(const LocalVectorComponent &copy_from);
    void clear();
+   void print() const;
 
 public:
    int ndofs;
@@ -36,6 +38,7 @@ class LocalMatrix
 public:
    LocalMatrix(int ncomponents, int nnodes);
    void clear();
+   void print() const;
 
 public:
    int ncomponents;
@@ -48,6 +51,7 @@ class LocalVector
 public:
    LocalVector(int ncomponents, int nnodes   );
    void clear();
+   void print() const;
 
 public:
    int ncomponents;

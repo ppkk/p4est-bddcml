@@ -1,6 +1,9 @@
 #ifndef DEFINITIONS_H
 #define DEFINITIONS_H
 
+// todo: remove mpi from here
+#include <mpi.h>
+
 #include <assert.h>
 #include <vector>
 #include <iostream>
@@ -13,6 +16,7 @@ typedef double real;
 extern int mpi_rank;
 extern int mpi_size;
 extern int print_rank;
+extern MPI_Comm mpicomm;
 
 #define PPP if(mpi_rank == print_rank)
 

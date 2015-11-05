@@ -19,7 +19,7 @@ public:
    // 0 <= node_idx < (order+1)^dim
    double shape_value(int node_idx, std::vector<double> coords) const;
 
-   void fill_transformed_values(const Quadrature &q, double element_length,
+   void calc_transformed_values(const Quadrature &q, double element_length,
                                    std::vector<std::vector<double> > *values,
                                    std::vector<std::vector<std::vector<double> > > *gradients) const;
    void find_nodes_coords(const std::vector<double> &start, double element_len,

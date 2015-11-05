@@ -47,6 +47,7 @@ src/shapefun.cc
 src/local_matrix.cc
 src/local_solution.cc
 src/vtk_output.cc
+src/integral.cc
 )
 
 set(HEADERS
@@ -67,6 +68,7 @@ include/shapefun.h
 include/local_matrix.h
 include/local_solution.h
 include/vtk_output.h
+include/integral.h
 )
 
 # BLOPEX objects

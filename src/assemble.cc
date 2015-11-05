@@ -87,7 +87,7 @@ void assemble_local_laplace(const IntegrationCell &cell, const ReferenceElement 
    vector<vector<double> > vals;
    vector<vector<vector<double> > > grads;
 
-   ref_elem.fill_transformed_values(q, cell.size, &vals, &grads);
+   ref_elem.calc_transformed_values(q, cell.size, &vals, &grads);
 
    Quadrature q_transformed(Def::d()->num_dim);
    q.transform_to_physical(cell, &q_transformed);
@@ -116,7 +116,7 @@ void assemble_local_elasticity(const IntegrationCell &integ_cell, const Referenc
    vector<vector<double> > vals; //[node][quadrature_pt]
    vector<vector<vector<double> > > grads;//[node][quadrature_pt][component]
 
-   ref_elem.fill_transformed_values(q, integ_cell.size, &vals, &grads);
+   ref_elem.calc_transformed_values(q, integ_cell.size, &vals, &grads);
 
    Quadrature q_transformed(Def::d()->num_dim);
    q.transform_to_physical(integ_cell, &q_transformed);
@@ -188,7 +188,8 @@ void assemble_matrix_rhs(const P4estClass &p4est, const IntegrationMesh &integra
       hanging_info.apply_constraints(elem_idx, cell, element_matrix_nohang, &element_matrix);
       hanging_info.apply_constraints(elem_idx, cell, element_rhs_nohang, &element_rhs);
 
-      //print_matrix_rhs(element_matrix, element_rhs, n_components);
+//      element_matrix.print();
+//      element_rhs.print();
 
       for(int i_node_loc = 0; i_node_loc < Def::d()->num_element_nodes; i_node_loc++) {
          int i_node = bddcml_mesh.elem_node_indices.val[element_offset + i_node_loc];

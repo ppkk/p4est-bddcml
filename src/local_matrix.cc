@@ -69,6 +69,32 @@ void LocalVector::clear()
    }
 }
 
+void LocalMatrixComponent::print() const {
+   cout << PrintVec2D<double>(mat);
+}
+
+void LocalVectorComponent::print() const {
+   cout << PrintVec<double>(vec) << endl;
+}
+
+void LocalMatrix::print() const {
+   for(int i = 0; i < ncomponents; i++) {
+      for(int j = 0; j < ncomponents; j++) {
+         cout << "component (" << i << ", " << j << ")" << endl;
+         comps[i][j].print();
+      }
+   }
+   cout << endl;
+}
+
+void LocalVector::print() const {
+   for(int i = 0; i < ncomponents; i++) {
+      cout << "component (" << i << ")" << endl;
+      comps[i].print();
+   }
+   cout << endl;
+}
+
 
 HangingInfo::HangingInfo(const P4estClass &p4est) : p4est(p4est){
    active_elem_idx = -1;

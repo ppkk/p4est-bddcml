@@ -2,6 +2,7 @@
 #include <stdlib.h>
 #include <stdbool.h>
 #include <assert.h>
+#include <math.h>
 
 #include "bddcml/bddcml_mesh.h"
 #include "bddcml/bddcml_femspace.h"
@@ -11,29 +12,96 @@
 #include "element.h"
 #include "shapefun.h"
 #include "vtk_output.h"
+#include "integral.h"
 
 using namespace std;
 
 const int num_dim = 3;
 const int order = 3;
+const int norm_order = 2 * order;
 const PhysicsType physicsType = PhysicsType::LAPLACE;
 
-vector<double> rhs_fn(vector<double>)
-{
-   if(physicsType == PhysicsType::LAPLACE)
-      return {1};
-   else if (physicsType == PhysicsType::ELASTICITY)
-      if(num_dim == 2)
-         return {0,-1e5};
-      else
-         return {0,0,-1e5};
-   else
-      assert(0);
+//vector<double> rhs_fn(vector<double>)
+//{
+//   if(physicsType == PhysicsType::LAPLACE)
+//      return {1};
+//   else if (physicsType == PhysicsType::ELASTICITY)
+//      if(num_dim == 2)
+//         return {0,-1e5};
+//      else
+//         return {0,0,-1e5};
+//   else
+//      assert(0);
+//}
+
+
+const double slope = 60;
+const double center[3] = {1.25, -0.25, -0.25 };
+
+vector<double> rhs_fn(vector<double> coords) {
+   double value = 0;
+   for(int dim = 0; dim < Def::d()->num_dim; dim++) {
+      double add = -2;
+      for(int dim_add = 0; dim_add < Def::d()->num_dim; dim_add++) {
+         if(dim != dim_add)
+         add *= coords[dim_add] * (1-coords[dim_add]);
+      }
+      value += add;
+   }
+
+   //1
+   double laplace = value;
+
+//   double rr = 0.0;
+//   for(int i = 0; i < Def::d()->num_dim; i++) {
+//      coords[i] -= center[i];
+//      rr += coords[i] * coords[i];
+//   }
+//   double r = sqrt(rr);
+
+//   double u = atan(slope * (r - M_PI / 3.));
+
+//   double t_u_1 = r * (slope*slope * pow(r - M_PI/3, 2) + 1);
+//   double dudx = slope * coords[0] / t_u_1;
+//   double dudy = slope * coords[1] / t_u_1;
+
+//   double t_u_2 = (pow(M_PI - 3.0 * r, 2) * slope * slope + 9.0);
+
+//   double laplace = 27.0 * 2.0 * rr * (M_PI - 3.0*r) * pow(slope, 3.0) / (pow(t_u_2,2) * rr) - 9.0 * rr * slope / (t_u_2 * pow(r,3.0)) + 9.0 * slope / (t_u_2 * r);
+
+
+   return {-laplace};
 }
+
+void exact_solution(const vector<double> &coords, vector<double> *result) {
+
+   //   //1
+   double value = 1.;
+   for(int dim = 0; dim < Def::d()->num_dim; dim++)
+      value *= coords[dim] * (1-coords[dim]);
+   *result = {value};
+   //   //2
+   //   //*result = {(1-x)*x};
+
+
+
+//   double rr = 0.0;
+//   vector<double> my_coords(coords);
+//   for(int i = 0; i < Def::d()->num_dim; i++) {
+//      my_coords[i] -= center[i];
+//      rr += my_coords[i] * my_coords[i];
+//   }
+//   double r = sqrt(rr);
+
+//   double u = atan(slope * (r - M_PI / 3.));
+
+//   *result = {u};
+}
+
+
 
 Parameters params(1e10, 0.33);
 
-sc_MPI_Comm mpicomm = sc_MPI_COMM_WORLD;
 
 void run(int argc, char **argv)
 {
@@ -42,8 +110,8 @@ void run(int argc, char **argv)
    P4estClass* p4est_class = P4estClass::create(num_dim, order, mpicomm);
    Def::d()->init(num_dim, order, physicsType, p4est_class);
 
-   p4est_class->refine_and_partition(2, RefineType::UNIFORM);
-   p4est_class->refine_and_partition(2, RefineType::SQUARE);
+   p4est_class->refine_and_partition(1, RefineType::UNIFORM);
+   p4est_class->refine_and_partition(2, RefineType::CIRCLE);
 
 
    // 2D
@@ -82,7 +150,7 @@ void run(int argc, char **argv)
    BddcmlDimensions subdomain_dims(Def::d()->num_dim, physicsType);
    BddcmlDimensions global_dims(Def::d()->num_dim, physicsType);
 
-   int print_rank_l = 3;
+   int print_rank_l = 0;
 
    // todo: using MPI Bcast in the following, should be possible to do without
    p4est_class->prepare_dimmensions(&subdomain_dims, &global_dims);
@@ -104,7 +172,7 @@ void run(int argc, char **argv)
    //print_bddcml_mesh(&mesh, print_rank_l);
 
    BddcmlFemSpace femsp(&bddcml_mesh);
-   femsp.prepare_subdomain_fem_space(physicsType);
+   femsp.prepare_subdomain_fem_space(physicsType, exact_solution);
    //print_bddcml_fem_space(&femsp, &mesh, print_rank_l);
 
    print_rank = print_rank_l;
@@ -216,6 +284,14 @@ void run(int argc, char **argv)
    VtkOutput vtk(*p4est_class, nodal_mesh, sols);
    vtk.output_in_corners("out_corners");
    vtk.output_in_nodes("out_nodes");
+
+   Integrator integrator(*p4est_class, nodal_mesh, ref_elem, sols.val);
+   double l2_norm = integrator.l2_norm(norm_order);
+   double l2_error = integrator.l2_error(norm_order, exact_solution);
+   PPP cout << "**************************************" << endl;
+   PPP cout << "L2 norm  " << l2_norm << endl;
+   PPP cout << "L2 error " << l2_error << endl;
+   PPP cout << "**************************************" << endl;
 
    free_real_array(&rhss);
    free_real_array(&sols);

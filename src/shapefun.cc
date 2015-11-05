@@ -317,7 +317,7 @@ double ReferenceElement::shape_value(int node_idx, vector<double> coords) const 
    return value;
 }
 
-void ReferenceElement::fill_transformed_values(const Quadrature &q, double element_length,
+void ReferenceElement::calc_transformed_values(const Quadrature &q, double element_length,
                                 vector<vector<double> > *values, vector<vector<vector<double> > > *gradients) const {
    *values = vector<vector<double> >(Def::d()->num_element_nodes);
    *gradients = vector<vector<vector<double> > >(Def::d()->num_element_nodes);
@@ -339,7 +339,7 @@ void ReferenceElement::fill_transformed_values(const Quadrature &q, double eleme
             shape_fun_1d(ids_1D[dim], q.coords[q_idx][dim], &values_1D[dim], &derivatives_1D[dim]);
             // partial transformation
             // todo: should it be here?
-            derivatives_1D[dim] /= element_length;
+            derivatives_1D[dim] /= (element_length / 2.);
          }
 
          double value = 1.;
