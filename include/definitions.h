@@ -37,8 +37,12 @@ struct Parameters
    real mu;
    real lambda;
 
-   Parameters(real young_mod, real poisson_num)
-   {
+   Parameters() {
+      lambda = 0.0;
+      mu = 0.0;
+   }
+
+   Parameters(real young_mod, real poisson_num){
       this->lambda = (young_mod * poisson_num) / ((1 + poisson_num) * (1 - 2 * poisson_num));
       this->mu = young_mod / (2 * (1 + poisson_num));
    }

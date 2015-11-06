@@ -4,12 +4,7 @@
 #include <assert.h>
 #include <math.h>
 
-//todo: remove
-#include "bddcml/bddcml_mesh.h"
-#include "bddcml/bddcml_femspace.h"
-
 #include "bddcml/bddcml_solver.h"
-
 #include "p4est/my_p4est_interface.h"
 #include "assemble.h"
 #include "integration_cell.h"
@@ -37,7 +32,6 @@ vector<double> rhs_fn(vector<double>)
    else
       assert(0);
 }
-
 
 const double slope = 60;
 const double center[3] = {1.25, -0.25, -0.25 };
@@ -119,20 +113,58 @@ void read_command_line_params(int argc, char **argv, int *num_levels) {
 }
 
 
-void run(int argc, char **argv)
+void run(const P4estClass &p4est_class, int num_levels)
 {
-   int mpiret = 0, num_levels;
-   int print_rank_l = 0;
-   print_rank = print_rank_l;
+   print_rank = 0;
+
+   Def::d()->init(num_dim, order, physicsType, p4est_class);
+
+   BddcmlGeneralParams general_params;
+   //general_params.just_direct_solve_int = 1;
+   BddcmlKrylovParams krylov_params;
+   BddcmlPreconditionerParams preconditioner_params;
+
+   ProblemDimensions problem_dims(Def::d()->num_dim, physicsType, p4est_class);
+   BddcmlSolver bddcml_solver(problem_dims, general_params, krylov_params,
+                              preconditioner_params, p4est_class, num_levels);
+
+   ReferenceElement ref_elem(num_dim, order);
+   IntegrationMesh integration_mesh(p4est_class);
+   NodalElementMesh nodal_mesh(physicsType, Def::d()->num_components, integration_mesh, ref_elem, p4est_class);
+
+   vector<double> sols(problem_dims.n_subdom_dofs, 0.0);
+   DiscreteSystem discrete_system(problem_dims, MatrixType::SPD);
+   discrete_system.assemble(p4est_class, integration_mesh, nodal_mesh, problem_dims, &rhs_fn, params);
+
+   bddcml_solver.solve(nodal_mesh, discrete_system, &sols);
+
+   VtkOutput vtk(p4est_class, nodal_mesh, sols);
+   vtk.output_in_corners("out_corners");
+   vtk.output_in_nodes("out_nodes");
+
+   Integrator integrator(p4est_class, nodal_mesh, ref_elem, sols);
+   double l2_norm = integrator.l2_norm(norm_order);
+   double l2_error = integrator.l2_error(norm_order, exact_solution);
+   PPP cout << "**************************************" << endl;
+   PPP cout << "L2 norm  " << l2_norm << endl;
+   PPP cout << "L2 error " << l2_error << endl;
+   PPP cout << "**************************************" << endl;
+}
+
+int main (int argc, char **argv)
+{
+   int num_levels;
+   int mpiret = sc_MPI_Init (&argc, &argv);
+   SC_CHECK_MPI (mpiret);
+   mpiret = sc_MPI_Comm_rank(mpicomm, &mpi_rank);
+   mpiret = sc_MPI_Comm_size(mpicomm, &mpi_size);
 
    read_command_line_params(argc, argv, &num_levels);
 
    P4estClass* p4est_class = P4estClass::create(num_dim, order, mpicomm);
-   Def::d()->init(num_dim, order, physicsType, *p4est_class);
 
    p4est_class->refine_and_partition(2, RefineType::UNIFORM);
    p4est_class->refine_and_partition(2, RefineType::CIRCLE);
-
 
    // 2D
 //   p4est_class->refine_and_partition(4, RefineType::UNIFORM);
@@ -149,61 +181,11 @@ void run(int argc, char **argv)
 //   p4est_class->refine_and_partition(3, RefineType::CIRCLE);
 //   p4est_class->refine_and_partition(3, RefineType::SQUARE);
 
-   BddcmlGeneralParams general_params;
-   //general_params.just_direct_solve_int = 1;
-   BddcmlKrylovParams krylov_params;
-   BddcmlPreconditionerParams preconditioner_params;
-
-   ProblemDimensions problem_dims(Def::d()->num_dim, physicsType, *p4est_class);
-   BddcmlSolver bddcml_solver(problem_dims, general_params, krylov_params,
-                              preconditioner_params, *p4est_class, num_levels);
-
-   ReferenceElement ref_elem(num_dim, order);
-   IntegrationMesh integration_mesh(*p4est_class);
-   NodalElementMesh nodal_mesh(physicsType, Def::d()->num_components, integration_mesh, ref_elem, *p4est_class);
-
-   vector<double> sols(problem_dims.n_subdom_dofs, 0.0);
-   DiscreteSystem discrete_system(problem_dims, MatrixType::SPD);
-   discrete_system.assemble(*p4est_class, integration_mesh, nodal_mesh, problem_dims, &rhs_fn, params);
-
-   bddcml_solver.solve(nodal_mesh, discrete_system, &sols);
-
-   VtkOutput vtk(*p4est_class, nodal_mesh, sols);
-   vtk.output_in_corners("out_corners");
-   vtk.output_in_nodes("out_nodes");
-
-   Integrator integrator(*p4est_class, nodal_mesh, ref_elem, sols);
-   double l2_norm = integrator.l2_norm(norm_order);
-   double l2_error = integrator.l2_error(norm_order, exact_solution);
-   PPP cout << "**************************************" << endl;
-   PPP cout << "L2 norm  " << l2_norm << endl;
-   PPP cout << "L2 error " << l2_error << endl;
-   PPP cout << "**************************************" << endl;
+   run(*p4est_class, num_levels);
 
    delete p4est_class;
 
-   SC_CHECK_MPI (mpiret);
-}
-
-int main (int argc, char **argv)
-{
-   int mpiret = sc_MPI_Init (&argc, &argv);
-   SC_CHECK_MPI (mpiret);
-   mpiret = sc_MPI_Comm_rank(mpicomm, &mpi_rank);
-   mpiret = sc_MPI_Comm_size(mpicomm, &mpi_size);
-
-//   /* These functions are optional.  If called they store the MPI rank as a
-//   * static variable so subsequent global p4est log messages are only issued
-//   * from processor zero.  Here we turn off most of the logging; see sc.h. */
-//   sc_init (mpicomm, 1, 1, NULL, SC_LP_ESSENTIAL);
-//   p4est_init (NULL, SC_LP_PRODUCTION);  /* SC_LP_ERROR for silence. */
-
-   run(argc, argv);
-
-   /* Verify that allocations internal to p4est and sc do not leak memory.
-   * This should be called if sc_init () has been called earlier. */
    sc_finalize ();
-
    assert(get_num_allocations() == 0);
 
    /* This is standard MPI programs.  Without --enable-mpi, this is a dummy. */

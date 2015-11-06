@@ -61,7 +61,6 @@ void BddcmlSolver::solve(const NodalElementMesh &nodal_mesh, DiscreteSystem &sys
    RealArray dof_data;
    allocate_real_array(0, &dof_data);
 
-
    PPP printf("Loading data ...\n");
 
    int subdomain_idx = mpi_rank;
@@ -71,7 +70,6 @@ void BddcmlSolver::solve(const NodalElementMesh &nodal_mesh, DiscreteSystem &sys
                                      &dof_data, &preconditioner_params);
 
    PPP printf("Loading data done.\n");
-
 
    mpiret = MPI_Barrier(mpicomm);
 
@@ -95,7 +93,6 @@ void BddcmlSolver::solve(const NodalElementMesh &nodal_mesh, DiscreteSystem &sys
 
    BddcmlConvergenceInfo convergence_info;
 
-
    bddcml_solve(/*(BddcmlKrylovParams*)*/&krylov_params, &convergence_info, mpicomm);
    mpiret = MPI_Barrier(mpicomm);
 
@@ -111,8 +108,8 @@ void BddcmlSolver::solve(const NodalElementMesh &nodal_mesh, DiscreteSystem &sys
    }
    PPP printf(" =============================\n");
 
-
    bddcml_download_local_solution(subdomain_idx, sols);
-   SC_CHECK_MPI (mpiret);
+   bddcml_finalize();
 
+   SC_CHECK_MPI (mpiret);
 }

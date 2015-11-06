@@ -20,7 +20,7 @@ public:
    void free();
 
    void assemble(const P4estClass &p4est, const IntegrationMesh &integration_mesh, const NodalElementMesh &nodal_mesh, const ProblemDimensions &problem_dims,
-                 RhsPtr rhs_ptr, Parameters params);
+                 RhsPtr rhs_ptr, Parameters params = Parameters());
 
 public:
    SparseMatrix matrix;

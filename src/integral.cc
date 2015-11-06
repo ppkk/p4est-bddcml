@@ -43,12 +43,18 @@ Integrator::Integrator(const P4estClass &p4est, const NodalElementMesh &mesh,
 }
 
 
-double Integrator::calculate(int quad_order, integral_callback callback, exact_fn function_callback) const {
+double Integrator::calculate(int quad_order, integral_callback callback,
+                             exact_fn function_callback, vector<double> *element_values) const {
+   if(element_values != nullptr) {
+      element_values->clear();
+      element_values->reserve(mesh.num_elements());
+   }
    double result = 0.0;
    GaussQuadrature quad(Def::d()->num_dim, quad_order);
    vector<vector<double> > values;
    vector<vector<vector<double> > > grads;
    for(const NodalElement& elem : mesh.elements) {
+      double element_result = 0.0;
       Quadrature q_transformed(Def::d()->num_dim);
       quad.transform_to_physical(elem.cell, &q_transformed);
 
@@ -57,8 +63,11 @@ double Integrator::calculate(int quad_order, integral_callback callback, exact_f
       assert(values.size() == quad.np());
       assert(grads.size() == quad.np());
       for(unsigned q_id = 0; q_id < quad.np(); q_id++) {
-         result += q_transformed.weights[q_id] * callback(q_transformed.coords[q_id], values[q_id], grads[q_id], function_callback);
+         element_result += q_transformed.weights[q_id] * callback(q_transformed.coords[q_id], values[q_id], grads[q_id], function_callback);
       }
+      result += element_result;
+      if(element_values != nullptr)
+         element_values->push_back(element_result);
    }
 
    MPI_Allreduce(MPI_IN_PLACE, &result, 1, MPI_DOUBLE, MPI_SUM, mpicomm);
@@ -66,10 +75,24 @@ double Integrator::calculate(int quad_order, integral_callback callback, exact_f
    return result;
 }
 
-double Integrator::l2_norm(int quad_order) const {
-   return sqrt(calculate(quad_order, l2_norm_callback, nullptr));
+double Integrator::l2_norm(int quad_order, vector<double> *element_values) const {
+   double value = sqrt(calculate(quad_order, l2_norm_callback, nullptr, element_values));
+   if(element_values != nullptr) {
+      assert(element_values->size() == (unsigned)mesh.num_elements());
+      for(unsigned i = 0; i < element_values->size(); i++) {
+         element_values->at(i) = sqrt(element_values->at(i));
+      }
+   }
+   return value;
 }
 
-double Integrator::l2_error(int quad_order, exact_fn exact_solution) const {
-   return sqrt(calculate(quad_order, l2_error_callback, exact_solution));
+double Integrator::l2_error(int quad_order, exact_fn exact_solution, vector<double> *element_values) const {
+   double value = sqrt(calculate(quad_order, l2_error_callback, exact_solution, element_values));
+   if(element_values != nullptr) {
+      assert(element_values->size() == (unsigned)mesh.num_elements());
+      for(unsigned i = 0; i < element_values->size(); i++) {
+         element_values->at(i) = sqrt(element_values->at(i));
+      }
+   }
+   return value;
 }

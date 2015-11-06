@@ -23,9 +23,9 @@ class Integrator
 public:
    Integrator(const P4estClass &p4est, const NodalElementMesh &mesh, const ReferenceElement & ref_elem, const std::vector<double> &sol);
 
-   double calculate(int quad_order, integral_callback callback, exact_fn function_callback) const;
-   double l2_norm(int quad_order) const;
-   double l2_error(int quad_order, exact_fn exact_solution) const;
+   double calculate(int quad_order, integral_callback callback, exact_fn function_callback, std::vector<double> *element_values) const;
+   double l2_norm(int quad_order, std::vector<double> *element_values = nullptr) const;
+   double l2_error(int quad_order, exact_fn exact_solution, std::vector<double> *element_values = nullptr) const;
 
 public:
    const P4estClass &p4est;
