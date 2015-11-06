@@ -12,17 +12,17 @@
 
 using namespace std;
 
-DiscreteSystem::DiscreteSystem(const ProblemDimensions &subdomain_dims, MatrixType matrix_type) {
-   allocate_real_array(subdomain_dims.n_dofs, &rhss);
+DiscreteSystem::DiscreteSystem(const ProblemDimensions &problem_dims, MatrixType matrix_type) {
+   allocate_real_array(problem_dims.n_subdom_dofs, &rhss);
    zero_real_array(&rhss);
 
-   int ndof_per_element = Def::d()->num_element_nodes * subdomain_dims.n_node_dofs;
+   int ndof_per_element = Def::d()->num_element_nodes * problem_dims.n_node_dofs;
    // how much space the upper triangle of the element matrix occupies
    int lelm = ndof_per_element * (ndof_per_element + 1) / 2;
 
    // todo: do it properly
    const int extra_space_for_hanging_nodes = 4 * (matrix_type == MatrixType::GENERAL ? 2 : 1);
-   matrix.allocate(extra_space_for_hanging_nodes * subdomain_dims.n_elems * lelm, matrix_type);
+   matrix.allocate(extra_space_for_hanging_nodes * problem_dims.n_subdom_elems * lelm, matrix_type);
    matrix.zero();
 }
 
@@ -159,22 +159,22 @@ void assemble_local_elasticity(const IntegrationCell &integ_cell, const Referenc
 }
 
 void DiscreteSystem::assemble(const P4estClass &p4est, const IntegrationMesh &integration_mesh,
-                         const NodalElementMesh &nodal_mesh, const ProblemDimensions &subdomain_dims,
+                         const NodalElementMesh &nodal_mesh, const ProblemDimensions &problem_dims,
                          RhsPtr rhs_ptr, Parameters params) {
-   assert(integration_mesh.num_elements() == subdomain_dims.n_elems);
+   assert(integration_mesh.num_elements() == problem_dims.n_subdom_elems);
 
    GaussQuadrature q(Def::d()->num_dim, 2*Def::d()->order);
    ReferenceElement ref_elem(Def::d()->num_dim, Def::d()->order);
 
    HangingInfo hanging_info(p4est);
-   int n_components = subdomain_dims.n_node_dofs;
+   int n_components = problem_dims.n_node_dofs;
 
    LocalMatrix element_matrix_nohang(n_components, Def::d()->num_element_nodes), element_matrix(n_components, Def::d()->num_element_nodes);
    LocalVector element_rhs_nohang(n_components, Def::d()->num_element_nodes), element_rhs(n_components, Def::d()->num_element_nodes);
    //vector<vector<real> > element_rhs(Def::d()->num_element_nodes, vector<real>(n_components, 0.0));
 
    int element_offset = 0;
-   for(int elem_idx = 0; elem_idx < subdomain_dims.n_elems; elem_idx++) {
+   for(int elem_idx = 0; elem_idx < problem_dims.n_subdom_elems; elem_idx++) {
       const IntegrationCell& cell = integration_mesh.cells[elem_idx];
       const NodalElement& nodal_element = nodal_mesh.elements[elem_idx];
 

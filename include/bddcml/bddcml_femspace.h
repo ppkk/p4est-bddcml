@@ -10,14 +10,12 @@
 class BddcmlFemSpace
 {
 public:
-   BddcmlFemSpace(const BddcmlMesh* mesh);
+   BddcmlFemSpace(const BddcmlMesh &mesh);
    ~BddcmlFemSpace();
    void prepare_subdomain_fem_space(PhysicsType physicsType, exact_fn dirichlet_bc_exact);
    void print(int which_rank) const;
 
 public:
-   const ProblemDimensions* subdomain_dims;
-
    IdxArray node_num_dofs;
    IdxArray fixs_code;
    RealArray fixs_values;
@@ -25,7 +23,8 @@ public:
    PhysicsType physicsType;
 
 private:
-   const BddcmlMesh* mesh;
+   const BddcmlMesh &mesh;
+   const ProblemDimensions &problem_dims;
 };
 
 

@@ -85,17 +85,17 @@ BddcmlLevelInfo::BddcmlLevelInfo(int n_levels, int n_subdomains_first_level) {
 
 
 // Basic properties
-void print_basic_properties(const ProblemDimensions &global_dims, int num_subdomains,
+void print_basic_properties(const ProblemDimensions &problem_dims, int num_subdomains,
                             const BddcmlLevelInfo &level_info, const BddcmlKrylovParams &krylov_params) {
    if (mpi_rank == print_rank) {
       printf("Characteristics of the problem :\n");
       printf("  number of processors            nproc = %d\n" ,mpi_size);
-      printf("  number of dimensions             ndim = %d\n", global_dims.n_problem_dims);
-      printf("  mesh dimension                meshdim = %d\n", global_dims.n_mesh_dims);
-      printf("  number of elements global       nelem = %d\n", global_dims.n_elems);
+      printf("  number of dimensions             ndim = %d\n", Def::d()->num_dim);
+      printf("  mesh dimension                meshdim = %d\n", Def::d()->num_dim);
+      printf("  number of elements global       nelem = %d\n", problem_dims.n_glob_elems);
       printf("  number of subdomains             nsub = %d\n", num_subdomains);
-      printf("  number of nodes global           nnod = %d\n", global_dims.n_nodes);
-      printf("  number of DOF                    ndof = %d\n", global_dims.n_dofs);
+      printf("  number of nodes global           nnod = %d\n", problem_dims.n_glob_nodes);
+      printf("  number of DOF                    ndof = %d\n", problem_dims.n_glob_dofs);
       printf("  number of levels              nlevels = %d\n", level_info.nlevels);
       printf("  number of subdomains in levels        = ");
       for(int idx = 0; idx < level_info.nlevels; idx++) {
@@ -125,20 +125,20 @@ void bddcml_init(BddcmlGeneralParams *general_params, BddcmlLevelInfo *level_inf
                  &general_params->just_direct_solve_int);
 }
 
-void bddcml_upload_subdomain_data(ProblemDimensions *global_dims, ProblemDimensions *subdomain_dims,
-                                  int isub, BddcmlMesh *mesh, BddcmlFemSpace *femsp,
+void bddcml_upload_subdomain_data(ProblemDimensions *problem_dims, int isub, BddcmlMesh *mesh, BddcmlFemSpace *femsp,
                                   RealArray *rhss, int is_rhs_complete, vector<double> *sols, SparseMatrix *matrix,
                                   Real2DArray *user_constraints, Real2DArray *element_data,
                                   RealArray *dof_data, BddcmlPreconditionerParams* preconditioner_params) {
-   bddcml_upload_subdomain_data_c(&global_dims->n_elems,
-                                  &global_dims->n_nodes,
-                                  &global_dims->n_dofs,
-                                  &global_dims->n_problem_dims,
-                                  &global_dims->n_mesh_dims,
+   int num_dim = Def::d()->num_dim;
+   bddcml_upload_subdomain_data_c(&problem_dims->n_glob_elems,
+                                  &problem_dims->n_glob_nodes,
+                                  &problem_dims->n_glob_dofs,
+                                  &num_dim,
+                                  &num_dim,
                                   &isub,
-                                  &subdomain_dims->n_elems,
-                                  &subdomain_dims->n_nodes,
-                                  &subdomain_dims->n_dofs,
+                                  &problem_dims->n_subdom_elems,
+                                  &problem_dims->n_subdom_nodes,
+                                  &problem_dims->n_subdom_dofs,
                                   mesh->elem_node_indices.val,
                                   &mesh->elem_node_indices.len,
                                   mesh->num_nodes_of_elem.val,

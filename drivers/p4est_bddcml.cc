@@ -106,6 +106,18 @@ void exact_solution(const vector<double> &coords, vector<double> *result) {
 
 Parameters params(1e10, 0.33);
 
+void read_command_line_params(int argc, char **argv, int *num_levels) {
+   if(argc == 1 + 1) {
+      *num_levels = atoi(argv[1]);
+   }
+   else {
+      if ( mpi_rank == 0 ) {
+         printf(" Usage: mpirun -np X ./p4est_bddcml NLEVELS\n");
+      }
+      exit(0);
+   }
+}
+
 
 void run(int argc, char **argv)
 {
@@ -113,8 +125,10 @@ void run(int argc, char **argv)
    int print_rank_l = 0;
    print_rank = print_rank_l;
 
+   read_command_line_params(argc, argv, &num_levels);
+
    P4estClass* p4est_class = P4estClass::create(num_dim, order, mpicomm);
-   Def::d()->init(num_dim, order, physicsType, p4est_class);
+   Def::d()->init(num_dim, order, physicsType, *p4est_class);
 
    p4est_class->refine_and_partition(2, RefineType::UNIFORM);
    p4est_class->refine_and_partition(2, RefineType::CIRCLE);
@@ -135,43 +149,22 @@ void run(int argc, char **argv)
 //   p4est_class->refine_and_partition(3, RefineType::CIRCLE);
 //   p4est_class->refine_and_partition(3, RefineType::SQUARE);
 
-   // Number of elements in an edge of a subdomain and number of subdomains in an edge of the unit cube
-   if(argc == 1 + 1) {
-      num_levels = atoi(argv[1]);
-   }
-   else {
-      if ( mpi_rank == 0 ) {
-         printf(" Usage: mpirun -np X ./p4est_bddcml NLEVELS\n");
-      }
-      exit(0);
-   }
-
    BddcmlGeneralParams general_params;
    //general_params.just_direct_solve_int = 1;
    BddcmlKrylovParams krylov_params;
    BddcmlPreconditionerParams preconditioner_params;
 
-   ProblemDimensions subdomain_dims(Def::d()->num_dim, physicsType);
-   ProblemDimensions global_dims(Def::d()->num_dim, physicsType);
-   // todo: using MPI Bcast in the following, should be possible to do without
-   p4est_class->prepare_dimmensions(&subdomain_dims, &global_dims);
-   //print_p4est_mesh(p4est, lnodes, print_rank_l);
-
-   BddcmlSolver bddcml_solver(subdomain_dims, global_dims, general_params, krylov_params,
+   ProblemDimensions problem_dims(Def::d()->num_dim, physicsType, *p4est_class);
+   BddcmlSolver bddcml_solver(problem_dims, general_params, krylov_params,
                               preconditioner_params, *p4est_class, num_levels);
 
    ReferenceElement ref_elem(num_dim, order);
+   IntegrationMesh integration_mesh(*p4est_class);
+   NodalElementMesh nodal_mesh(physicsType, Def::d()->num_components, integration_mesh, ref_elem, *p4est_class);
 
-   IntegrationMesh integration_mesh;
-   p4est_class->prepare_integration_mesh(&integration_mesh);
-
-   NodalElementMesh nodal_mesh(physicsType);
-   p4est_class->prepare_nodal_mesh(Def::d()->num_components, integration_mesh, ref_elem, &nodal_mesh);
-
-
-   vector<double> sols(subdomain_dims.n_dofs, 0.0);
-   DiscreteSystem discrete_system(subdomain_dims, MatrixType::SPD);
-   discrete_system.assemble(*p4est_class, integration_mesh, nodal_mesh, subdomain_dims, &rhs_fn, params);
+   vector<double> sols(problem_dims.n_subdom_dofs, 0.0);
+   DiscreteSystem discrete_system(problem_dims, MatrixType::SPD);
+   discrete_system.assemble(*p4est_class, integration_mesh, nodal_mesh, problem_dims, &rhs_fn, params);
 
    bddcml_solver.solve(nodal_mesh, discrete_system, &sols);
 

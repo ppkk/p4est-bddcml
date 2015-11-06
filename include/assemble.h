@@ -15,11 +15,11 @@ void print_complete_matrix_rhs(const BddcmlFemSpace &femsp, const ProblemDimensi
 class DiscreteSystem
 {
 public:
-   DiscreteSystem(const ProblemDimensions &subdomain_dims, MatrixType matrix_type);
+   DiscreteSystem(const ProblemDimensions &problem_dims, MatrixType matrix_type);
    ~DiscreteSystem() {free(); }
    void free();
 
-   void assemble(const P4estClass &p4est, const IntegrationMesh &integration_mesh, const NodalElementMesh &nodal_mesh, const ProblemDimensions &subdomain_dims,
+   void assemble(const P4estClass &p4est, const IntegrationMesh &integration_mesh, const NodalElementMesh &nodal_mesh, const ProblemDimensions &problem_dims,
                  RhsPtr rhs_ptr, Parameters params);
 
 public:

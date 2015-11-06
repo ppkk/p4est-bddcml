@@ -13,18 +13,17 @@ class P4estClass;
 class BddcmlMesh
 {
 public:
-   BddcmlMesh(const ProblemDimensions *subdomain_dims) {init(subdomain_dims);}
+   BddcmlMesh(const ProblemDimensions &problem_dims);
    ~BddcmlMesh() {free(); }
    void fill_nodes_info(const P4estClass &p4est, const NodalElementMesh &nodal_mesh);
 
    void print(int which_rank) const;
 
 private:
-   void init(const ProblemDimensions *subdomain_dims);
    void free();
 
 public:
-   const ProblemDimensions* subdomain_dims;
+   const ProblemDimensions &problem_dims;
 
    IdxArray elem_node_indices;
    IdxArray num_nodes_of_elem;

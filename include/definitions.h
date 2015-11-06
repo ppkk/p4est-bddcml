@@ -46,7 +46,7 @@ struct Parameters
 
 class Def {
 public:
-   static void init(int num_dim, int order, PhysicsType physicsType, const P4estClass *p4est);
+   static void init(int num_dim, int order, PhysicsType physicsType, const P4estClass &p4est);
    static const Def *d() {return singleton; }
 
    int num_dim;
@@ -137,20 +137,15 @@ private:
 class ProblemDimensions
 {
 public:
-   ProblemDimensions(int mesh_dim, PhysicsType physicsType);
+   ProblemDimensions(int mesh_dim, PhysicsType physicsType, const P4estClass &p4est);
 
-   int n_elems;  // number of elements
-   int n_nodes;  // number of nodes
-   int n_dofs;   // number on degrees of freedom
+   int n_glob_elems;  // number of global elements
+   int n_glob_nodes;  // number of global nodes
+   int n_glob_dofs;   // number on global degrees of freedom
 
-   // spacial dimension
-   int n_problem_dims;
-
-   // topological dimension of elements elements, would be lower for shells or beams
-   int n_mesh_dims;
-
-   // number of nodes per element (4 or 8)
-   int n_elem_nodes;
+   int n_subdom_elems;  // number of subdomain elements
+   int n_subdom_nodes;  // number of subdomain nodes
+   int n_subdom_dofs;   // number on subdomain degrees of freedom
 
    // number of dofs per node (1 for Laplace, 3 for elasticity)
    int n_node_dofs;

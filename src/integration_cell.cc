@@ -1,4 +1,5 @@
 #include "integration_cell.h"
+#include "p4est/my_p4est_interface.h"
 
 using namespace std;
 
@@ -55,4 +56,8 @@ void IntegrationCell::fill_parent_cell(IntegrationCell *parent) const {
       child_position_tmp /= 2;
    }
    parent->size = 2 * size;
+}
+
+IntegrationMesh::IntegrationMesh(const P4estClass &p4est) {
+   p4est.prepare_integration_mesh(this);
 }

@@ -6,6 +6,7 @@
 #include "definitions.h"
 
 class IntegrationCell;
+class IntegrationMesh;
 class ReferenceElement;
 
 // todo: this is not definitive. The idea is to separate IntegrationCell, which is only geometric entity
@@ -51,6 +52,9 @@ class NodalElementMesh
 {
 public:
    NodalElementMesh(PhysicsType physics_type) : physics_type(physics_type) {}
+   NodalElementMesh(PhysicsType physics_type, int num_components, const IntegrationMesh &integration_mesh,
+                    const ReferenceElement &ref_elem, const P4estClass &p4est);
+
    void clear() {elements.clear(); }
    int num_elements() const {return elements.size(); }
 

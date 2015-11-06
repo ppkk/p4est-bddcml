@@ -3,7 +3,7 @@
 
 using namespace std;
 
-void Def::init(int num_dim, int order, PhysicsType physicsType, const P4estClass *p4est)
+void Def::init(int num_dim, int order, PhysicsType physicsType, const P4estClass &p4est)
 {
    singleton = new Def;
    singleton->num_dim = num_dim;
@@ -72,9 +72,7 @@ void Def::init(int num_dim, int order, PhysicsType physicsType, const P4estClass
 
    // copy important connectivity information froma p4est
    // has to be done in my_p4est_implementation to distinguish 2D and 3D
-   if(p4est != nullptr) {
-      p4est->init_definitions(singleton);
-   }
+   p4est.init_definitions(singleton);
 }
 
 void Def::prepare_cartesian_ids(int num_points_1d, std::vector<std::vector<int> > *ids) const {
@@ -99,26 +97,15 @@ Def* Def::singleton;
 /**********************************************************************************************************/
 /**********************************************************************************************************/
 
-ProblemDimensions::ProblemDimensions(int mesh_dim, PhysicsType physicsType) {
-   n_problem_dims = mesh_dim;
-   n_mesh_dims = mesh_dim;
-   n_dofs = 0;
-   n_elems = 0;
-   n_nodes = 0;
-
-   if(mesh_dim == 2)
-      n_elem_nodes = 4;
-   else if(mesh_dim == 3)
-      n_elem_nodes = 8;
-   else
-      assert(0);
-
+ProblemDimensions::ProblemDimensions(int mesh_dim, PhysicsType physicsType, const P4estClass &p4est) {
    if(physicsType == PhysicsType::LAPLACE)
       n_node_dofs = 1;
    else if(physicsType == PhysicsType::ELASTICITY)
       n_node_dofs = mesh_dim;
    else
       assert(0);
+
+   p4est.prepare_dimmensions(this);
 }
 
 /**********************************************************************************************************/

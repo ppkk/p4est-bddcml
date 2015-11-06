@@ -513,16 +513,16 @@ void P4estClassDim::refine_and_partition(int num, RefineType type) {
 
 //****************************************************************************************
 
-void P4estClassDim::prepare_dimmensions(ProblemDimensions *subdomain_dims, ProblemDimensions *global_dims) const {
+void P4estClassDim::prepare_dimmensions(ProblemDimensions *problem_dims) const {
 #ifndef P4_TO_P8
    assert(num_dim == 2);
 #else
    assert(num_dim == 3);
 #endif
-   subdomain_dims->n_nodes = lnodes()->num_local_nodes;
-   subdomain_dims->n_dofs  = lnodes()->num_local_nodes * subdomain_dims->n_node_dofs;
-   subdomain_dims->n_elems = lnodes()->num_local_elements;
-   printf("proc %d, elems %d, nodes %d\n", mpi_rank, subdomain_dims->n_elems, subdomain_dims->n_nodes);
+   problem_dims->n_subdom_nodes = lnodes()->num_local_nodes;
+   problem_dims->n_subdom_dofs  = lnodes()->num_local_nodes * problem_dims->n_node_dofs;
+   problem_dims->n_subdom_elems = lnodes()->num_local_elements;
+   printf("proc %d, elems %d, nodes %d\n", mpi_rank, problem_dims->n_subdom_elems, problem_dims->n_subdom_nodes);
 
    int global_num_nodes;
    if(mpi_rank == mpi_size - 1) {
@@ -530,9 +530,9 @@ void P4estClassDim::prepare_dimmensions(ProblemDimensions *subdomain_dims, Probl
    }
    sc_MPI_Bcast(&global_num_nodes, 1, MPI_INT, mpi_size - 1, mpicomm);
 
-   global_dims->n_nodes = global_num_nodes;
-   global_dims->n_dofs = global_num_nodes * global_dims->n_node_dofs;
-   global_dims->n_elems = p4est->global_num_quadrants;
+   problem_dims->n_glob_nodes = global_num_nodes;
+   problem_dims->n_glob_dofs = global_num_nodes * problem_dims->n_node_dofs;
+   problem_dims->n_glob_elems = p4est->global_num_quadrants;
 }
 
 //****************************************************************************************
@@ -709,7 +709,7 @@ void P4estClassDim::prepare_bddcml_mesh_nodes_old(BddcmlMesh* mesh) const {
 
       for (int lnode = 0; lnode < P4EST_CHILDREN; ++lnode) {
          p4est_locidx_t node_idx = lnodes()->element_nodes[P4EST_CHILDREN * quad_idx + lnode];
-         P4EST_ASSERT (node_idx >= 0 && node_idx < mesh->subdomain_dims->n_nodes);
+         P4EST_ASSERT (node_idx >= 0 && node_idx < mesh->problem_dims.n_subdom_nodes);
          if (anyhang && hanging_corner[lnode] >= 0) {
             /* This node is hanging; access the referenced node instead. */
             p4est_quadrant_corner_node (parent, lnode, &node);

@@ -10,12 +10,10 @@ class BddcmlKrylovParams;
 
 using namespace std;
 
-BddcmlSolver::BddcmlSolver(ProblemDimensions &subdomain_dims, ProblemDimensions &global_dims,
-                           BddcmlGeneralParams &general_params, BddcmlKrylovParams &krylov_params,
-                           BddcmlPreconditionerParams &preconditioner_params, const P4estClass &p4est_class,
-                           int num_levels):
-      subdomain_dims(subdomain_dims), global_dims(global_dims),
-      general_params(general_params), krylov_params(krylov_params),
+BddcmlSolver::BddcmlSolver(ProblemDimensions &problem_dims, BddcmlGeneralParams &general_params,
+                           BddcmlKrylovParams &krylov_params, BddcmlPreconditionerParams &preconditioner_params,
+                           const P4estClass &p4est_class, int num_levels):
+      problem_dims(problem_dims), general_params(general_params), krylov_params(krylov_params),
       preconditioner_params(preconditioner_params), p4est_class(p4est_class), num_levels(num_levels) {
 
 }
@@ -26,18 +24,18 @@ void BddcmlSolver::solve(const NodalElementMesh &nodal_mesh, DiscreteSystem &sys
    // number of subdomains == mpi_size
    BddcmlLevelInfo level_info(num_levels, mpi_size);
 
-   BddcmlMesh bddcml_mesh(&subdomain_dims);
+   BddcmlMesh bddcml_mesh(problem_dims);
    p4est_class.prepare_bddcml_mesh_global_mappings(&bddcml_mesh);
 //   p4est_class->prepare_bddcml_mesh_nodes_old(&bddcml_mesh);
    bddcml_mesh.fill_nodes_info(p4est_class, nodal_mesh);
 
    //print_bddcml_mesh(&mesh, print_rank_l);
 
-   BddcmlFemSpace femsp(&bddcml_mesh);
+   BddcmlFemSpace femsp(bddcml_mesh);
    femsp.prepare_subdomain_fem_space(nodal_mesh.physics_type, nullptr); //exact_solution);
    //print_bddcml_fem_space(&femsp, &mesh, print_rank_l);
 
-   print_basic_properties(global_dims, mpi_size, level_info, krylov_params);
+   print_basic_properties(problem_dims, mpi_size, level_info, krylov_params);
    PPP printf("Initializing BDDCML ...");
    // tell me how much subdomains should I load
    level_info.nsub_loc_1 = -1;
@@ -67,8 +65,7 @@ void BddcmlSolver::solve(const NodalElementMesh &nodal_mesh, DiscreteSystem &sys
    PPP printf("Loading data ...\n");
 
    int subdomain_idx = mpi_rank;
-   bddcml_upload_subdomain_data(&global_dims, &subdomain_dims,
-                                     subdomain_idx, &bddcml_mesh, &femsp,
+   bddcml_upload_subdomain_data(&problem_dims, subdomain_idx, &bddcml_mesh, &femsp,
                                      &system.rhss, is_rhs_complete, sols, &system.matrix,
                                      &user_constraints, &element_data,
                                      &dof_data, &preconditioner_params);

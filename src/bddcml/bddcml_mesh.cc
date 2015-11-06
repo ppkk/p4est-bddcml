@@ -12,13 +12,12 @@
 
 using namespace std;
 
-void BddcmlMesh::init(const ProblemDimensions *subdomain_dims) {
-   this->subdomain_dims = subdomain_dims;
-   allocate_idx_array(subdomain_dims->n_elems * Def::d()->d()->num_element_nodes, &elem_node_indices);
-   allocate_idx_array(subdomain_dims->n_elems, &num_nodes_of_elem);
-   allocate_idx_array(subdomain_dims->n_elems, &elem_global_map);
-   allocate_idx_array(subdomain_dims->n_nodes, &node_global_map);
-   allocate_real_2D_array(subdomain_dims->n_nodes, subdomain_dims->n_problem_dims, &coords);
+BddcmlMesh::BddcmlMesh(const ProblemDimensions &problem_dims) : problem_dims(problem_dims) {
+   allocate_idx_array(problem_dims.n_subdom_elems * Def::d()->d()->num_element_nodes, &elem_node_indices);
+   allocate_idx_array(problem_dims.n_subdom_elems, &num_nodes_of_elem);
+   allocate_idx_array(problem_dims.n_subdom_elems, &elem_global_map);
+   allocate_idx_array(problem_dims.n_subdom_nodes, &node_global_map);
+   allocate_real_2D_array(problem_dims.n_subdom_nodes, Def::d()->num_dim, &coords);
 }
 
 /**********************************************************************************************************/
@@ -36,17 +35,17 @@ void BddcmlMesh::free() {
 void BddcmlMesh::print(int which_rank) const {
    print_rank = which_rank;
    PPP printf("\n*************** BEGIN BDDCML MESH ************************\n");
-   PPP printf("elems: %d, nodes: %d\n", subdomain_dims->n_elems, subdomain_dims->n_nodes);
+   PPP printf("elems: %d, nodes: %d\n", problem_dims.n_subdom_elems, problem_dims.n_subdom_nodes);
    PPP printf("linet: %d, lnnet: %d\n", elem_node_indices.len, num_nodes_of_elem.len);
    for(int elem = 0; elem < elem_global_map.len; elem++) {
       PPP printf("elem %d -> ", elem_global_map.val[elem]);
       for (int lnode = 0; lnode < num_nodes_of_elem.val[elem]; lnode++) {
-         int node_local_idx = elem_node_indices.val[elem*subdomain_dims->n_elem_nodes + lnode];
+         int node_local_idx = elem_node_indices.val[elem*Def::d()->num_element_nodes + lnode];
          int node_global_idx = node_global_map.val[node_local_idx];
          PPP printf("%d[%d], ", node_global_idx, node_local_idx);
       }
       for (int lnode = 0; lnode < num_nodes_of_elem.val[elem]; lnode++) {
-         int node_local_idx = elem_node_indices.val[elem*subdomain_dims->n_elem_nodes + lnode];
+         int node_local_idx = elem_node_indices.val[elem*Def::d()->num_element_nodes + lnode];
          PPP printf("(%3.2lf, %3.2lf), ", coords.val[0][node_local_idx], coords.val[1][node_local_idx]);
       }
       PPP printf("\n");
@@ -66,8 +65,8 @@ bool reals_equal(real x, real y) {
 
 void BddcmlMesh::fill_nodes_info(const P4estClass &p4est, const NodalElementMesh &nodal_mesh) {
    // First fill in "forbidden" value to coordinates
-   for(int node = 0; node < subdomain_dims->n_nodes; node++) {
-      for(int dim = 0; dim < subdomain_dims->n_mesh_dims; dim++) {
+   for(int node = 0; node < problem_dims.n_subdom_nodes; node++) {
+      for(int dim = 0; dim < Def::d()->num_dim; dim++) {
          coords.val[dim][node] = FORBIDDEN;
       }
    }
@@ -145,8 +144,8 @@ void BddcmlMesh::fill_nodes_info(const P4estClass &p4est, const NodalElementMesh
    }
 
    // check that all values have been assigned
-   for(int node = 0; node < subdomain_dims->n_nodes; node++) {
-      for(int dim = 0; dim < subdomain_dims->n_mesh_dims; dim++) {
+   for(int node = 0; node < problem_dims.n_subdom_nodes; node++) {
+      for(int dim = 0; dim < Def::d()->num_dim; dim++) {
          assert(coords.val[dim][node] != FORBIDDEN);
       }
    }

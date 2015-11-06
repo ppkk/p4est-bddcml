@@ -35,6 +35,8 @@ public:
 class IntegrationMesh
 {
 public:
+   IntegrationMesh() {}
+   IntegrationMesh(const P4estClass &p4est);
    void clear() {cells.clear(); }
    int num_elements() const {return cells.size(); }
 public:
