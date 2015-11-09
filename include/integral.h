@@ -8,11 +8,6 @@
 class NodalElementMesh;
 class ReferenceElement;
 
-
-
-typedef void (*exact_fn)(const std::vector<double> &coords,
-                         std::vector<double> *result);
-
 typedef double (*integral_callback)(const std::vector<double> &coords,
                                     const std::vector<double> &pt_val,
                                     const std::vector<std::vector<double> > &pt_grad,
@@ -34,5 +29,16 @@ public:
    const std::vector<double> &sol;
 };
 
+class IntegralResults
+{
+public:
+   double l2_rel_error() {return l2_error/l2_norm; }
+   double h1_rel_error() {return h1_error/h1_norm; }
+
+public:
+   double l2_norm, l2_error;
+   double h1_norm, h1_error;
+   std::vector<double> element_results;
+};
 
 #endif // INTEGRAL_H

@@ -3,6 +3,7 @@
 #include <stdbool.h>
 #include <assert.h>
 #include <math.h>
+#include <fstream>
 
 #include "bddcml/bddcml_solver.h"
 #include "p4est/my_p4est_interface.h"
@@ -12,51 +13,28 @@
 #include "shapefun.h"
 #include "vtk_output.h"
 #include "integral.h"
+#include "analytical_solution.h"
 
 using namespace std;
 
-const int num_dim = 2;
+const int num_dim = 3;
 const int order = 1;
 const int norm_order = 2 * order;
 const PhysicsType physicsType = PhysicsType::LAPLACE;
-
-const double slope = 60;
-const double center[3] = {1.25, -0.25, -0.25 };
+const ExactSolID exact_sol_id = ExactSolID::InternalLayer;
 
 vector<double> rhs_fn(vector<double> coords) {
-
-   double rr = 0.0;
-   for(int i = 0; i < Def::d()->num_dim; i++) {
-      coords[i] -= center[i];
-      rr += coords[i] * coords[i];
-   }
-   double r = sqrt(rr);
-
-//   double u = atan(slope * (r - M_PI / 3.));
-
-//   double t_u_1 = r * (slope*slope * pow(r - M_PI/3, 2) + 1);
-//   double dudx = slope * coords[0] / t_u_1;
-//   double dudy = slope * coords[1] / t_u_1;
-
-   double t_u_2 = (pow(M_PI - 3.0 * r, 2) * slope * slope + 9.0);
-   double laplace = 27.0 * 2.0 * rr * (M_PI - 3.0*r) * pow(slope, 3.0) / (pow(t_u_2,2) * rr) - 9.0 * rr * slope / (t_u_2 * pow(r,3.0)) + 9.0 * slope / (t_u_2 * r);
-
-   return {-laplace};
+   ExactSolution sol;
+   sol.calculate(exact_sol_id, coords);
+   return vector<double>(1, sol.rhs);
 }
 
-void exact_solution(const vector<double> &coords, vector<double> *result) {
-   double rr = 0.0;
-   vector<double> my_coords(coords);
-   for(int i = 0; i < Def::d()->num_dim; i++) {
-      my_coords[i] -= center[i];
-      rr += my_coords[i] * my_coords[i];
-   }
-   double r = sqrt(rr);
-
-   double u = atan(slope * (r - M_PI / 3.));
-
-   *result = {u};
+vector<double> exact_solution(const vector<double> &coords) {
+   ExactSolution sol;
+   sol.calculate(exact_sol_id, coords);
+   return vector<double>(1, sol.u);
 }
+
 
 void read_command_line_params(int argc, char **argv, int *num_levels) {
    if(argc == 1 + 1) {
@@ -70,7 +48,7 @@ void read_command_line_params(int argc, char **argv, int *num_levels) {
    }
 }
 
-void run(const P4estClass &p4est_class, int num_levels)
+void run(const P4estClass &p4est_class, int num_levels, IntegralResults *integral_results)
 {
    print_rank = 0;
 
@@ -93,20 +71,19 @@ void run(const P4estClass &p4est_class, int num_levels)
    DiscreteSystem discrete_system(problem_dims, MatrixType::SPD);
    discrete_system.assemble(p4est_class, integration_mesh, nodal_mesh, problem_dims, &rhs_fn);
 
-   bddcml_solver.solve(nodal_mesh, discrete_system, &sols);
+   bddcml_solver.solve(nodal_mesh, discrete_system, exact_solution, &sols);
 
    VtkOutput vtk(p4est_class, nodal_mesh, sols);
    vtk.output_in_corners("out_corners");
    vtk.output_in_nodes("out_nodes");
+   vtk.output_exact_sol_in_nodes("out_exact", exact_solution);
 
-   vector<double> l2errors;
    Integrator integrator(p4est_class, nodal_mesh, ref_elem, sols);
-   double l2_norm = integrator.l2_norm(norm_order);
-   double l2_error = integrator.l2_error(norm_order, exact_solution, &l2errors);
+   integral_results->l2_norm = integrator.l2_norm(norm_order);
+   integral_results->l2_error = integrator.l2_error(norm_order, exact_solution);
    PPP cout << "**************************************" << endl;
-   PPP cout << "L2 norm  " << l2_norm << endl;
-   PPP cout << "L2 error " << l2_error << endl;
-   PPP cout << PrintVec<double>(l2errors) << endl;
+   PPP cout << "L2 norm  " << integral_results->l2_norm << "L2 error " << integral_results->l2_error
+            << ", L2 relative error " << integral_results->l2_rel_error() << endl;
    PPP cout << "**************************************" << endl;
 }
 
@@ -122,11 +99,14 @@ int main (int argc, char **argv)
 
    P4estClass *p4est_class = P4estClass::create(num_dim, order, mpicomm);
 
-   p4est_class->refine_and_partition(2, RefineType::UNIFORM);
+   p4est_class->refine_and_partition(1, RefineType::UNIFORM);
 
+   ofstream conv_file("conv.txt");
+   IntegralResults integral_results;
    for(int i = 0; i < 5; i++) {
       p4est_class->refine_and_partition(1, RefineType::UNIFORM);
-      run(*p4est_class, num_levels);
+      run(*p4est_class, num_levels, &integral_results);
+      conv_file << integral_results.l2_norm << ", " << integral_results.l2_rel_error() << endl;
    }
 
    delete p4est_class;

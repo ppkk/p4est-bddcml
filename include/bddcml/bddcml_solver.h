@@ -4,6 +4,7 @@
 #include <memory>
 
 #include "bddcml_structs.h"
+//#include "integral.h"
 
 class NodalElementMesh;
 class DiscreteSystem;
@@ -14,7 +15,7 @@ public:
    BddcmlSolver(ProblemDimensions &problem_dims, BddcmlGeneralParams &general_params, BddcmlKrylovParams &krylov_params,
                 BddcmlPreconditionerParams &preconditioner_params, const P4estClass &p4est_class, int num_levels);
 
-   void solve(const NodalElementMesh &nodal_mesh, DiscreteSystem &system, std::vector<double> *sols);
+   void solve(const NodalElementMesh &nodal_mesh, DiscreteSystem &system, exact_fn dirichlet_bc_exact, std::vector<double> *sols);
    void clear();
 private:
    ProblemDimensions &problem_dims;

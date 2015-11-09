@@ -19,7 +19,7 @@ BddcmlSolver::BddcmlSolver(ProblemDimensions &problem_dims, BddcmlGeneralParams 
 }
 
 
-void BddcmlSolver::solve(const NodalElementMesh &nodal_mesh, DiscreteSystem &system, vector<double> *sols) {
+void BddcmlSolver::solve(const NodalElementMesh &nodal_mesh, DiscreteSystem &system, exact_fn dirichlet_bc_exact, vector<double> *sols) {
    int mpiret = 0;
    // number of subdomains == mpi_size
    BddcmlLevelInfo level_info(num_levels, mpi_size);
@@ -32,7 +32,7 @@ void BddcmlSolver::solve(const NodalElementMesh &nodal_mesh, DiscreteSystem &sys
    //print_bddcml_mesh(&mesh, print_rank_l);
 
    BddcmlFemSpace femsp(bddcml_mesh);
-   femsp.prepare_subdomain_fem_space(nodal_mesh.physics_type, nullptr); //exact_solution);
+   femsp.prepare_subdomain_fem_space(nodal_mesh.physics_type, dirichlet_bc_exact);
    //print_bddcml_fem_space(&femsp, &mesh, print_rank_l);
 
    print_basic_properties(problem_dims, mpi_size, level_info, krylov_params);

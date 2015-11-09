@@ -4,9 +4,6 @@
 #include "arrays.h"
 #include "bddcml_structs.h"
 
-// todo this is here because of exact solution, remove it!
-#include "integral.h"
-
 class BddcmlFemSpace
 {
 public:

@@ -15,12 +15,13 @@ public:
 
    void output_in_corners(const std::string &filename);
    void output_in_nodes(const std::string &filename);
+   void output_exact_sol_in_nodes(const std::string &filename, exact_fn exact_sol);
 
 private:
    void clear_arrays();
    void init_arrays(int num_displayed_elems_in_each_elem);
    void prepare_arrays_corners();
-   void prepare_arrays_nodes();
+   void prepare_arrays_nodes(exact_fn exact);
    void output_pvtu(const std::string &filename);
    void output(const std::string &filename);
 

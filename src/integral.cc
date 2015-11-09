@@ -27,8 +27,7 @@ double l2_error_callback(const std::vector<double> &coords,
                          exact_fn function) {
    assert((int)pt_val.size() == Def::d()->num_components);
    double result = 0;
-   vector<double> fun_val(pt_val.size(), 0.0);
-   function(coords, &fun_val);
+   vector<double> fun_val = function(coords);
    for(unsigned comp = 0; comp < pt_val.size(); comp++) {
       result += sqr(pt_val[comp] - fun_val[comp]);
    }

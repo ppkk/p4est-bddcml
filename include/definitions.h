@@ -156,6 +156,7 @@ public:
 
 };
 
+typedef std::vector<double> (*exact_fn)(const std::vector<double> &coords);
 
 template <typename number>
 class PrintVec

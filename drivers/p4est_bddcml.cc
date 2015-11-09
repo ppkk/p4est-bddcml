@@ -71,13 +71,13 @@ const double center[3] = {1.25, -0.25, -0.25 };
 //   return {-laplace};
 //}
 
-void exact_solution(const vector<double> &coords, vector<double> *result) {
+vector<double> exact_solution(const vector<double> &coords) {
 
    //   //1
    double value = 1.;
    for(int dim = 0; dim < Def::d()->num_dim; dim++)
       value *= coords[dim] * (1-coords[dim]);
-   *result = {value};
+   return vector<double>(1, value);
    //   //2
    //   //*result = {(1-x)*x};
 
@@ -136,7 +136,7 @@ void run(const P4estClass &p4est_class, int num_levels)
    DiscreteSystem discrete_system(problem_dims, MatrixType::SPD);
    discrete_system.assemble(p4est_class, integration_mesh, nodal_mesh, problem_dims, &rhs_fn, params);
 
-   bddcml_solver.solve(nodal_mesh, discrete_system, &sols);
+   bddcml_solver.solve(nodal_mesh, discrete_system, exact_solution, &sols);
 
    VtkOutput vtk(p4est_class, nodal_mesh, sols);
    vtk.output_in_corners("out_corners");

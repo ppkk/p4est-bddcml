@@ -70,10 +70,8 @@ void BddcmlFemSpace::prepare_subdomain_fem_space(PhysicsType physicsType, exact_
                vector<double> coords(Def::d()->num_dim, 0.0);
                for(int dim = 0; dim < Def::d()->num_dim; dim++) {
                   coords[dim] = mesh.coords.val[dim][node];
-               }
-               vector<double> result(1);
-               dirichlet_bc_exact(coords, &result);
-               dirichlet_value = result[0];
+               }               
+               dirichlet_value = dirichlet_bc_exact(coords)[0];
             }
             fixs_code.val[subdomain_dof] = 1;
             fixs_values.val[subdomain_dof] = dirichlet_value;

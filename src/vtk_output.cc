@@ -30,8 +30,20 @@ void VtkOutput::output_in_nodes(const string &filename) {
       displayed_in_elem *= Def::d()->order;
 
    init_arrays(displayed_in_elem);
-   prepare_arrays_nodes();
+   prepare_arrays_nodes(nullptr);
    output(filename);
+}
+
+void VtkOutput::output_exact_sol_in_nodes(const string &filename, exact_fn exact_sol) {
+   clear_arrays();
+   int displayed_in_elem = Def::d()->order * Def::d()->order;
+   if(Def::d()->num_dim == 3)
+      displayed_in_elem *= Def::d()->order;
+
+   init_arrays(displayed_in_elem);
+   prepare_arrays_nodes(exact_sol);
+   output(filename);
+
 }
 
 void VtkOutput::output_pvtu(const string &filename) {
@@ -157,7 +169,7 @@ void VtkOutput::prepare_arrays_corners() {
    }
 }
 
-void VtkOutput::prepare_arrays_nodes() {
+void VtkOutput::prepare_arrays_nodes(exact_fn exact) {
    ReferenceElement ref_elem(Def::d()->num_dim, Def::d()->order);
    vector<vector<double> > elem_nodes_coords;
 
@@ -181,7 +193,12 @@ void VtkOutput::prepare_arrays_nodes() {
 
             // solution values
             for(int comp = 0; comp < Def::d()->num_components; comp++) {
-               solutions_values[comp].push_back(loc_sol.loc_vec.comps[comp].vec[node_idx]);
+               if(exact == nullptr) {
+                  solutions_values[comp].push_back(loc_sol.loc_vec.comps[comp].vec[node_idx]);
+               }
+               else {
+                  solutions_values[comp].push_back(exact(node_coords)[comp]);
+               }
             }
 
          }
