@@ -14,6 +14,7 @@
 #include <assert.h>
 
 #include <vector>
+#include <algorithm>
 
 #include "definitions.h"
 #include "p4est/my_p4est_implementation.h"
@@ -23,6 +24,7 @@
 #include "integration_cell.h"
 
 using namespace std;
+//using namespace std::placeholders;  // for _1, _2, _3...
 
 // this file defines both P4estClass2D and P4estClass3D using p4est macros
 #ifndef P4_TO_P8
@@ -172,6 +174,22 @@ static const int    corner_num_hanging[P4EST_CHILDREN] =
    { 1, 2, 2, 4, 2, 4, 4, 1 }
 #endif
 ;
+
+class Refiner
+{
+public:
+   Refiner(const vector<bool> &ref_inds) : ref_inds(ref_inds), elem_counter(0) {}
+   int should_refine(p4est_t * /*p4est*/, p4est_topidx_t /*which_tree*/, p4est_quadrant_t * /*quadrant*/) {
+      return ref_inds[elem_counter++];
+   }
+
+public:
+   const vector<bool> &ref_inds;
+   int elem_counter;
+};
+
+vector<bool> refinement_indicators;
+int element_counter;
 
 } //P4estNamespaceDim
 
@@ -365,6 +383,10 @@ void get_quad_coords(p4est_quadrant_t * quadrant, double* coords, double *length
    *length = pow(0.5, quadrant->level);
 }
 
+int refine_selected (p4est_t * /*p4est*/, p4est_topidx_t /*which_tree*/, p4est_quadrant_t * /*quadrant*/) {
+   return P4estNamespaceDim::refinement_indicators[P4estNamespaceDim::element_counter++];
+}
+
 int refine_uniform (p4est_t * /*p4est*/, p4est_topidx_t /*which_tree*/, p4est_quadrant_t * /*quadrant*/) {
    return 1;
 }
@@ -511,6 +533,79 @@ void P4estClassDim::refine_and_partition(int num, RefineType type) {
   }
 }
 
+
+
+void P4estClassDim::refine_and_partition(const std::vector<double> &element_errors, double refine_approx_elems) {
+   destroy_lnodes();
+   int nelems_before = p4est->global_num_quadrants;
+
+   P4estNamespaceDim::element_counter = 0;
+   P4estNamespaceDim::refinement_indicators = vector<bool>(element_errors.size(), false);
+
+   double max_error = *std::max_element(element_errors.begin(), element_errors.end());
+   MPI_Allreduce(MPI_IN_PLACE, &max_error, 1, MPI_DOUBLE, MPI_MAX, mpicomm);
+
+   // now we have to determine the treshold
+   int num_considered_tesholds = 100;
+   vector<int> num_potentially_refined_elems(num_considered_tesholds, 0);
+
+   for(unsigned elem_idx = 0; elem_idx < element_errors.size(); elem_idx++) {
+      int fraction = int(num_considered_tesholds * element_errors[elem_idx] / max_error);
+//      cout << "fr " << fraction << ", max " << max_error << endl;
+      assert((fraction >= 0) && (fraction <= num_considered_tesholds));
+      fraction = min(fraction, num_considered_tesholds - 1); // this is the case of maximum
+      for(int i = 0; i <= fraction; i++) {
+         num_potentially_refined_elems[i]++;
+      }
+   }
+
+   assert(num_potentially_refined_elems[0] == (int)element_errors.size());
+
+   MPI_Allreduce(MPI_IN_PLACE, &num_potentially_refined_elems[0], num_considered_tesholds, MPI_INT, MPI_SUM, mpicomm);
+
+   double treshold_step = 1./num_considered_tesholds;
+   double treshold = 1 - treshold_step;
+   int level = num_considered_tesholds - 1;
+   while(num_potentially_refined_elems[level] < refine_approx_elems) {
+      treshold -= treshold_step;
+      level--;
+   }
+   assert(level < num_considered_tesholds);
+   assert(treshold <= 1);
+
+
+   int really_refined_elems = 0;
+   for(unsigned elem_idx = 0; elem_idx < element_errors.size(); elem_idx++) {
+      if(element_errors[elem_idx] > treshold * max_error) {
+         P4estNamespaceDim::refinement_indicators[elem_idx] = true;
+         really_refined_elems++;
+      }
+   }
+
+   MPI_Allreduce(MPI_IN_PLACE, &really_refined_elems, 1, MPI_INT, MPI_SUM, mpicomm);
+
+   p4est_refine (p4est, 0, refine_selected, NULL);
+   p4est_balance (p4est, P4EST_CONNECT_FULL, NULL);
+   p4est_partition (p4est, 0, NULL);
+
+//   if(mpi_rank == 0) {
+//      cout << PrintVec<double>(element_errors) << "~~~~~" << endl;
+//      cout << PrintVec<int>(num_potentially_refined_elems) << ";;; " << endl;
+//      cout << "num elems " << element_errors.size() << " treshold " << treshold << " level " << level << endl;
+//      cout << "should refine between <" << num_potentially_refined_elems[level] << ", " <<  num_potentially_refined_elems[level+1] <<
+//              ">, refined "<< really_refined_elems << endl;
+//   }
+
+   if(mpi_rank == 0) {
+      int added = p4est->global_num_quadrants - nelems_before;
+      printf("+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++\n");
+      printf("Mesh refinement ADAPTIVE, added %d elements (%3.2lf %%), now %ld elements\n",
+             added, 100*(double)added/p4est->global_num_quadrants, p4est->global_num_quadrants);
+      printf("+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++\n");
+  }
+
+}
+
 //****************************************************************************************
 
 void P4estClassDim::prepare_dimmensions(ProblemDimensions *problem_dims) const {
@@ -629,7 +724,8 @@ void P4estClassDim::prepare_nodal_mesh(int ncomponents, const IntegrationMesh &i
       NodalElement nodal_element(quad_idx, ncomponents, integration_mesh.cells[quad_idx], reference_element);
       for (int lnode = 0; lnode < Def::d()->num_element_nodes; ++lnode) {
          p4est_locidx_t node_idx = lnodes()->element_nodes[Def::d()->num_element_nodes * quad_idx + lnode];
-         //nodal_element.nodes.push_back(node_idx);
+         // add node idx and corresponding dofs indices
+         // todo: this should not be here
          nodal_element.add_node_and_dofs(node_idx);
       }
 

@@ -21,6 +21,20 @@ double l2_norm_callback(const std::vector<double> &coords,
    return result;
 }
 
+
+double h1_seminorm_callback(const std::vector<double> &coords,
+                        const vector<double> &pt_val,
+                        const vector<vector<double> > &pt_grad,
+                        exact_fn exact_grad) {
+   assert((int)pt_val.size() == Def::d()->num_components);
+   double result = 0;
+   assert(pt_grad.size() == 1);
+   for(double der : pt_grad[0]) {
+      result += der * der;
+   }
+   return result;
+}
+
 double l2_error_callback(const std::vector<double> &coords,
                          const vector<double> &pt_val,
                          const vector<vector<double> > &pt_grad,
@@ -30,6 +44,20 @@ double l2_error_callback(const std::vector<double> &coords,
    vector<double> fun_val = function(coords);
    for(unsigned comp = 0; comp < pt_val.size(); comp++) {
       result += sqr(pt_val[comp] - fun_val[comp]);
+   }
+   return result;
+}
+
+double h1_semierror_callback(const std::vector<double> &coords,
+                         const vector<double> &pt_val,
+                         const vector<vector<double> > &pt_grad,
+                         exact_fn exact_grad) {
+   assert((int)pt_val.size() == Def::d()->num_components);
+   double result = 0;
+   assert(pt_grad.size() == 1);
+   vector<double> exact_grad_val = exact_grad(coords);
+   for(unsigned comp = 0; comp < pt_grad[0].size(); comp++) {
+      result += sqr(pt_grad[0][comp] - exact_grad_val[comp]);
    }
    return result;
 }
@@ -85,8 +113,8 @@ double Integrator::l2_norm(int quad_order, vector<double> *element_values) const
    return value;
 }
 
-double Integrator::l2_error(int quad_order, exact_fn exact_solution, vector<double> *element_values) const {
-   double value = sqrt(calculate(quad_order, l2_error_callback, exact_solution, element_values));
+double Integrator::h1_seminorm(int quad_order, vector<double> *element_values) const {
+   double value = sqrt(calculate(quad_order, h1_seminorm_callback, nullptr, element_values));
    if(element_values != nullptr) {
       assert(element_values->size() == (unsigned)mesh.num_elements());
       for(unsigned i = 0; i < element_values->size(); i++) {
@@ -94,4 +122,32 @@ double Integrator::l2_error(int quad_order, exact_fn exact_solution, vector<doub
       }
    }
    return value;
+}
+
+double Integrator::l2_error(int quad_order, exact_fn exact_gradient, vector<double> *element_values) const {
+   double value = sqrt(calculate(quad_order, l2_error_callback, exact_gradient, element_values));
+   if(element_values != nullptr) {
+      assert(element_values->size() == (unsigned)mesh.num_elements());
+      for(unsigned i = 0; i < element_values->size(); i++) {
+         element_values->at(i) = sqrt(element_values->at(i));
+      }
+   }
+   return value;
+}
+
+double Integrator::h1_semierror(int quad_order, exact_fn exact_gradient, vector<double> *element_values) const {
+   double value = sqrt(calculate(quad_order, h1_semierror_callback, exact_gradient, element_values));
+   if(element_values != nullptr) {
+      assert(element_values->size() == (unsigned)mesh.num_elements());
+      for(unsigned i = 0; i < element_values->size(); i++) {
+         element_values->at(i) = sqrt(element_values->at(i));
+      }
+   }
+   return value;
+}
+
+
+void IntegralResults::init(const ProblemDimensions &problem_dims) {
+   n_glob_elems = problem_dims.n_glob_elems;
+   n_glob_dofs = problem_dims.n_glob_dofs;
 }

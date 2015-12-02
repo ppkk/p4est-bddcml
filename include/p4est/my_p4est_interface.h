@@ -46,6 +46,7 @@ public:
    virtual bool get_hanging_info(int quad_idx, HangingInfo *hanging_info) const = 0;
 
    virtual void refine_and_partition(int num, RefineType type) = 0;
+   virtual void refine_and_partition(const std::vector<double> &element_errors, double refine_approx_elems) = 0;
 
    virtual void init_definitions(Def *def) const = 0;
 

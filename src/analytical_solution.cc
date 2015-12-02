@@ -28,23 +28,26 @@ void ExactSolution::calculate(ExactSolID sol_id, const std::vector<double> &coor
       const double center[3] = {1.25, -0.25, -0.25 };
 
       double rr = 0.0;
+      double coords_sum = 0.0;
       vector<double> my_coords = coords;
       for(int i = 0; i < Def::d()->num_dim; i++) {
          my_coords[i] -= center[i];
          rr += my_coords[i] * my_coords[i];
+         coords_sum += my_coords[i];
       }
       double r = sqrt(rr);
 
       u = atan(slope * (r - M_PI / 3.));
 
-      double t_u_1 = r * (slope*slope * pow(r - M_PI/3, 2) + 1);
-      dudx = slope * coords[0] / t_u_1;
-      dudy = slope * coords[1] / t_u_1;
+      double term = 1 / ( 1 + sqr(slope * (r - M_PI/3)));
+      grad.resize(Def::d()->num_dim);
+      for(int i= 0; i < Def::d()->num_dim; i++) {
+         grad[i] = term * slope / r * my_coords[i];
+      }
 
-      double t_u_2 = (pow(M_PI - 3.0 * r, 2) * slope * slope + 9.0);
-
-      double laplace = 27.0 * 2.0 * rr * (M_PI - 3.0*r) * pow(slope, 3.0) / (pow(t_u_2,2) * rr) -
-            9.0 * rr * slope / (t_u_2 * pow(r,3.0)) + 9.0 * 2.0 * slope / (t_u_2 * r);
+      double laplace = Def::d()->num_dim * term * slope / r +
+                       term *  (- slope / r) +
+                       (-2 * pow(slope, 3) * (r-M_PI/3) * term * term);
 
       rhs = -laplace;
 

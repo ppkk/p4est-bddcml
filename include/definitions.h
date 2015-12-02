@@ -8,6 +8,8 @@
 #include <vector>
 #include <iostream>
 
+#define sqr(x) ((x)*(x))
+
 class P4estClass;
 
 // type used for floating point
@@ -19,7 +21,6 @@ extern int print_rank;
 extern MPI_Comm mpicomm;
 
 #define PPP if(mpi_rank == print_rank)
-
 
 enum class MatrixType{
    GENERAL,      // general (full storage)

@@ -9,7 +9,7 @@ enum class ExactSolID
    LapQuadratic,
 
    // Internal layer with slope defined in .cc file
-   InternalLayer
+   InternalLayer,
 };
 
 class ExactSolution
@@ -17,7 +17,8 @@ class ExactSolution
 public:
    void calculate(ExactSolID sol_id, const std::vector<double> &coords);
 public:
-   double u, dudx, dudy, rhs;
+   double u, rhs;
+   std::vector<double> grad;
 };
 
 #endif // ANALYTICAL_SOLUTION_H
