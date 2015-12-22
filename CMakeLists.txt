@@ -2,6 +2,9 @@ cmake_minimum_required (VERSION 2.6)
 project(p4est-bddcml)
 include(CMake.vars)
 
+find_package(MPI REQUIRED)
+#find_package(MUMPS REQUIRED)
+ 
 #debug, remove...
 set (CMAKE_C_FLAGS " -g --std=gnu11 -pedantic-errors -Wall ${CMAKE_C_FLAGS}")
 set (CMAKE_CXX_FLAGS " -g --std=c++11 -Wall -Wno-literal-suffix ${CMAKE_CXX_FLAGS}")
@@ -11,8 +14,8 @@ include_directories("${BDDCML_ROOT}/src")
 link_directories("${BDDCML_ROOT}/lib")
 set(LIBS ${LIBS} bddcml)
 
-include_directories("${MUMPS_ROOT}/include")
-link_directories("${MUMPS_ROOT}/lib")
+include_directories("${MUMPS_INCLUDE}")
+link_directories("${MUMPS_LIB}")
 set(LIBS ${LIBS}  dmumps mumps_common pord)
 
 include_directories("${PARMETIS_INCLUDE}")
@@ -23,8 +26,8 @@ include_directories("${METIS_INCLUDE}")
 link_directories("${METIS_LIB}")
 set(LIBS ${LIBS}  metis)
 
-include_directories("${P4EST_ROOT}/local/include")
-link_directories("${P4EST_ROOT}/local/lib")
+include_directories("${P4EST_INCLUDE}")
+link_directories("${P4EST_LIB}")
 set(LIBS ${LIBS} sc p4est )
 
 set(SOURCES
@@ -79,7 +82,7 @@ include/analytical_solution.h
 include_directories("${BLOPEX_ROOT}/blopex_serial_double/multivector")
 include_directories("${BLOPEX_ROOT}/blopex_serial_double/pcg_multi")
 include_directories("${BLOPEX_ROOT}/blopex_serial_double/matmultivec")
-include_directories("${BLOPEX_ROOT}//blopex_abstract/include")
+include_directories("${BLOPEX_ROOT}/blopex_abstract/include")
 link_directories("${BLOPEX_ROOT}/blopex_abstract/lib")
 set(LIBS ${LIBS}  BLOPEX)
 

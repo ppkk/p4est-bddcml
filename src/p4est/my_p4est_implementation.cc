@@ -718,9 +718,8 @@ void P4estClassDim::prepare_nodal_mesh(int ncomponents, const IntegrationMesh &i
 
    p4est_locidx_t quad_idx = 0;
    p4est_quadrant_t *quad;
-   p4est_topidx_t tree;
 
-   for_all_quads_with_tree(p4est, tree, quad_idx, quad) {
+   for_all_quads(p4est, quad_idx, quad) {
       NodalElement nodal_element(quad_idx, ncomponents, integration_mesh.cells[quad_idx], reference_element);
       for (int lnode = 0; lnode < Def::d()->num_element_nodes; ++lnode) {
          p4est_locidx_t node_idx = lnodes()->element_nodes[Def::d()->num_element_nodes * quad_idx + lnode];

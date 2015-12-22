@@ -1,6 +1,19 @@
 set(BDDCML_ROOT /home/pkus/sources/bddcml)
-set(P4EST_ROOT /home/pkus/cimnestay/sources/p4est-1.1/)
-set(MPI_ROOT /usr/lib/openmpi/)
-set(MUMPS_ROOT /home/pkus/usr/MUMPS_5.0.0/)
-set(PARMETIS_ROOT /home/pkus/cimnestay/sources/parmetis-4.0.3/)
-set(BLOPEX_ROOT /home/pkus/usr/blopex)
+
+set(MUMPS_ROOT /home/pkus/lib/MUMPS_5.0.0/)
+set(MUMPS_INCLUDE ${MUMPS_ROOT}/include)
+set(MUMPS_LIB ${MUMPS_ROOT}/lib)
+
+set(P4EST_ROOT /home/pkus/lib/p4est-1.1/)
+set(P4EST_INCLUDE ${P4EST_ROOT}/local/include)
+set(P4EST_LIB ${P4EST_ROOT}/local/lib)
+
+set(METIS_ROOT /home/pkus/lib/parmetis-4.0.3/)
+set(METIS_INCLUDE ${PARMETIS_ROOT}/metis/include)
+set(METIS_LIB ${PARMETIS_ROOT}/build/Linux-x86_64/libmetis)
+
+set(PARMETIS_ROOT /home/pkus/lib/parmetis-4.0.3/)
+set(PARMETIS_INCLUDE ${PARMETIS_ROOT}/include)
+set(PARMETIS_LIB ${PARMETIS_ROOT}/build/Linux-x86_64/libparmetis)
+
+set(BLOPEX_ROOT /home/pkus/lib/blopex)

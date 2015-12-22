@@ -28,6 +28,9 @@ public:
    std::vector<double> position;
    double size;
    int refinement_level;
+
+   // describes which kind of children this cell is
+   // it might be used to recover parent cell to this cell
    int child_position;
 };
 
