@@ -2,6 +2,9 @@ cmake_minimum_required (VERSION 2.6)
 project(p4est-bddcml)
 include(CMake.vars)
 
+set(CMAKE_CXX_COMPILER mpicc)
+set(CMAKE_C_COMPILER mpicc)
+
 find_package(MPI REQUIRED)
 #find_package(MUMPS REQUIRED)
  
@@ -91,21 +94,19 @@ set(BLOPEX_OBJECTS ${BLOPEX_OBJECTS} "${BLOPEX_ROOT}/blopex_serial_double/pcg_mu
 set(BLOPEX_OBJECTS ${BLOPEX_OBJECTS} "${BLOPEX_ROOT}/blopex_serial_double/matmultivec/matmultivec.o")
 
 set(LIBS ${LIBS}
-scalapack-openmpi
 m
 gfortran
-blas
-lapack
-blacs-openmpi
-blacsCinit-openmpi
-blacsF77init-openmpi
-blacs-openmpi
+)
+
+set(LIBS ${LIBS} 
+${LIBS_BLAS_LAPACK}
 )
 
 include_directories("${MPI_ROOT}/include")
 set(LIBS ${LIBS}
-mpi
-pthread mpi_f77
+#mpi
+#pthread 
+#mpi_f77
 )
 
 

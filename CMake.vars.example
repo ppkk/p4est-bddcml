@@ -1,19 +1,19 @@
-set(BDDCML_ROOT /home/pkus/sources/bddcml)
+set(BDDCML_ROOT ${HOME}/sources/bddcml)
 
-set(MUMPS_ROOT /home/pkus/lib/MUMPS_5.0.0/)
+set(MUMPS_ROOT ${HOME}/lib/MUMPS_5.0.0/)
 set(MUMPS_INCLUDE ${MUMPS_ROOT}/include)
 set(MUMPS_LIB ${MUMPS_ROOT}/lib)
 
-set(P4EST_ROOT /home/pkus/lib/p4est-1.1/)
+set(P4EST_ROOT ${HOME}/lib/p4est-1.1/)
 set(P4EST_INCLUDE ${P4EST_ROOT}/local/include)
 set(P4EST_LIB ${P4EST_ROOT}/local/lib)
 
-set(METIS_ROOT /home/pkus/lib/parmetis-4.0.3/)
-set(METIS_INCLUDE ${PARMETIS_ROOT}/metis/include)
-set(METIS_LIB ${PARMETIS_ROOT}/build/Linux-x86_64/libmetis)
+set(METIS_ROOT ${HOME}/lib/metis/)
+set(METIS_INCLUDE ${METIS_ROOT}/include)
+set(METIS_LIB ${METIS_ROOT}/lib)
 
-set(PARMETIS_ROOT /home/pkus/lib/parmetis-4.0.3/)
+set(PARMETIS_ROOT ${HOME}/lib/parmetis/)
 set(PARMETIS_INCLUDE ${PARMETIS_ROOT}/include)
-set(PARMETIS_LIB ${PARMETIS_ROOT}/build/Linux-x86_64/libparmetis)
+set(PARMETIS_LIB ${PARMETIS_ROOT}/lib)
 
-set(BLOPEX_ROOT /home/pkus/lib/blopex)
+set(BLOPEX_ROOT ${HOME}/lib/blopex)
