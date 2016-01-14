@@ -164,7 +164,7 @@ int main (int argc, char **argv)
    P4estClass* p4est_class = P4estClass::create(num_dim, order, mpicomm);
 
    p4est_class->refine_and_partition(2, RefineType::UNIFORM);
-   p4est_class->refine_and_partition(2, RefineType::CIRCLE);
+   p4est_class->refine_and_partition(5, RefineType::CIRCLE);
 
    // 2D
 //   p4est_class->refine_and_partition(4, RefineType::UNIFORM);
@@ -181,6 +181,17 @@ int main (int argc, char **argv)
 //   p4est_class->refine_and_partition(3, RefineType::CIRCLE);
 //   p4est_class->refine_and_partition(3, RefineType::SQUARE);
 
+   // 2D - anselm
+//   p4est_class->refine_and_partition(11, RefineType::UNIFORM);
+//   p4est_class->refine_and_partition(10, RefineType::CIRCLE);
+//   p4est_class->refine_and_partition(6, RefineType::SQUARE);
+
+   // 3D - anselm
+//   p4est_class->refine_and_partition(6, RefineType::UNIFORM);
+//   p4est_class->refine_and_partition(5, RefineType::CIRCLE);
+//   p4est_class->refine_and_partition(5, RefineType::SQUARE);
+
+
    run(*p4est_class, num_levels);
 
    delete p4est_class;
@@ -188,7 +199,6 @@ int main (int argc, char **argv)
    sc_finalize ();
    assert(get_num_allocations() == 0);
 
-   /* This is standard MPI programs.  Without --enable-mpi, this is a dummy. */
    mpiret = sc_MPI_Finalize ();
    SC_CHECK_MPI (mpiret);
    return 0;

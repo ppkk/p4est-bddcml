@@ -2,9 +2,6 @@ cmake_minimum_required (VERSION 2.6)
 project(p4est-bddcml)
 include(CMake.vars)
 
-set(CMAKE_CXX_COMPILER mpicc)
-set(CMAKE_C_COMPILER mpicc)
-
 find_package(MPI REQUIRED)
 #find_package(MUMPS REQUIRED)
  
@@ -12,6 +9,7 @@ find_package(MPI REQUIRED)
 set (CMAKE_C_FLAGS " -g --std=gnu11 -pedantic-errors -Wall ${CMAKE_C_FLAGS}")
 set (CMAKE_CXX_FLAGS " -g --std=c++11 -Wall -Wno-literal-suffix ${CMAKE_CXX_FLAGS}")
 set (CMAKE_CXX_COMPILER mpic++)
+set (CMAKE_C_COMPILER mpicc)
 
 include_directories("${BDDCML_ROOT}/src")
 link_directories("${BDDCML_ROOT}/lib")
@@ -104,9 +102,7 @@ ${LIBS_BLAS_LAPACK}
 
 include_directories("${MPI_ROOT}/include")
 set(LIBS ${LIBS}
-#mpi
-#pthread 
-#mpi_f77
+${LIBS_MPI_EXTRA}
 )
 
 
