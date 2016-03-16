@@ -13,12 +13,23 @@
 #include "vtk_output.h"
 #include "integral.h"
 
+// refinements: uniform, circle, square
+// 2D elasticity on 4 procs gives 11 PCG iterations and condition number 0.433169186E+01, refs: 4, 3, 3
+// 3D elasticity on 4 procs gives 19 iterations and condition number 0.190076921E+02, refs: 2, 3, 3
+// 2D - anselm, refs: 11, 10, 6
+// 3D - anselm, refs: 6, 5, 5
+
 using namespace std;
 
-const int num_dim = 2;
-const int order = 3;
+const int num_dim = 3;
+const int order = 1;
 const int norm_order = 2 * order;
 const PhysicsType physicsType = PhysicsType::LAPLACE;
+
+// 0 for poisson, 1 for elasticity
+const int use_corner_constraints = 0;
+
+const bool vtk_output = false;
 
 vector<double> rhs_fn(vector<double>)
 {
@@ -100,13 +111,21 @@ vector<double> exact_solution(const vector<double> &coords) {
 
 Parameters params(1e10, 0.33);
 
-void read_command_line_params(int argc, char **argv, int *num_levels) {
-   if(argc == 1 + 1) {
+void read_command_line_params(int argc, char **argv, int *num_levels, int *unif, int* circle, int* square) {
+   if(argc == 1 + 4) {
       *num_levels = atoi(argv[1]);
+      *unif = atoi(argv[2]);
+      *circle = atoi(argv[3]);
+      *square = atoi(argv[4]);
+
+      if ( mpi_rank == 0 ) {
+         printf("NUM LEVELS %d\n", *num_levels);
+         printf("REFINEMENTS %d UNIFORM, %d CIRCLE, %d SQUARE\n", *unif, *circle, *square);
+      }
    }
    else {
       if ( mpi_rank == 0 ) {
-         printf(" Usage: mpirun -np X ./p4est_bddcml NLEVELS\n");
+         printf(" Usage: mpirun -np X ./p4est_bddcml NLEVELS UNIF_REF CIRCLE_REF SQUARE_REF\n");
       }
       exit(0);
    }
@@ -123,6 +142,7 @@ void run(const P4estClass &p4est_class, int num_levels)
    //general_params.just_direct_solve_int = 1;
    BddcmlKrylovParams krylov_params;
    BddcmlPreconditionerParams preconditioner_params;
+   preconditioner_params.use_corner_constraints = use_corner_constraints;
 
    ProblemDimensions problem_dims(Def::d()->num_dim, physicsType, p4est_class);
    BddcmlSolver bddcml_solver(problem_dims, general_params, krylov_params,
@@ -136,11 +156,17 @@ void run(const P4estClass &p4est_class, int num_levels)
    DiscreteSystem discrete_system(problem_dims, MatrixType::SPD);
    discrete_system.assemble(p4est_class, integration_mesh, nodal_mesh, problem_dims, &rhs_fn, params);
 
-   bddcml_solver.solve(nodal_mesh, discrete_system, exact_solution, &sols);
+   if(physicsType == PhysicsType::ELASTICITY)
+      bddcml_solver.solve(nodal_mesh, discrete_system, nullptr, &sols);
+   else
+      bddcml_solver.solve(nodal_mesh, discrete_system, exact_solution, &sols);
 
-   VtkOutput vtk(p4est_class, nodal_mesh, sols);
-   vtk.output_in_corners("out_corners");
-   vtk.output_in_nodes("out_nodes");
+   if(vtk_output)
+   {
+      VtkOutput vtk(p4est_class, nodal_mesh, sols);
+      vtk.output_in_corners("out_corners");
+      vtk.output_in_nodes("out_nodes");
+   }
 
    Integrator integrator(p4est_class, nodal_mesh, ref_elem, sols);
    double l2_norm = integrator.l2_norm(norm_order);
@@ -153,44 +179,23 @@ void run(const P4estClass &p4est_class, int num_levels)
 
 int main (int argc, char **argv)
 {
-   int num_levels;
+   int num_levels, unif_ref, circle_ref, square_ref;
    int mpiret = sc_MPI_Init (&argc, &argv);
    SC_CHECK_MPI (mpiret);
    mpiret = sc_MPI_Comm_rank(mpicomm, &mpi_rank);
    mpiret = sc_MPI_Comm_size(mpicomm, &mpi_size);
 
-   read_command_line_params(argc, argv, &num_levels);
+   if(((physicsType == PhysicsType::LAPLACE) && (use_corner_constraints == 1)) ||
+      ((physicsType == PhysicsType::ELASTICITY) && (use_corner_constraints == 0)))
+      printf("Warning: strange setting of use_corner_constraints!\n");
+
+   read_command_line_params(argc, argv, &num_levels, &unif_ref, &circle_ref, &square_ref);
 
    P4estClass* p4est_class = P4estClass::create(num_dim, order, mpicomm);
 
-   p4est_class->refine_and_partition(2, RefineType::UNIFORM);
-   p4est_class->refine_and_partition(5, RefineType::CIRCLE);
-
-   // 2D
-//   p4est_class->refine_and_partition(4, RefineType::UNIFORM);
-//   p4est_class->refine_and_partition(5, RefineType::CIRCLE);
-//   p4est_class->refine_and_partition(6, RefineType::SQUARE);
-
-   // 2D elasticity on 4 procs gives 11 PCG iterations and condition number 0.433169186E+01
-//   p4est_class->refine_and_partition(4, RefineType::UNIFORM);
-//   p4est_class->refine_and_partition(3, RefineType::CIRCLE);
-//   p4est_class->refine_and_partition(3, RefineType::SQUARE);
-
-   // 3D elasticity on 4 procs gives 19 iterations and condition number 0.190076921E+02
-//   p4est_class->refine_and_partition(2, RefineType::UNIFORM);
-//   p4est_class->refine_and_partition(3, RefineType::CIRCLE);
-//   p4est_class->refine_and_partition(3, RefineType::SQUARE);
-
-   // 2D - anselm
-//   p4est_class->refine_and_partition(11, RefineType::UNIFORM);
-//   p4est_class->refine_and_partition(10, RefineType::CIRCLE);
-//   p4est_class->refine_and_partition(6, RefineType::SQUARE);
-
-   // 3D - anselm
-//   p4est_class->refine_and_partition(6, RefineType::UNIFORM);
-//   p4est_class->refine_and_partition(5, RefineType::CIRCLE);
-//   p4est_class->refine_and_partition(5, RefineType::SQUARE);
-
+   p4est_class->refine_and_partition(unif_ref, RefineType::UNIFORM);
+   p4est_class->refine_and_partition(circle_ref, RefineType::CIRCLE);
+   p4est_class->refine_and_partition(square_ref, RefineType::SQUARE);
 
    run(*p4est_class, num_levels);
 
