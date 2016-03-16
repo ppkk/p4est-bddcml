@@ -130,8 +130,8 @@ void read_command_line_params(int argc, char **argv, int *num_levels, int *unif,
             assert(0);
          printf("USE CORNER CONSTRAINTS %d\n", use_corner_constraints);
          printf("REFINEMENTS %d UNIFORM, %d CIRCLE, %d SQUARE\n", *unif, *circle, *square);
-         MPI_Barrier(mpicomm);
       }
+      MPI_Barrier(mpicomm);
    }
    else {
       if ( mpi_rank == 0 ) {
