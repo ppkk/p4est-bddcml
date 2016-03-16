@@ -119,8 +119,18 @@ void read_command_line_params(int argc, char **argv, int *num_levels, int *unif,
       *square = atoi(argv[4]);
 
       if ( mpi_rank == 0 ) {
+         printf("NUM DIMENSIONS %d\n", num_dim);
+         printf("ELEMENT ORDER %d\n", order);
          printf("NUM LEVELS %d\n", *num_levels);
+         if(physicsType == PhysicsType::LAPLACE)
+            printf("PHYSICS TYPE LAPLACE\n");
+         else if(physicsType == PhysicsType::ELASTICITY)
+            printf("PHYSICS TYPE ELASTICITY\n");
+         else
+            assert(0);
+         printf("USE CORNER CONSTRAINTS %d\n", use_corner_constraints);
          printf("REFINEMENTS %d UNIFORM, %d CIRCLE, %d SQUARE\n", *unif, *circle, *square);
+         MPI_Barrier(mpicomm);
       }
    }
    else {
