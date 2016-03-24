@@ -526,10 +526,10 @@ void P4estClassDim::refine_and_partition(int num, RefineType type) {
 
    if(mpi_rank == 0) {
       int added = p4est->global_num_quadrants - nelems_before;
-      printf("+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++\n");
+      //printf("+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++\n");
       printf("Mesh refinement %s, %d levels, added %d elements (%3.2lf %%), now %ld elements\n",
              name, num, added, 100*(double)added/p4est->global_num_quadrants, p4est->global_num_quadrants);
-      printf("+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++\n");
+      //printf("+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++\n");
   }
 }
 
@@ -617,7 +617,7 @@ void P4estClassDim::prepare_dimmensions(ProblemDimensions *problem_dims) const {
    problem_dims->n_subdom_nodes = lnodes()->num_local_nodes;
    problem_dims->n_subdom_dofs  = lnodes()->num_local_nodes * problem_dims->n_node_dofs;
    problem_dims->n_subdom_elems = lnodes()->num_local_elements;
-   printf("proc %d, elems %d, nodes %d\n", mpi_rank, problem_dims->n_subdom_elems, problem_dims->n_subdom_nodes);
+   //printf("proc %d, elems %d, nodes %d\n", mpi_rank, problem_dims->n_subdom_elems, problem_dims->n_subdom_nodes);
 
    int global_num_nodes;
    if(mpi_rank == mpi_size - 1) {

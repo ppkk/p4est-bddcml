@@ -21,13 +21,14 @@
 
 using namespace std;
 
-const int num_dim = 3;
-const int order = 1;
-const int norm_order = 2 * order;
-const PhysicsType physicsType = PhysicsType::LAPLACE;
+// ugly global settings
+int num_dim = -1;
+int order = -1;
+int norm_order = -1;
+PhysicsType physicsType;
 
 // 0 for poisson, 1 for elasticity
-const int use_corner_constraints = 0;
+int use_corner_constraints;
 
 const bool vtk_output = false;
 
@@ -111,12 +112,26 @@ vector<double> exact_solution(const vector<double> &coords) {
 
 Parameters params(1e10, 0.33);
 
-void read_command_line_params(int argc, char **argv, int *num_levels, int *unif, int* circle, int* square) {
-   if(argc == 1 + 4) {
-      *num_levels = atoi(argv[1]);
-      *unif = atoi(argv[2]);
-      *circle = atoi(argv[3]);
-      *square = atoi(argv[4]);
+void read_command_line_params(int argc, char **argv, int *num_levels, int *unif, int* circle, int* square, int* extra_unif) {
+   if(argc == 1 + 8) {
+      num_dim = atoi(argv[1]);
+      order = atoi(argv[2]);
+      *num_levels = atoi(argv[3]);
+      norm_order = 2 * order;
+      if(strcmp(argv[4], "laplace") == 0) {
+         physicsType = PhysicsType::LAPLACE;
+         use_corner_constraints = 0;
+      }
+      else if(strcmp(argv[4], "elasticity") == 0) {
+         physicsType = PhysicsType::ELASTICITY;
+         use_corner_constraints = 1;
+      }
+      else
+         assert(0);
+      *unif = atoi(argv[5]);
+      *circle = atoi(argv[6]);
+      *square = atoi(argv[7]);
+      *extra_unif = atoi(argv[8]);
 
       if ( mpi_rank == 0 ) {
          printf("NUM DIMENSIONS %d\n", num_dim);
@@ -129,13 +144,13 @@ void read_command_line_params(int argc, char **argv, int *num_levels, int *unif,
          else
             assert(0);
          printf("USE CORNER CONSTRAINTS %d\n", use_corner_constraints);
-         printf("REFINEMENTS %d UNIFORM, %d CIRCLE, %d SQUARE\n", *unif, *circle, *square);
+         printf("REFINEMENTS %d UNIFORM, %d CIRCLE, %d SQUARE, %d EXTRA UNIFORM\n", *unif, *circle, *square, *extra_unif);
       }
       MPI_Barrier(mpicomm);
    }
    else {
       if ( mpi_rank == 0 ) {
-         printf(" Usage: mpirun -np X ./p4est_bddcml NLEVELS UNIF_REF CIRCLE_REF SQUARE_REF\n");
+         printf(" Usage: mpirun -np X ./p4est_bddcml DIM ORDER NLEVELS PHYSICS UNIF_REF CIRCLE_REF SQUARE_REF EXTRA_UNIF_REF\n");
       }
       exit(0);
    }
@@ -144,6 +159,8 @@ void read_command_line_params(int argc, char **argv, int *num_levels, int *unif,
 
 void run(const P4estClass &p4est_class, int num_levels)
 {
+   clock_t assemble_begin = clock();
+
    print_rank = 0;
 
    Def::d()->init(num_dim, order, physicsType, p4est_class);
@@ -165,6 +182,10 @@ void run(const P4estClass &p4est_class, int num_levels)
    vector<double> sols(problem_dims.n_subdom_dofs, 0.0);
    DiscreteSystem discrete_system(problem_dims, MatrixType::SPD);
    discrete_system.assemble(p4est_class, integration_mesh, nodal_mesh, problem_dims, &rhs_fn, params);
+
+   clock_t assemble_end = clock();
+   double assemble_time = double(assemble_end - assemble_begin) / CLOCKS_PER_SEC;
+   PPP printf("Time of FEM assembly: %lf s\n", assemble_time);
 
    if(physicsType == PhysicsType::ELASTICITY)
       bddcml_solver.solve(nodal_mesh, discrete_system, nullptr, &sols);
@@ -189,7 +210,7 @@ void run(const P4estClass &p4est_class, int num_levels)
 
 int main (int argc, char **argv)
 {
-   int num_levels, unif_ref, circle_ref, square_ref;
+   int num_levels, unif_ref, circle_ref, square_ref, extra_unif_ref;
    int mpiret = sc_MPI_Init (&argc, &argv);
    SC_CHECK_MPI (mpiret);
    mpiret = sc_MPI_Comm_rank(mpicomm, &mpi_rank);
@@ -199,13 +220,14 @@ int main (int argc, char **argv)
       ((physicsType == PhysicsType::ELASTICITY) && (use_corner_constraints == 0)))
       printf("Warning: strange setting of use_corner_constraints!\n");
 
-   read_command_line_params(argc, argv, &num_levels, &unif_ref, &circle_ref, &square_ref);
+   read_command_line_params(argc, argv, &num_levels, &unif_ref, &circle_ref, &square_ref, &extra_unif_ref);
 
    P4estClass* p4est_class = P4estClass::create(num_dim, order, mpicomm);
 
    p4est_class->refine_and_partition(unif_ref, RefineType::UNIFORM);
    p4est_class->refine_and_partition(circle_ref, RefineType::CIRCLE);
    p4est_class->refine_and_partition(square_ref, RefineType::SQUARE);
+   p4est_class->refine_and_partition(extra_unif_ref, RefineType::UNIFORM);
 
    run(*p4est_class, num_levels);
 
