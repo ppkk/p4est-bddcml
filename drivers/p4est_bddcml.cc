@@ -168,6 +168,8 @@ void run(const P4estClass &p4est_class, int num_levels)
    BddcmlGeneralParams general_params;
    //general_params.just_direct_solve_int = 1;
    BddcmlKrylovParams krylov_params;
+   krylov_params.maxit = 1000;
+   krylov_params.ndecrmax = 100;
    BddcmlPreconditionerParams preconditioner_params;
    preconditioner_params.use_corner_constraints = use_corner_constraints;
 
