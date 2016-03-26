@@ -10,7 +10,7 @@ LIBS = \
   $(P4B_LIBPORD) $(P4B_LIBLAPACK) $(P4B_LIBBLAS) \
   $(P4B_BLOPEXLINK) $(P4B_LIBOTHERS) 
   
-DRIVERS = p4est_bddcml
+DRIVERS = p4est_bddcml adapt
 
 all: $(DRIVERS)
 #all: p4est_bddcml.o $(DRIVERS)
@@ -19,6 +19,9 @@ all: $(DRIVERS)
 	$(P4B_MPCC) $(P4B_MPCFLAGS) $(INC) -c $< -o $@
 
 p4est_bddcml : p4est_bddcml.o $(LIBP4B)
+	$(P4B_MPCC) $(P4B_MPCFLAGS) -o $@ $^  -L../lib/ -lp4b $(LIBS)
+
+adapt : uniform_conv.o $(LIBP4B)
 	$(P4B_MPCC) $(P4B_MPCFLAGS) -o $@ $^  -L../lib/ -lp4b $(LIBS)
 
 # %.x : %.o

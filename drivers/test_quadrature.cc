@@ -10,7 +10,7 @@ using namespace std;
 const int dimension = 2;
 //#define P4_TO_P8
 
-const int order = 3;
+const int order = 1;
 const int elems_in_dir = 120;
 
 double level_set_fn_circle(vector<double> point)

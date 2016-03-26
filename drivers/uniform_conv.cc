@@ -19,12 +19,12 @@ using namespace std;
 
 const PhysicsType physicsType = PhysicsType::LAPLACE;
 const ExactSolID exact_sol_id = ExactSolID::InternalLayer;
-const bool refine_adaptive = false;
+const bool refine_adaptive = true;
 const bool use_h1_seminorm_for_adapt = true;
-const int n_initial_uniform_refs = 4;
-const int max_ref_steps = 1;
-const int max_glob_dofs = 1e6;
-const double refine_fraction = 0.2;
+const int n_initial_uniform_refs = 2;
+const int max_ref_steps = 10;
+const int max_glob_dofs = 5e4;
+const double refine_fraction = 0.3;
 const bool vtk_output = false;
 
 vector<double> rhs_fn(vector<double> coords) {
