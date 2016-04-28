@@ -19,7 +19,7 @@ using namespace std;
 
 const PhysicsType physicsType = PhysicsType::LAPLACE;
 const ExactSolID exact_sol_id = ExactSolID::InternalLayer;
-const bool refine_adaptive = true;
+const bool refine_adaptive = false;
 const bool use_h1_seminorm_for_adapt = true;
 const int n_initial_uniform_refs = 4;
 const int max_ref_steps = 40;

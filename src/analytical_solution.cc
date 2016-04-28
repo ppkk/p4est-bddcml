@@ -24,6 +24,7 @@ void ExactSolution::calculate(ExactSolID sol_id, const std::vector<double> &coor
       break;
    }
    case ExactSolID::InternalLayer : {
+      //const double slope = 90;
       const double slope = 60;
       const double center[3] = {1.25, -0.25, -0.25 };
 
