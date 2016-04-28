@@ -173,6 +173,8 @@ void DiscreteSystem::assemble(const P4estClass &p4est, const IntegrationMesh &in
    LocalVector element_rhs_nohang(n_components, Def::d()->num_element_nodes), element_rhs(n_components, Def::d()->num_element_nodes);
    //vector<vector<real> > element_rhs(Def::d()->num_element_nodes, vector<real>(n_components, 0.0));
 
+   HangingInfo::num_hanging_elements = 0;
+
    int element_offset = 0;
    for(int elem_idx = 0; elem_idx < problem_dims.n_subdom_elems; elem_idx++) {
       const IntegrationCell& cell = integration_mesh.cells[elem_idx];
@@ -215,6 +217,8 @@ void DiscreteSystem::assemble(const P4estClass &p4est, const IntegrationMesh &in
       }
       element_offset += Def::d()->num_element_nodes;
    }
+
+   std::cout << "subd " << mpi_rank << ", num hanging elements: " << HangingInfo::num_hanging_elements << std::endl;
 
 }
 

@@ -164,6 +164,8 @@ void HangingInfo::apply_constraints(int elem_idx, const IntegrationCell &cell,
       return;
    }
 
+   num_hanging_elements++;
+
    out->clear();
    for(int i_loc = 0; i_loc < in.ndofs; i_loc++) {
       for(int i_glob = 0; i_glob < in.ndofs; i_glob++) {
@@ -237,6 +239,7 @@ void HangingInfo::apply_constraints_inverse(int elem_idx, const IntegrationCell 
 }
 
 
+int HangingInfo::num_hanging_elements;
 
 
 
