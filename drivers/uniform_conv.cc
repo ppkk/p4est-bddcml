@@ -22,9 +22,9 @@ const ExactSolID exact_sol_id = ExactSolID::InternalLayer;
 const bool refine_adaptive = false;
 const bool use_h1_seminorm_for_adapt = true;
 const int n_initial_uniform_refs = 4;
-const int max_ref_steps = 1;
-const int max_glob_dofs = 1e6;
-const double refine_fraction = 0.2;
+const int max_ref_steps = 40;
+const int max_glob_dofs = 1000000000;
+const double refine_fraction = 0.15;
 const bool vtk_output = false;
 
 vector<double> rhs_fn(vector<double> coords) {
@@ -65,6 +65,8 @@ void run(const P4estClass &p4est_class, int num_dim, int order, int num_levels, 
    const int norm_order = 2 * order;
    print_rank = 0;
 
+   clock_t assemble_begin = clock();
+
    Def::d()->init(num_dim, order, physicsType, p4est_class);
 
    BddcmlGeneralParams general_params;
@@ -84,6 +86,10 @@ void run(const P4estClass &p4est_class, int num_dim, int order, int num_levels, 
    vector<double> sols(problem_dims.n_subdom_dofs, 0.0);
    DiscreteSystem discrete_system(problem_dims, MatrixType::SPD);
    discrete_system.assemble(p4est_class, integration_mesh, nodal_mesh, problem_dims, &rhs_fn);
+
+   clock_t assemble_end = clock();
+   double assemble_time = double(assemble_end - assemble_begin) / CLOCKS_PER_SEC;
+   PPP printf("Time of FEM assembly: %lf s\n", assemble_time);
 
    PPP cout << "done. Solving... " << endl;
    bddcml_solver.solve(nodal_mesh, discrete_system, exact_solution, &sols);

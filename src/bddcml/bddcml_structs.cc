@@ -52,13 +52,15 @@ BddcmlLevelInfo::BddcmlLevelInfo(int n_levels, int n_subdomains_first_level) {
 
    // initialize levels
    nlevels = n_levels;
-   lnsublev = nlevels;
-   nsublev = (int*) malloc(lnsublev * sizeof(int));
    if (nlevels == 2) {
+      lnsublev = nlevels;
+      nsublev = (int*) malloc(lnsublev * sizeof(int));
       nsublev[0] = n_subdomains_first_level;
       nsublev[1] = 1;
    }
    else if (nlevels > 2) {
+      lnsublev = nlevels;
+      nsublev = (int*) malloc(lnsublev * sizeof(int));
       // determine coarsening factor
       coarsening = pow(n_subdomains_first_level, 1./(nlevels-1));
       // prescribe number of subdomains on levels so that coarsening is fixed between levels
@@ -71,6 +73,16 @@ BddcmlLevelInfo::BddcmlLevelInfo(int n_levels, int n_subdomains_first_level) {
          }
       }
       nsublev[nlevels-1] = 1;
+   }
+   else if(nlevels == -2)
+   {
+      printf("Using 2-level method, but formally adding third level. It is NS - 1 - 1\n");
+      nlevels = 3;
+      lnsublev = nlevels;
+      nsublev = (int*) malloc(lnsublev * sizeof(int));
+      nsublev[0] = n_subdomains_first_level;
+      nsublev[1] = 1;
+      nsublev[2] = 1;
    }
    else {
       printf("Unsupported number of levels: %d\n", nlevels);

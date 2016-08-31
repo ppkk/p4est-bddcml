@@ -19,7 +19,8 @@
 
 #include <metis.h>
 
-#include "bddcml_structs.h"
+#include "bddcml/bddcml_solver.h"
+#include "p4est/my_p4est_interface.h"
 #include "mesh.h"
 #include "femspace.h"
 #include "p4est_common.h"

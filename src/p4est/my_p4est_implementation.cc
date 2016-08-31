@@ -526,10 +526,10 @@ void P4estClassDim::refine_and_partition(int num, RefineType type) {
 
    if(mpi_rank == 0) {
       int added = p4est->global_num_quadrants - nelems_before;
-      printf("+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++\n");
+      //printf("+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++\n");
       printf("Mesh refinement %s, %d levels, added %d elements (%3.2lf %%), now %ld elements\n",
              name, num, added, 100*(double)added/p4est->global_num_quadrants, p4est->global_num_quadrants);
-      printf("+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++\n");
+      //printf("+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++\n");
   }
 }
 
@@ -546,7 +546,7 @@ void P4estClassDim::refine_and_partition(const std::vector<double> &element_erro
    MPI_Allreduce(MPI_IN_PLACE, &max_error, 1, MPI_DOUBLE, MPI_MAX, mpicomm);
 
    // now we have to determine the treshold
-   int num_considered_tesholds = 100;
+   int num_considered_tesholds = 500;
    vector<int> num_potentially_refined_elems(num_considered_tesholds, 0);
 
    for(unsigned elem_idx = 0; elem_idx < element_errors.size(); elem_idx++) {
@@ -588,13 +588,13 @@ void P4estClassDim::refine_and_partition(const std::vector<double> &element_erro
    p4est_balance (p4est, P4EST_CONNECT_FULL, NULL);
    p4est_partition (p4est, 0, NULL);
 
-//   if(mpi_rank == 0) {
-//      cout << PrintVec<double>(element_errors) << "~~~~~" << endl;
-//      cout << PrintVec<int>(num_potentially_refined_elems) << ";;; " << endl;
-//      cout << "num elems " << element_errors.size() << " treshold " << treshold << " level " << level << endl;
-//      cout << "should refine between <" << num_potentially_refined_elems[level] << ", " <<  num_potentially_refined_elems[level+1] <<
-//              ">, refined "<< really_refined_elems << endl;
-//   }
+   if(mpi_rank == 0) {
+      cout << PrintVec<double>(element_errors) << "~~~~~" << endl;
+      cout << PrintVec<int>(num_potentially_refined_elems) << ";;; " << endl;
+      cout << "num elems " << element_errors.size() << " treshold " << treshold << " level " << level << endl;
+      cout << "should refine between <" << num_potentially_refined_elems[level] << ", " <<  num_potentially_refined_elems[level+1] <<
+              ">, refined "<< really_refined_elems << endl;
+   }
 
    if(mpi_rank == 0) {
       int added = p4est->global_num_quadrants - nelems_before;
@@ -617,7 +617,7 @@ void P4estClassDim::prepare_dimmensions(ProblemDimensions *problem_dims) const {
    problem_dims->n_subdom_nodes = lnodes()->num_local_nodes;
    problem_dims->n_subdom_dofs  = lnodes()->num_local_nodes * problem_dims->n_node_dofs;
    problem_dims->n_subdom_elems = lnodes()->num_local_elements;
-   printf("proc %d, elems %d, nodes %d\n", mpi_rank, problem_dims->n_subdom_elems, problem_dims->n_subdom_nodes);
+   //printf("proc %d, elems %d, nodes %d\n", mpi_rank, problem_dims->n_subdom_elems, problem_dims->n_subdom_nodes);
 
    int global_num_nodes;
    if(mpi_rank == mpi_size - 1) {

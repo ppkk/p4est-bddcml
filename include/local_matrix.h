@@ -95,6 +95,9 @@ private:
 
    friend class P4estClass2D;
    friend class P4estClass3D;
+
+public:
+   static int num_hanging_elements;
 };
 
 
