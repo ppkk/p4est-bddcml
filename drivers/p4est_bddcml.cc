@@ -15,8 +15,8 @@
 
 using namespace std;
 
-const int num_dim = 2;
-const int order = 3;
+const int num_dim = 3;
+const int order = 1;
 const int norm_order = 2 * order;
 const PhysicsType physicsType = PhysicsType::LAPLACE;
 
@@ -163,8 +163,8 @@ int main (int argc, char **argv)
 
    P4estClass* p4est_class = P4estClass::create(num_dim, order, mpicomm);
 
-   p4est_class->refine_and_partition(2, RefineType::UNIFORM);
-   p4est_class->refine_and_partition(5, RefineType::CIRCLE);
+   p4est_class->refine_and_partition(3, RefineType::UNIFORM);
+   p4est_class->refine_and_partition(3, RefineType::CIRCLE);
 
    // 2D
 //   p4est_class->refine_and_partition(4, RefineType::UNIFORM);
