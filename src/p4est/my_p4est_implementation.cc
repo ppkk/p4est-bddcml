@@ -586,7 +586,9 @@ void P4estClassDim::refine_and_partition(const std::vector<double> &element_erro
 
    p4est_refine (p4est, 0, refine_selected, NULL);
    p4est_balance (p4est, P4EST_CONNECT_FULL, NULL);
-   p4est_partition (p4est, 0, NULL);
+   int allow_for_coarsening = 1;
+   p4est_weight_t weight_fn = NULL;
+   p4est_partition (p4est, allow_for_coarsening, weight_fn);
 
    if(mpi_rank == 0) {
       cout << PrintVec<double>(element_errors) << "~~~~~" << endl;
