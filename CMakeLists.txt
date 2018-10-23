@@ -31,6 +31,17 @@ include_directories("${P4EST_INCLUDE}")
 link_directories("${P4EST_LIB}")
 set(LIBS ${LIBS} sc p4est )
 
+link_directories("${SCALAPACK_LIB}")
+set(LIBS ${LIBS}  scalapack)
+
+include_directories("${LAPACK_INCLUDE}")
+link_directories("${LAPACK_LIB}")
+set(LIBS ${LIBS}  lapacke lapack)
+
+include_directories("${BLAS_INCLUDE}")
+link_directories("${BLAS_LIB}")
+set(LIBS ${LIBS}  cblas blas)
+
 set(SOURCES
 src/bddcml/arrays.cc
 src/bddcml/bddcml_structs.cc

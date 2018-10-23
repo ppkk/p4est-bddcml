@@ -30,7 +30,7 @@ PhysicsType physicsType;
 // 0 for poisson, 1 for elasticity
 int use_corner_constraints;
 
-const bool vtk_output = false;
+const bool vtk_output = true;
 
 vector<double> rhs_fn(vector<double>)
 {
@@ -218,7 +218,6 @@ int main (int argc, char **argv)
    mpiret = sc_MPI_Comm_rank(mpicomm, &mpi_rank);
    mpiret = sc_MPI_Comm_size(mpicomm, &mpi_size);
 
-//<<<<<<< HEAD
 //   read_command_line_params(argc, argv, &num_levels);
 //
 //   P4estClass* p4est_class = P4estClass::create(num_dim, order, mpicomm);
@@ -235,11 +234,6 @@ int main (int argc, char **argv)
 ////   p4est_class->refine_and_partition(4, RefineType::UNIFORM);
 ////   p4est_class->refine_and_partition(3, RefineType::CIRCLE);
 ////   p4est_class->refine_and_partition(3, RefineType::SQUARE);
-//=======
-   if(((physicsType == PhysicsType::LAPLACE) && (use_corner_constraints == 1)) ||
-      ((physicsType == PhysicsType::ELASTICITY) && (use_corner_constraints == 0)))
-      printf("Warning: strange setting of use_corner_constraints!\n");
-//>>>>>>> 468fa528d77503bd9b7a062fcf480014afc6da7c
 
    read_command_line_params(argc, argv, &num_levels, &unif_ref, &circle_ref, &square_ref, &extra_unif_ref);
 

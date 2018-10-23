@@ -1,6 +1,32 @@
-set(METIS_INCLUDE ${PARMETIS_ROOT}/METISLib)
-set(METIS_LIB ${PARMETIS_ROOT})
+set(BDDCML_ROOT $ENV{HOME}/programming/bddcml)
 
+set(MUMPS_ROOT $ENV{HOME}/software/MUMPS_5.1.2)
+set(MUMPS_INCLUDE ${MUMPS_ROOT}/include)
+set(MUMPS_LIB ${MUMPS_ROOT}/lib)
+
+set(P4EST_ROOT $ENV{HOME}/software/p4est_installed)
+set(P4EST_INCLUDE ${P4EST_ROOT}/include)
+set(P4EST_LIB ${P4EST_ROOT}/lib)
+
+set(METIS_ROOT $ENV{HOME}/software/metis/5.1.0)
+set(METIS_INCLUDE ${METIS_ROOT}/include)
+set(METIS_LIB ${METIS_ROOT}/lib)
+
+set(PARMETIS_ROOT $ENV{HOME}/software/parmetis/4.0.3)
 set(PARMETIS_INCLUDE ${PARMETIS_ROOT}/include)
-set(PARMETIS_LIB ${PARMETIS_ROOT})
+set(PARMETIS_LIB ${PARMETIS_ROOT}/lib)
 
+set(SCALAPACK_ROOT $ENV{HOME}/software/scalapack-2.0.2)
+set(SCALAPACK_LIB ${SCALAPACK_ROOT})
+
+set(LAPACK_ROOT $ENV{HOME}/software/lapack-3.7.0)
+set(LAPACK_INCLUDE ${LAPACK_ROOT}/LAPACKE/include)
+set(LAPACK_LIB ${LAPACK_ROOT})
+
+set(BLAS_ROOT ${LAPACK_ROOT}/CBLAS)
+set(BLAS_INCLUDE ${BLAS_ROOT}/include)
+set(BLAS_LIB ${LAPACK_ROOT})
+
+set(BLOPEX_ROOT $ENV{HOME}/software/lobpcg/blopex)
+
+set(LIBS_MPI_EXTRA $ENV{HOME}/software/openmpi_installed/lib/libmpi_mpifh.so)

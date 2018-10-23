@@ -105,6 +105,23 @@ struct BddcmlPreconditionerParams
    // find components of the mesh and handle them as independent subdomains when selecting coarse dofs
    // recommended for unstructured meshes, but could be switched off for these simple cubes
    int find_components_int;
+
+   // if find_components_int = 1, should the dual graph of mesh be used for detecting components? 
+   // Not accessed if detection of subdomain components is switched off by find_components_int = 0.
+   // Should be the same for all subdomains.
+   // 0 = mesh components will be detected from primal graph of the mesh, 
+   //     where element nodes are graph vertices and a graph edge is introduced 
+   //     if they are connected by the same element
+   // 1 = dual graph of mesh will be used for detecting components.
+   //     Dual graph of mesh contains elements as graph vertices and a graph edge is
+   //     introduced if two elements share at least the number of nodes prescribed by
+   //     the neighbouring parameter.
+   int use_dual_mesh_graph_int;
+
+   // How many nodes need to be shared by two elements to declare a graph edge between them? 
+   // Accessed only if find_components_int = 1 and use_dual_mesh_graph_int = 1. A graph edge is introduced between two elements if
+   // they share number of nodes >= neighbouring. Should be the same for all subdomains.
+   int neighbouring;
 };
 
 // **************************

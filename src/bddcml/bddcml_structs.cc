@@ -42,6 +42,8 @@ BddcmlPreconditionerParams::BddcmlPreconditionerParams() {
    weights_type = 0;
    parallel_division = 1;
    find_components_int = 1;
+   use_dual_mesh_graph_int = 1;
+   neighbouring = 2;
 }
 
 //*******************************************************************************************
@@ -189,7 +191,9 @@ void bddcml_upload_subdomain_data(ProblemDimensions *problem_dims, int isub, Bdd
                                   &element_data->len2,
                                   dof_data->val,
                                   &dof_data->len,
-                                  &preconditioner_params->find_components_int);
+                                  &preconditioner_params->find_components_int,
+                                  &preconditioner_params->use_dual_mesh_graph_int,
+                                  &preconditioner_params->neighbouring);
 
 }
 
